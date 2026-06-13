@@ -1,0 +1,1 @@
+tests/fixtures/expected-fail/persistent-structured-value/input.ts:13:15 TSG1001: explicit splice 'settings' does not resolve to a TypeStage code value

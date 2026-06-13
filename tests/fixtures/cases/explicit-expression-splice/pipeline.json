@@ -1,0 +1,79 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "expr",
+      "bindingName": "lhs",
+      "exported": false,
+      "source": "x + 1",
+      "holes": []
+    },
+    {
+      "id": 1,
+      "kind": "expr",
+      "bindingName": "expr",
+      "exported": true,
+      "source": "\n  __typestage_hole_1_0 * scale\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_1_0",
+          "expression": "lhs"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "const __typestage_fragment = (x + 1);\n",
+      "nodes": [
+        "(x + 1)"
+      ]
+    },
+    {
+      "quoteId": 1,
+      "virtualSource": "const __typestage_fragment = (\n  __typestage_hole_1_0 * scale\n);\n",
+      "nodes": [
+        "(\n  __typestage_hole_1_0 * scale\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "expr",
+        "kind": "expr",
+        "quoteId": 1
+      },
+      {
+        "name": "lhs",
+        "kind": "expr",
+        "quoteId": 0
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      },
+      {
+        "quoteId": 1,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "expr",
+      "text": "(x + 1)"
+    },
+    {
+      "quoteId": 1,
+      "kind": "expr",
+      "text": "((x + 1) * scale)"
+    }
+  ],
+  "diagnostics": [],
+  "outputText": "export const expr = ((x + 1) * scale);"
+}

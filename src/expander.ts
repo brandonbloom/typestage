@@ -15,6 +15,11 @@ export type ExpansionResult = {
   values: Map<number, CodeValue>;
 };
 
+type Replacement = ts.VisitResult<ts.Node> | {
+  node: ts.Node;
+  skipChildren: true;
+};
+
 /** Expands parsed fragments using the known host code-valued bindings. */
 export function expandFragments(
   fragments: ParsedFragment[],
@@ -49,7 +54,13 @@ export function expandFragments(
     }
 
     expanding.add(value.quote.id);
-    const expanded = expandParsedFragment(value.parsed, codeBindings, values, expandValue);
+    const expanded = expandParsedFragment(
+      value.parsed,
+      codeBindings,
+      values,
+      expandValue,
+      (candidate) => expanding.has(candidate.quote.id),
+    );
     diagnostics.push(...expanded.diagnostics);
     value.expandedNodes = expanded.nodes;
     expanding.delete(value.quote.id);
@@ -69,6 +80,7 @@ function expandParsedFragment(
   codeBindings: Map<string, CodeValue>,
   values: Map<number, CodeValue>,
   expandValue: (value: CodeValue) => CodeValue,
+  isExpanding: (value: CodeValue) => boolean,
 ): {
   diagnostics: Diagnostic[];
   nodes: ts.Node[];
@@ -89,6 +101,11 @@ function expandParsedFragment(
         message: `explicit splice '${hole.expression.getText()}' does not resolve to a TypeStage code value`,
         origin: hole.origin,
       });
+      return undefined;
+    }
+
+    if (isExpanding(value)) {
+      expandValue(value);
       return undefined;
     }
 
@@ -127,7 +144,7 @@ function expandParsedFragment(
             const replacement = expandSpliceExpression(hole, "expr")?.[0];
 
             return replacement && ts.isExpression(replacement)
-              ? parenthesizeIfNeeded(replacement)
+              ? completedReplacement(parenthesizeIfNeeded(replacement))
               : candidate;
           }
 
@@ -140,11 +157,16 @@ function expandParsedFragment(
             !locals.has(candidate.text) &&
             isReferenceIdentifier(candidate)
           ) {
+            if (isExpanding(binding)) {
+              expandValue(binding);
+              return candidate;
+            }
+
             const expanded = expandValue(binding);
             const replacement = expanded.expandedNodes?.[0];
 
             return replacement && ts.isExpression(replacement)
-              ? parenthesizeIfNeeded(replacement)
+              ? completedReplacement(parenthesizeIfNeeded(replacement))
               : candidate;
           }
         }
@@ -255,12 +277,16 @@ export function codeValueText(value: CodeValue): string {
 
 function transformNode(
   node: ts.Node,
-  replace: (node: ts.Node) => ts.VisitResult<ts.Node>,
+  replace: (node: ts.Node) => Replacement,
 ): ts.VisitResult<ts.Node> {
   const transformed = ts.transform(node, [
     (context) => {
       const visit = (candidate: ts.Node): ts.VisitResult<ts.Node> => {
         const replaced = replace(candidate);
+
+        if (isCompletedReplacement(replaced)) {
+          return replaced.node;
+        }
 
         if (!replaced) {
           return candidate;
@@ -281,6 +307,21 @@ function transformNode(
   transformed.dispose();
 
   return synthesizeNode(result);
+}
+
+function completedReplacement(node: ts.Node): Replacement {
+  return {node, skipChildren: true};
+}
+
+function isCompletedReplacement(
+  value: Replacement,
+): value is {node: ts.Node; skipChildren: true} {
+  return Boolean(
+    value &&
+      !Array.isArray(value) &&
+      typeof value === "object" &&
+      "skipChildren" in value,
+  );
 }
 
 function synthesizeNode(node: ts.Node): ts.Node {

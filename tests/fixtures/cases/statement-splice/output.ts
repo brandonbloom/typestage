@@ -1,3 +1,4 @@
-export function f(x: number) {
-    return x;
+export function f() {
+    const value = compute();
+    return value;
 }

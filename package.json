@@ -5,7 +5,8 @@
   "scripts": {
     "test": "bun test",
     "typecheck": "tsgo --noEmit -p tsconfig.json",
-    "build": "bun build src/cli.ts --outdir=dist --target=bun"
+    "build": "bun build src/cli.ts --outdir=dist --target=bun",
+    "playground": "bun run src/playground.ts"
   },
   "bin": {
     "typestage": "./src/cli.ts"

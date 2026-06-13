@@ -1,0 +1,62 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "expr",
+      "bindingName": "expr",
+      "exported": true,
+      "source": "\n  (() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n  })()\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_0_0",
+          "expression": "capture(\"x\")"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "const __typestage_fragment = (\n  (() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n  })()\n);\n",
+      "nodes": [
+        "(\n  (() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n  })()\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "expr",
+        "kind": "expr",
+        "quoteId": 0
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": [
+          "x"
+        ]
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "expr",
+      "text": "((() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n})())"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1001",
+      "message": "explicit splice 'capture(\"x\")' does not resolve to a TypeStage code value",
+      "origin": {
+        "sourceFile": "tests/fixtures/expected-fail/intentional-capture/input.ts",
+        "start": 109,
+        "end": 121
+      }
+    }
+  ],
+  "outputText": ""
+}

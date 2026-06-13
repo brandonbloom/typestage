@@ -6,6 +6,7 @@ import {compileSource, snapshotPipeline} from "../src/index.ts";
 import type {Diagnostic} from "../src/index.ts";
 
 const fixturesRoot = join(import.meta.dir, "fixtures", "cases");
+const expectedFailuresRoot = join(import.meta.dir, "fixtures", "expected-fail");
 
 describe("TypeStage fixture cases", () => {
   for (const caseName of fixtureCaseNames()) {
@@ -15,9 +16,26 @@ describe("TypeStage fixture cases", () => {
   }
 });
 
+describe("TypeStage expected-failure fixtures", () => {
+  for (const caseName of expectedFailureCaseNames()) {
+    test(caseName, () => {
+      assertExpectedFailureFixture(caseName);
+    });
+  }
+});
+
 function fixtureCaseNames(): string[] {
-  return readdirSync(fixturesRoot, {withFileTypes: true})
+  return caseNamesIn(fixturesRoot);
+}
+
+function expectedFailureCaseNames(): string[] {
+  return caseNamesIn(expectedFailuresRoot);
+}
+
+function caseNamesIn(root: string): string[] {
+  return readdirSync(root, {withFileTypes: true})
     .filter((entry) => entry.isDirectory())
+    .filter((entry) => existsSync(join(root, entry.name, "input.ts")))
     .map((entry) => entry.name)
     .sort();
 }
@@ -35,6 +53,32 @@ function assertFixture(caseName: string) {
     ["diagnostics.txt", formatDiagnostics(sourceText, result.diagnostics)],
     ["pipeline.json", `${JSON.stringify(pipeline, null, 2)}\n`],
   ]);
+}
+
+function assertExpectedFailureFixture(caseName: string) {
+  const caseRoot = join(expectedFailuresRoot, caseName);
+  const sourcePath = join(caseRoot, "input.ts");
+  const fixtureFileName = relative(process.cwd(), sourcePath);
+  const sourceText = readFileSync(sourcePath, "utf8");
+  const result = compileSource(sourceText, fixtureFileName);
+  const pipeline = snapshotPipeline(sourceText, fixtureFileName);
+  const actualFiles: Array<[fileName: string, actual: string]> = [
+    ["output.ts", normalizeOutput(result.outputText)],
+    ["diagnostics.txt", formatDiagnostics(sourceText, result.diagnostics)],
+    ["pipeline.json", `${JSON.stringify(pipeline, null, 2)}\n`],
+  ];
+
+  assertGeneratedFiles(caseRoot, actualFiles);
+
+  const desiredMismatches = actualFiles
+    .filter(([fileName, actual]) => {
+      const desiredPath = join(caseRoot, `desired-${fileName}`);
+
+      return existsSync(desiredPath) && readFileSync(desiredPath, "utf8") !== actual;
+    })
+    .map(([fileName]) => fileName);
+
+  expect(desiredMismatches).not.toEqual([]);
 }
 
 function assertGeneratedFiles(
@@ -68,7 +112,7 @@ function formatDiagnostics(
   diagnostics: Diagnostic[],
 ): string {
   if (diagnostics.length === 0) {
-    return "";
+    return "No diagnostics.\n";
   }
 
   const lines = new LinesAndColumns(sourceText);

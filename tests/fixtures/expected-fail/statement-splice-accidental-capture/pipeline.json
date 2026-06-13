@@ -5,7 +5,7 @@
       "kind": "stmt",
       "bindingName": "body",
       "exported": false,
-      "source": "\n  const value = compute();\n  return value;\n",
+      "source": "\n  return x;\n",
       "holes": []
     },
     {
@@ -13,7 +13,7 @@
       "kind": "decl",
       "bindingName": "fn",
       "exported": true,
-      "source": "\n  export function f() {\n    __typestage_hole_1_0\n  }\n",
+      "source": "\n  export function f(x: number) {\n    __typestage_hole_1_0\n  }\n",
       "holes": [
         {
           "placeholder": "__typestage_hole_1_0",
@@ -25,17 +25,16 @@
   "fragments": [
     {
       "quoteId": 0,
-      "virtualSource": "function __typestage_fragment() {\n\n  const value = compute();\n  return value;\n\n}\n",
+      "virtualSource": "function __typestage_fragment() {\n\n  return x;\n\n}\n",
       "nodes": [
-        "const value = compute();",
-        "return value;"
+        "return x;"
       ]
     },
     {
       "quoteId": 1,
-      "virtualSource": "\n  export function f() {\n    __typestage_hole_1_0\n  }\n\n",
+      "virtualSource": "\n  export function f(x: number) {\n    __typestage_hole_1_0\n  }\n\n",
       "nodes": [
-        "export function f() {\n    __typestage_hole_1_0\n  }"
+        "export function f(x: number) {\n    __typestage_hole_1_0\n  }"
       ]
     }
   ],
@@ -55,14 +54,13 @@
     "localBindingsByQuote": [
       {
         "quoteId": 0,
-        "names": [
-          "value"
-        ]
+        "names": []
       },
       {
         "quoteId": 1,
         "names": [
-          "f"
+          "f",
+          "x"
         ]
       }
     ]
@@ -71,14 +69,14 @@
     {
       "quoteId": 0,
       "kind": "stmt",
-      "text": "const value = compute();\nreturn value;"
+      "text": "return x;"
     },
     {
       "quoteId": 1,
       "kind": "decl",
-      "text": "export function f() {\n    const value = compute();\n    return value;\n}"
+      "text": "export function f(x: number) {\n    return x;\n}"
     }
   ],
   "diagnostics": [],
-  "outputText": "export function f() {\n    const value = compute();\n    return value;\n}"
+  "outputText": "export function f(x: number) {\n    return x;\n}"
 }

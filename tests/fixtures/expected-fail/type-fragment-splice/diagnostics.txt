@@ -1,0 +1,1 @@
+tests/fixtures/expected-fail/type-fragment-splice/input.ts:6:29 TSG1001: explicit splice 'Element' does not resolve to a TypeStage code value

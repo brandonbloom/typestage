@@ -1,0 +1,74 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "expr",
+      "bindingName": "base",
+      "exported": false,
+      "source": "input + 1",
+      "holes": []
+    },
+    {
+      "id": 1,
+      "kind": "expr",
+      "bindingName": "expr",
+      "exported": true,
+      "source": "\n  base * 2\n",
+      "holes": []
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "const __typestage_fragment = (input + 1);\n",
+      "nodes": [
+        "(input + 1)"
+      ]
+    },
+    {
+      "quoteId": 1,
+      "virtualSource": "const __typestage_fragment = (\n  base * 2\n);\n",
+      "nodes": [
+        "(\n  base * 2\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "base",
+        "kind": "expr",
+        "quoteId": 0
+      },
+      {
+        "name": "expr",
+        "kind": "expr",
+        "quoteId": 1
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      },
+      {
+        "quoteId": 1,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "expr",
+      "text": "(input + 1)"
+    },
+    {
+      "quoteId": 1,
+      "kind": "expr",
+      "text": "((input + 1) * 2)"
+    }
+  ],
+  "diagnostics": [],
+  "outputText": "export const expr = ((input + 1) * 2);"
+}

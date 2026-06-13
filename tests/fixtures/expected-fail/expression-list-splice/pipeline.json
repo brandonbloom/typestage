@@ -1,0 +1,60 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "expr",
+      "bindingName": "expr",
+      "exported": true,
+      "source": "\n  fn(__typestage_hole_0_0)\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_0_0",
+          "expression": "args"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "const __typestage_fragment = (\n  fn(__typestage_hole_0_0)\n);\n",
+      "nodes": [
+        "(\n  fn(__typestage_hole_0_0)\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "expr",
+        "kind": "expr",
+        "quoteId": 0
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "expr",
+      "text": "(fn(__typestage_hole_0_0))"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1001",
+      "message": "explicit splice 'args' does not resolve to a TypeStage code value",
+      "origin": {
+        "sourceFile": "tests/fixtures/expected-fail/expression-list-splice/input.ts",
+        "start": 94,
+        "end": 98
+      }
+    }
+  ],
+  "outputText": ""
+}

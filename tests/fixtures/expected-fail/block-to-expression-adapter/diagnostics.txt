@@ -1,0 +1,1 @@
+tests/fixtures/expected-fail/block-to-expression-adapter/input.ts:11:5 TSG1002: cannot splice block code into expr position
