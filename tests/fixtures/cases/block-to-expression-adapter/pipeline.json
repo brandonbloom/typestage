@@ -1,0 +1,81 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "block",
+      "bindingName": "body",
+      "exported": false,
+      "source": "\n  {\n    const value = compute();\n    return value + 1;\n  }\n",
+      "holes": []
+    },
+    {
+      "id": 1,
+      "kind": "expr",
+      "bindingName": "expr",
+      "exported": true,
+      "source": "\n  __typestage_hole_1_0 * 2\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_1_0",
+          "expression": "body"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "function __typestage_fragment() {\n\n  {\n    const value = compute();\n    return value + 1;\n  }\n\n}\n",
+      "nodes": [
+        "{\n    const value = compute();\n    return value + 1;\n  }"
+      ]
+    },
+    {
+      "quoteId": 1,
+      "virtualSource": "const __typestage_fragment = (\n  __typestage_hole_1_0 * 2\n);\n",
+      "nodes": [
+        "(\n  __typestage_hole_1_0 * 2\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "body",
+        "kind": "block",
+        "quoteId": 0
+      },
+      {
+        "name": "expr",
+        "kind": "expr",
+        "quoteId": 1
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": [
+          "value"
+        ]
+      },
+      {
+        "quoteId": 1,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "block",
+      "text": "{\n    const value = compute();\n    return value + 1;\n}"
+    },
+    {
+      "quoteId": 1,
+      "kind": "expr",
+      "text": "((() => {\n    const value = compute();\n    return value + 1;\n})() * 2)"
+    }
+  ],
+  "diagnostics": [],
+  "outputText": "export const expr = ((() => {\n    const value = compute();\n    return value + 1;\n})() * 2);"
+}

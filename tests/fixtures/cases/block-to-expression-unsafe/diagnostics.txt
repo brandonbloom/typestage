@@ -1,0 +1,1 @@
+tests/fixtures/cases/block-to-expression-unsafe/input.ts:11:5 TSG1003: cannot adapt block containing break, continue, yield, or await into expression position

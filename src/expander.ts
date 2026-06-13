@@ -110,6 +110,22 @@ function expandParsedFragment(
     }
 
     const expanded = expandValue(value);
+    const expandedNodes = expanded.expandedNodes ?? expanded.parsed.nodes;
+
+    if (expected === "expr" && expanded.kind === "block") {
+      const adapted = adaptBlockToExpression(expandedNodes);
+
+      if (!adapted.ok) {
+        diagnostics.push({
+          code: "TSG1003",
+          message: adapted.message,
+          origin: hole.origin,
+        });
+        return undefined;
+      }
+
+      return [adapted.expression];
+    }
 
     if (!isCompatible(expanded.kind, expected)) {
       diagnostics.push({
@@ -120,7 +136,7 @@ function expandParsedFragment(
       return undefined;
     }
 
-    return expanded.expandedNodes ?? expanded.parsed.nodes;
+    return expandedNodes;
   };
 
   const expandedNodes = fragment.nodes
@@ -207,6 +223,79 @@ function isCompatible(actual: FragmentKind, expected: FragmentKind): boolean {
   }
 
   return expected === "stmt" && (actual === "block" || actual === "decl");
+}
+
+function adaptBlockToExpression(nodes: ts.Node[]): {
+  expression: ts.Expression;
+  ok: true;
+} | {
+  message: string;
+  ok: false;
+} {
+  const statements = blockStatements(nodes);
+
+  if (containsUnsafeBlockAdapterSyntax(statements)) {
+    return {
+      ok: false,
+      message: "cannot adapt block containing break, continue, yield, or await into expression position",
+    };
+  }
+
+  const arrow = ts.factory.createArrowFunction(
+    undefined,
+    undefined,
+    [],
+    undefined,
+    ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+    ts.factory.createBlock(statements, true),
+  );
+
+  return {
+    ok: true,
+    expression: ts.factory.createCallExpression(
+      ts.factory.createParenthesizedExpression(arrow),
+      undefined,
+      [],
+    ),
+  };
+}
+
+function blockStatements(nodes: ts.Node[]): ts.Statement[] {
+  const onlyNode = nodes[0];
+
+  if (nodes.length === 1 && onlyNode && ts.isBlock(onlyNode)) {
+    return Array.from(onlyNode.statements);
+  }
+
+  return nodes.filter(ts.isStatement);
+}
+
+function containsUnsafeBlockAdapterSyntax(nodes: readonly ts.Node[]): boolean {
+  let unsafe = false;
+
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isBreakStatement(node) ||
+      ts.isContinueStatement(node) ||
+      ts.isYieldExpression(node) ||
+      ts.isAwaitExpression(node)
+    ) {
+      unsafe = true;
+      return;
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  for (const node of nodes) {
+    visit(node);
+
+    if (unsafe) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function parenthesizeIfNeeded(expression: ts.Expression): ts.Expression {
