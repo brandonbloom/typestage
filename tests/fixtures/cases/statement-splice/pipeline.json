@@ -1,0 +1,82 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "stmt",
+      "bindingName": "body",
+      "exported": false,
+      "source": "\n  return x;\n",
+      "holes": []
+    },
+    {
+      "id": 1,
+      "kind": "decl",
+      "bindingName": "fn",
+      "exported": true,
+      "source": "\n  export function f(x: number) {\n    __typestage_hole_1_0\n  }\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_1_0",
+          "expression": "body"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "function __typestage_fragment() {\n\n  return x;\n\n}\n",
+      "nodes": [
+        "return x;"
+      ]
+    },
+    {
+      "quoteId": 1,
+      "virtualSource": "\n  export function f(x: number) {\n    __typestage_hole_1_0\n  }\n\n",
+      "nodes": [
+        "export function f(x: number) {\n    __typestage_hole_1_0\n  }"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "body",
+        "kind": "stmt",
+        "quoteId": 0
+      },
+      {
+        "name": "fn",
+        "kind": "decl",
+        "quoteId": 1
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      },
+      {
+        "quoteId": 1,
+        "names": [
+          "f",
+          "x"
+        ]
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "stmt",
+      "text": "return x;"
+    },
+    {
+      "quoteId": 1,
+      "kind": "decl",
+      "text": "export function f(x: number) {\n    return x;\n}"
+    }
+  ],
+  "diagnostics": [],
+  "outputText": "export function f(x: number) {\n    return x;\n}"
+}

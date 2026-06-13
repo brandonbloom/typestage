@@ -1,0 +1,21 @@
+{
+  "name": "typestage",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsgo --noEmit -p tsconfig.json",
+    "build": "bun build src/cli.ts --outdir=dist --target=bun"
+  },
+  "bin": {
+    "typestage": "./src/cli.ts"
+  },
+  "dependencies": {
+    "lines-and-columns": "^2.0.4",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.22",
+    "@typescript/native-preview": "latest"
+  }
+}
