@@ -50,7 +50,7 @@ export async function compileLispSourceToTypeScript(
   options: CompileLispToTypeScriptOptions = {},
 ): Promise<CompileLispToTypeScriptResult> {
   const sourceFile = options.sourceFile ?? "repl.lisp";
-  const compiled = compileLisp(source, options.globals ?? []);
+  const compiled = compileLisp(source, options.globals ?? [], sourceFile);
 
   if (compiled.diagnostics.length > 0) {
     const graph = graphWithLispDiagnostics(sourceFile, compiled.diagnostics);
@@ -61,6 +61,7 @@ export async function compileLispSourceToTypeScript(
   const graph = await compileRuntimeModule(compiled.declarations, {
     outputPath: "main.ts",
     sourceFile: generatedSourceFile(sourceFile),
+    sources: {[sourceFile]: source},
     sourceMaps: options.sourceMaps,
   });
   const entryFile = graph.files.find((file) => file.outputPath === "main.ts");

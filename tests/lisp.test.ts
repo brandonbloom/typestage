@@ -66,7 +66,7 @@ export function main() {
 `);
   });
 
-  test("throw source maps show the generated-origin limitation", async () => {
+  test("throw source maps map to Lisp source spans", async () => {
     const result = await compileLispSourceToTypeScript(sampleProgram, {
       sourceFile: "sample.lisp",
       sourceMaps: true,
@@ -85,8 +85,10 @@ export function main() {
     );
     const sourceMap = JSON.parse(result.sourceMapText!) as {sources: string[]};
 
-    expect(original?.sourceFile).toBe("sample.lisp.generated.ts");
-    expect(sourceMap.sources).not.toContain("sample.lisp");
+    expect(original?.sourceFile).toBe("sample.lisp");
+    expect(sourceMap.sources).toContain("sample.lisp");
+    expect(sourceMap.sources.some((source) => source.endsWith(".generated.ts")))
+      .toBe(false);
   });
 
   test("reports Lisp diagnostics through the runtime TypeStage API", async () => {

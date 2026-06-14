@@ -14,6 +14,8 @@ import type {
   CodeValue,
   CompileGraphPipeline,
   CompileGraphResult,
+  Origin,
+  OriginMap,
   ParsedFragment,
   QuoteForm,
   SpliceHole,
@@ -23,6 +25,8 @@ import type {
 export type CompileRuntimeModuleOptions = {
   outputPath?: string;
   sourceFile?: string;
+  sourceText?: string;
+  sources?: Record<string, string>;
   sourceMaps?: boolean;
 };
 
@@ -69,6 +73,7 @@ export async function compileRuntimeModule(
         root,
         expanded.values,
         runtimeGraph.sourceText,
+        options,
         Boolean(options.sourceMaps),
       )]
     : [];
@@ -192,13 +197,15 @@ function runtimeQuoteForm(
   const holes: SpliceHole[] = [];
 
   for (const [index, text] of code.strings.entries()) {
+    const defaultStart = offset;
     parts.push({
       text,
-      originMap: Array.from({length: text.length}, (_, charIndex) => ({
-        sourceFile: sourceFileName,
-        start: offset + charIndex,
-        end: offset + charIndex + 1,
-      })),
+      originMap: partOriginMap(
+        code.partOriginMaps?.[index],
+        text,
+        sourceFileName,
+        defaultStart,
+      ),
     });
     offset += text.length;
 
@@ -209,12 +216,13 @@ function runtimeQuoteForm(
         start: offset,
         end: offset + placeholder.length,
       };
+      const holeOrigin = code.holeOrigins?.[index] ?? origin;
 
       holes.push({
         index,
         placeholder,
         expression: expressionForText(placeholder),
-        origin,
+        origin: holeOrigin,
       });
       offset += placeholder.length;
     }
@@ -228,7 +236,7 @@ function runtimeQuoteForm(
     kind: code.kind,
     moduleId: outputPath,
     node: taggedTemplateForKind(code.kind),
-    origin: {
+    origin: codeOrigin(code) ?? {
       sourceFile: sourceFileName,
       start: 0,
       end: source.length,
@@ -236,6 +244,35 @@ function runtimeQuoteForm(
     parts,
     template: ts.factory.createNoSubstitutionTemplateLiteral(""),
   };
+}
+
+function partOriginMap(
+  originMap: OriginMap | undefined,
+  text: string,
+  sourceFileName: string,
+  start: number,
+): OriginMap {
+  if (originMap && originMap.length === text.length) {
+    return originMap;
+  }
+
+  return Array.from({length: text.length}, (_, charIndex) => ({
+    sourceFile: sourceFileName,
+    start: start + charIndex,
+    end: start + charIndex + 1,
+  }));
+}
+
+function codeOrigin(code: RuntimeCode): Origin | undefined {
+  for (const originMap of code.partOriginMaps ?? []) {
+    const origin = originMap.find((candidate) => candidate !== undefined);
+
+    if (origin) {
+      return origin;
+    }
+  }
+
+  return code.holeOrigins?.find((origin) => origin !== undefined);
 }
 
 function expressionForText(text: string): ts.Expression {
@@ -296,6 +333,7 @@ function runtimeModuleFile(
   root: RuntimeCode,
   values: Map<number, CodeValue>,
   sourceText: string,
+  options: CompileRuntimeModuleOptions,
   sourceMaps: boolean,
 ) {
   const rootValue = root.quoteId === undefined ? undefined : values.get(root.quoteId);
@@ -304,11 +342,6 @@ function runtimeModuleFile(
   const sourceMapPath = `${outputPath}.map`;
   const blocks: SourceMapBlock[] = [
     {
-      origin: {
-        sourceFile: sourceFileName,
-        start: 0,
-        end: sourceText.length,
-      },
       statements,
       text,
     },
@@ -316,7 +349,13 @@ function runtimeModuleFile(
   const sourceMapped = createSourceMappedOutput(
     outputPath,
     blocks,
-    (sourceFile) => sourceFile === sourceFileName ? sourceText : "",
+    (sourceFile) => {
+      if (sourceFile === sourceFileName) {
+        return options.sourceText ?? sourceText;
+      }
+
+      return options.sources?.[sourceFile] ?? "";
+    },
   );
 
   return {

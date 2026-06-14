@@ -13,7 +13,7 @@ export {
   compileRuntimeModule,
   type CompileRuntimeModuleOptions,
 } from "./runtime-module.ts";
-export {q, type RuntimeCode} from "./runtime.ts";
+export {q, withOrigin, type RuntimeCode} from "./runtime.ts";
 export {originalPositionForGeneratedLocation} from "./source-map.ts";
 export type {
   CodeValue,

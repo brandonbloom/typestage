@@ -4,7 +4,7 @@
  * instruments those tags during staging so raw interpolation values can be
  * captured without exposing compiler internals as public API.
  */
-import type {FragmentKind, QuoteCardinality} from "./types.ts";
+import type {FragmentKind, Origin, OriginMap, QuoteCardinality} from "./types.ts";
 
 /** Runtime placeholder returned by quote tags before compile-time expansion. */
 export type RuntimeCode = {
@@ -13,6 +13,8 @@ export type RuntimeCode = {
   kind: FragmentKind;
   quoteId?: number;
   strings: readonly string[];
+  partOriginMaps?: readonly OriginMap[];
+  holeOrigins?: ReadonlyArray<Origin | undefined>;
   text: string;
   values: unknown[];
   hostValues?: Record<string, unknown>;
@@ -95,6 +97,19 @@ export function capture(name: string): () => string {
   return () => name;
 }
 
+/** Attaches one external source origin to all syntax in a runtime code value. */
+export function withOrigin<Code extends RuntimeCode>(
+  code: Code,
+  origin: Origin,
+): Code {
+  code.partOriginMaps = code.strings.map((part) =>
+    Array.from({length: part.length}, () => origin)
+  );
+  code.holeOrigins = code.values.map(() => origin);
+
+  return code;
+}
+
 /** Quote tag namespace recognized by the TypeStage compiler. */
 export const q = {
   expr: (strings: TemplateStringsArray, ...values: unknown[]) =>
@@ -121,4 +136,5 @@ export const q = {
     code("decl", "one", strings, ...values),
   decls: (strings: TemplateStringsArray, ...values: unknown[]) =>
     code("decl", "many", strings, ...values),
+  withOrigin,
 };

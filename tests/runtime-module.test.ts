@@ -1,5 +1,9 @@
 import {describe, expect, test} from "bun:test";
-import {compileRuntimeModule, q} from "typestage";
+import {
+  compileRuntimeModule,
+  originalPositionForGeneratedLocation,
+  q,
+} from "typestage";
 
 describe("compileRuntimeModule", () => {
   test("compiles runtime declaration fragments as modules", async () => {
@@ -52,5 +56,40 @@ describe("compileRuntimeModule", () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.files[0]!.outputText).toContain("Date.now()");
     expect(result.files[0]!.outputText).toContain("console.log(new Map())");
+  });
+
+  test("maps external runtime origins through source maps", async () => {
+    const source = `(value "boom")`;
+    const origin = {
+      sourceFile: "source.lisp",
+      start: source.indexOf("boom"),
+      end: source.indexOf("boom") + "boom".length,
+    };
+    const literal = q.withOrigin(q.expr`${"boom"}`, origin);
+    const program = q.decls`
+      export const value = ${literal};
+    `;
+
+    const result = await compileRuntimeModule(program, {
+      outputPath: "main.ts",
+      sourceMaps: true,
+      sources: {"source.lisp": source},
+    });
+
+    const outputText = result.files[0]!.outputText;
+    const line = outputText.split("\n")
+      .findIndex((candidate) => candidate.includes("boom")) + 1;
+    const column = outputText.split("\n")[line - 1]!.indexOf("boom") + 1;
+    const original = originalPositionForGeneratedLocation(
+      result.files[0]!.sourceMapText!,
+      line,
+      column,
+    );
+
+    expect(original).toEqual({
+      column: source.indexOf("boom") + 1,
+      line: 1,
+      sourceFile: "source.lisp",
+    });
   });
 });

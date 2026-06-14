@@ -10,6 +10,7 @@ type CompileContext = {
   diagnostics: LispDiagnostic[];
   globals: Set<string>;
   locals: Map<string, RuntimeCode>;
+  sourceFile: string;
 };
 
 type NamedBinding = {
@@ -22,6 +23,7 @@ const arithmeticOperators = new Set(["+", "-", "*", "/"]);
 export function compileLisp(
   source: string,
   globals: Iterable<string> = [],
+  sourceFile = "input.lisp",
 ): CompileResult {
   const parsed = parseProgram(source);
   const diagnostics = [...parsed.diagnostics];
@@ -36,7 +38,7 @@ export function compileLisp(
   }
 
   const declarations = parsed.forms.flatMap((form, index) =>
-    compileTopLevel(form, index, diagnostics, topLevelNames)
+    compileTopLevel(form, index, diagnostics, topLevelNames, sourceFile)
   );
 
   return {
@@ -50,7 +52,7 @@ export function compileProgram(
   sourceFile = "input.lisp",
   globals: string[] = [],
 ): RuntimeCode[] {
-  const compiled = compileLisp(source, globals);
+  const compiled = compileLisp(source, globals, sourceFile);
 
   if (compiled.diagnostics.length > 0) {
     throw new Error(formatLispDiagnostics(source, sourceFile, compiled.diagnostics));
@@ -82,14 +84,25 @@ function compileTopLevel(
   index: number,
   diagnostics: LispDiagnostic[],
   globals: Set<string>,
+  sourceFile: string,
 ): RuntimeCode[] {
   if (isListNamed(form, "define")) {
-    const declaration = compileTopLevelDefine(form, diagnostics, globals);
+    const declaration = compileTopLevelDefine(
+      form,
+      diagnostics,
+      globals,
+      sourceFile,
+    );
 
     return declaration ? [declaration] : [];
   }
 
-  const context: CompileContext = {diagnostics, globals, locals: new Map()};
+  const context: CompileContext = {
+    diagnostics,
+    globals,
+    locals: new Map(),
+    sourceFile,
+  };
 
   if (isListNamed(form, "print")) {
     const statement = compilePrintStatement(form, context);
@@ -107,9 +120,9 @@ function compileTopLevel(
   const name = q.ident`${resultName}`;
 
   return [
-    q.decl`
+    q.withOrigin(q.decl`
       export const ${name} = ${expression};
-    `,
+    `, originForSpan(sourceFile, form.span)),
   ];
 }
 
@@ -117,6 +130,7 @@ function compileTopLevelDefine(
   form: Extract<LispExpr, {kind: "list"}>,
   diagnostics: LispDiagnostic[],
   globals: Set<string>,
+  sourceFile: string,
 ): RuntimeCode | undefined {
   const [, target, ...rest] = form.items;
 
@@ -130,11 +144,25 @@ function compileTopLevelDefine(
   }
 
   if (target.kind === "symbol") {
-    return compileTopLevelVariableDefine(target, rest, form.span, diagnostics, globals);
+    return compileTopLevelVariableDefine(
+      target,
+      rest,
+      form.span,
+      diagnostics,
+      globals,
+      sourceFile,
+    );
   }
 
   if (target.kind === "list") {
-    return compileFunctionDefine(target, rest, form.span, diagnostics, globals);
+    return compileFunctionDefine(
+      target,
+      rest,
+      form.span,
+      diagnostics,
+      globals,
+      sourceFile,
+    );
   }
 
   diagnostics.push({
@@ -151,6 +179,7 @@ function compileTopLevelVariableDefine(
   span: Span,
   diagnostics: LispDiagnostic[],
   globals: Set<string>,
+  sourceFile: string,
 ): RuntimeCode | undefined {
   const [initExpr, extra] = rest;
 
@@ -163,12 +192,20 @@ function compileTopLevelVariableDefine(
     return undefined;
   }
 
-  const context: CompileContext = {diagnostics, globals, locals: new Map()};
-  const name = identifier(target.name, target.span, diagnostics);
+  const context: CompileContext = {
+    diagnostics,
+    globals,
+    locals: new Map(),
+    sourceFile,
+  };
+  const name = identifier(target.name, target.span, diagnostics, sourceFile);
   const init = compileExpression(initExpr, context);
 
   return name && init
-    ? q.decl`export const ${name} = ${init};`
+    ? q.withOrigin(
+        q.decl`export const ${name} = ${init};`,
+        originForSpan(sourceFile, span),
+      )
     : undefined;
 }
 
@@ -178,6 +215,7 @@ function compileFunctionDefine(
   span: Span,
   diagnostics: LispDiagnostic[],
   globals: Set<string>,
+  sourceFile: string,
 ): RuntimeCode | undefined {
   const [nameExpr, ...paramExprs] = signature.items;
 
@@ -197,9 +235,12 @@ function compileFunctionDefine(
     return undefined;
   }
 
-  const functionName = identifier(name, nameExpr.span, diagnostics);
+  const functionName = identifier(name, nameExpr.span, diagnostics, sourceFile);
   const parameterIdentifiers = params.map((param) =>
-    q.ident`${param.name}: any`
+    q.withOrigin(
+      q.ident`${param.name}: any`,
+      originForSpan(sourceFile, param.span),
+    )
   );
   const locals = new Map<string, RuntimeCode>();
 
@@ -207,18 +248,18 @@ function compileFunctionDefine(
     locals.set(param.name, parameterIdentifiers[index]!);
   }
 
-  const context: CompileContext = {diagnostics, globals, locals};
+  const context: CompileContext = {diagnostics, globals, locals, sourceFile};
   const statements = compileFunctionBody(body, context);
 
   if (!functionName || !statements) {
     return undefined;
   }
 
-  return q.decl`
+  return q.withOrigin(q.decl`
     export function ${functionName}(${parameterIdentifiers}) {
       ${statements}
     }
-  `;
+  `, originForSpan(sourceFile, span));
 }
 
 function compileFunctionBody(
@@ -321,7 +362,12 @@ function compileLocalDefine(
   }
 
   const init = compileExpression(initExpr, context);
-  const name = identifier(target.name, target.span, context.diagnostics);
+  const name = identifier(
+    target.name,
+    target.span,
+    context.diagnostics,
+    context.sourceFile,
+  );
 
   if (!name || !init) {
     return undefined;
@@ -329,7 +375,10 @@ function compileLocalDefine(
 
   context.locals.set(target.name, name);
 
-  return q.stmt`const ${name} = ${init};`;
+  return q.withOrigin(
+    q.stmt`const ${name} = ${init};`,
+    originForSpan(context.sourceFile, form.span),
+  );
 }
 
 function compilePrintStatement(
@@ -350,7 +399,10 @@ function compilePrintStatement(
   const expression = compileExpression(value, context);
 
   return expression
-    ? q.stmt`console.log(${expression});`
+    ? q.withOrigin(
+        q.stmt`console.log(${expression});`,
+        originForSpan(context.sourceFile, form.span),
+      )
     : undefined;
 }
 
@@ -360,16 +412,28 @@ function compileExpression(
 ): RuntimeCode | undefined {
   switch (form.kind) {
     case "boolean":
-      return q.expr`${form.value}`;
+      return q.withOrigin(
+        q.expr`${form.value}`,
+        originForSpan(context.sourceFile, form.span),
+      );
 
     case "null":
-      return q.expr`${null}`;
+      return q.withOrigin(
+        q.expr`${null}`,
+        originForSpan(context.sourceFile, form.span),
+      );
 
     case "number":
-      return q.expr`${form.value}`;
+      return q.withOrigin(
+        q.expr`${form.value}`,
+        originForSpan(context.sourceFile, form.span),
+      );
 
     case "string":
-      return q.expr`${form.value}`;
+      return q.withOrigin(
+        q.expr`${form.value}`,
+        originForSpan(context.sourceFile, stringContentSpan(form.span)),
+      );
 
     case "symbol":
       return compileSymbolReference(form, context);
@@ -408,7 +472,7 @@ function compileCallExpression(
   }
 
   if (head.name === "throw") {
-    return compileThrowExpression(args, form.span, context);
+    return compileThrowExpression(head, args, form.span, context);
   }
 
   if (head.name === "if") {
@@ -446,14 +510,22 @@ function compileCallExpression(
     return undefined;
   }
 
-  const callee = identifier(head.name, head.span, context.diagnostics);
+  const callee = identifier(
+    head.name,
+    head.span,
+    context.diagnostics,
+    context.sourceFile,
+  );
   const compiledArgs = args.map((arg) => compileExpression(arg, context));
 
   if (!callee || compiledArgs.some((arg) => !arg)) {
     return undefined;
   }
 
-  return q.expr`${callee}(${compiledArgs})`;
+  return q.withOrigin(
+    q.expr`${callee}(${compiledArgs})`,
+    originForSpan(context.sourceFile, form.span),
+  );
 }
 
 function compileIfExpression(
@@ -477,7 +549,10 @@ function compileIfExpression(
   const elseBranch = compileExpression(elseExpr, context);
 
   return condition && thenBranch && elseBranch
-    ? q.expr`${condition} ? ${thenBranch} : ${elseBranch}`
+    ? q.withOrigin(
+        q.expr`${condition} ? ${thenBranch} : ${elseBranch}`,
+        originForSpan(context.sourceFile, span),
+      )
     : undefined;
 }
 
@@ -500,6 +575,7 @@ function compileDoBlock(
     diagnostics: context.diagnostics,
     globals: context.globals,
     locals: new Map(context.locals),
+    sourceFile: context.sourceFile,
   };
   const statements: RuntimeCode[] = [];
 
@@ -556,16 +632,28 @@ function compileArithmetic(
 
   switch (operator) {
     case "+":
-      return q.expr`${left} + ${right}`;
+      return q.withOrigin(
+        q.expr`${left} + ${right}`,
+        originForSpan(context.sourceFile, span),
+      );
 
     case "-":
-      return q.expr`${left} - ${right}`;
+      return q.withOrigin(
+        q.expr`${left} - ${right}`,
+        originForSpan(context.sourceFile, span),
+      );
 
     case "*":
-      return q.expr`${left} * ${right}`;
+      return q.withOrigin(
+        q.expr`${left} * ${right}`,
+        originForSpan(context.sourceFile, span),
+      );
 
     case "/":
-      return q.expr`${left} / ${right}`;
+      return q.withOrigin(
+        q.expr`${left} / ${right}`,
+        originForSpan(context.sourceFile, span),
+      );
 
     default:
       return undefined;
@@ -573,6 +661,7 @@ function compileArithmetic(
 }
 
 function compileThrowExpression(
+  head: Extract<LispExpr, {kind: "symbol"}>,
   args: LispExpr[],
   span: Span,
   context: CompileContext,
@@ -591,11 +680,14 @@ function compileThrowExpression(
   const value = compileExpression(valueExpr, context);
 
   return value
-    ? q.block`
-      {
-        throw ${value};
-      }
-    `
+    ? q.withOrigin(
+        q.block`
+          {
+            throw ${value};
+          }
+        `,
+        originForSpan(context.sourceFile, head.span),
+      )
     : undefined;
 }
 
@@ -618,9 +710,16 @@ function compileSymbolReference(
     return undefined;
   }
 
-  const name = identifier(form.name, form.span, context.diagnostics);
+  const name = identifier(
+    form.name,
+    form.span,
+    context.diagnostics,
+    context.sourceFile,
+  );
 
-  return name ? q.expr`${name}` : undefined;
+  return name
+    ? q.withOrigin(q.expr`${name}`, originForSpan(context.sourceFile, form.span))
+    : undefined;
 }
 
 function topLevelDefineName(form: LispExpr): string | undefined {
@@ -647,6 +746,7 @@ function identifier(
   name: string,
   span: Span,
   diagnostics: LispDiagnostic[],
+  sourceFile: string,
 ): RuntimeCode | undefined {
   if (!isTypeScriptIdentifier(name)) {
     diagnostics.push({
@@ -657,7 +757,21 @@ function identifier(
     return undefined;
   }
 
-  return q.ident`${name}`;
+  return q.withOrigin(q.ident`${name}`, originForSpan(sourceFile, span));
+}
+
+function originForSpan(sourceFile: string, span: Span) {
+  return {
+    sourceFile,
+    start: span.start,
+    end: span.end,
+  };
+}
+
+function stringContentSpan(span: Span): Span {
+  return span.end - span.start >= 2
+    ? {start: span.start + 1, end: span.end - 1}
+    : span;
 }
 
 function parameterNames(

@@ -637,7 +637,42 @@ an AST, an intermediate representation, or checked semantic model. The TypeStage
 part remains the same: lower facts into syntax values and compose those values
 into residual modules.
 
-## 14. Library Support For Compiler Builders
+## 14. Runtime Compilation And External Origins
+
+File graph compilation is useful for staged TypeScript modules, but a compiler
+or REPL often already has runtime `RuntimeCode` fragments. `compileRuntimeModule`
+compiles those fragments directly into a residual module.
+
+External compilers can attach source locations to runtime fragments with
+`q.withOrigin`. When source maps are requested, pass the original source text to
+`compileRuntimeModule` so TypeStage can convert those offsets into line and
+column mappings.
+
+```ts
+import {compileRuntimeModule, q} from "typestage";
+
+const source = `(value "boom")`;
+const origin = {
+  sourceFile: "input.lisp",
+  start: source.indexOf("boom"),
+  end: source.indexOf("boom") + "boom".length,
+};
+const literal = q.withOrigin(q.expr`${"boom"}`, origin);
+const program = q.decls`
+  export const value = ${literal};
+`;
+
+const result = await compileRuntimeModule(program, {
+  outputPath: "main.ts",
+  sourceMaps: true,
+  sources: {"input.lisp": source},
+});
+```
+
+The residual TypeScript is generated from TypeStage fragments, but diagnostics
+and source maps can point back to the external source language.
+
+## 15. Library Support For Compiler Builders
 
 The core language surface is quotes, splices, persistence, hygiene, and module
 emission. On top of that, TypeStage can grow libraries that make compiler
@@ -649,7 +684,7 @@ Those helpers should be libraries on top of the staging model. They should make
 common compiler tasks easier without hiding the underlying idea that generated
 TypeScript is represented as typed syntax fragments.
 
-## 15. What To Read Next
+## 16. What To Read Next
 
 - The fixture cases in [tests/fixtures/pass](../tests/fixtures/pass) are
   executable examples.
