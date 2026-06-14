@@ -1,6 +1,6 @@
 import {q} from "typestage";
-import {settings} from "./settings";
+import {term} from "./parts";
 
 export const expr = q.expr`
-  ${settings}
+  term + 1
 `;

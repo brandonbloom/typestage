@@ -86,10 +86,23 @@ export type CodeValue = {
   quote: QuoteForm;
   parsed: ParsedFragment;
   expandedNodes?: ts.Node[];
+  /** Imports that residual code references by name and must emit with it. */
+  residualImports?: ResidualImport[];
   /** Interpolation values captured by a particular runtime quote invocation. */
   runtimeValues?: unknown[];
   /** Host values captured by a particular runtime quote invocation. */
   runtimeHostValues?: Record<string, unknown>;
+};
+
+/** A host import captured as a residual import dependency. */
+export type ResidualImport = {
+  imported: string;
+  local: string;
+  moduleId: string;
+  specifier: string;
+  isTypeOnly: boolean;
+  targetInputPath?: string;
+  targetOutputPath?: string;
 };
 
 /** One residual TypeScript module emitted by graph compilation. */

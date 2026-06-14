@@ -1,0 +1,61 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/imported-function-explicit-persistence/input/helper.ts",
+      "outputPath": "helper.ts",
+      "quotes": [],
+      "bindings": {
+        "codeBindings": [],
+        "localBindingsByQuote": []
+      }
+    },
+    {
+      "inputPath": "tests/fixtures/pass/imported-function-explicit-persistence/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "expr",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "expr",
+            "kind": "expr",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "expr",
+      "text": "__typestage_hole_0_0()"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1005",
+      "message": "persistent splice 'makeValue' is unsupported: function values cannot be persisted",
+      "origin": {
+        "sourceFile": "tests/fixtures/pass/imported-function-explicit-persistence/input/main.ts",
+        "start": 173,
+        "end": 182
+      }
+    }
+  ],
+  "files": []
+}

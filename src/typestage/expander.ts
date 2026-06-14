@@ -30,6 +30,7 @@ import type {
   Origin,
   ParsedFragment,
   QuoteCardinality,
+  ResidualImport,
   SpliceHole,
 } from "./types.ts";
 
@@ -40,6 +41,7 @@ export type ExpansionResult = {
 };
 
 type CodeBindingResolver = (fragment: ParsedFragment) => Map<string, CodeValue>;
+type ImportBindingResolver = (fragment: ParsedFragment) => Map<string, ResidualImport>;
 
 type Replacement = ts.VisitResult<ts.Node> | {
   node: ts.Node;
@@ -48,6 +50,7 @@ type Replacement = ts.VisitResult<ts.Node> | {
 
 type ReferenceResolution =
   | {kind: "code"; value: CodeValue}
+  | {kind: "import"; value: ResidualImport}
   | {kind: "host-value"; name: string}
   | {kind: "ambient"}
   | {kind: "unresolved"};
@@ -55,6 +58,7 @@ type ReferenceResolution =
 type ReferenceAnalysis = {
   diagnostics: Diagnostic[];
   hostNames: Set<string>;
+  residualImports: Map<string, ResidualImport>;
   identifiers: WeakMap<ts.Identifier, ReferenceResolution>;
   typeReferences: WeakMap<ts.TypeReferenceNode, ReferenceResolution>;
 };
@@ -64,12 +68,15 @@ export function collectHostCaptureNames(
   fragments: ParsedFragment[],
   codeBindings: Map<string, CodeValue> | CodeBindingResolver,
   semantic?: SemanticContext,
+  importBindings: Map<string, ResidualImport> | ImportBindingResolver = new Map(),
 ): {
   diagnostics: Diagnostic[];
   hostCaptureNames: Map<number, Set<string>>;
 } {
   const bindingResolver =
     codeBindings instanceof Map ? () => codeBindings : codeBindings;
+  const importResolver =
+    importBindings instanceof Map ? () => importBindings : importBindings;
   const diagnostics: Diagnostic[] = [];
   const hostCaptureNames = new Map<number, Set<string>>();
 
@@ -78,6 +85,7 @@ export function collectHostCaptureNames(
       fragment,
       bindingResolver(fragment),
       semantic,
+      importResolver(fragment),
     );
 
     diagnostics.push(...analysis.diagnostics);
@@ -97,11 +105,14 @@ export function expandFragments(
   capturedValues: Map<number, unknown[]> = new Map(),
   capturedHostValues: Map<number, Record<string, unknown>> = new Map(),
   semantic?: SemanticContext,
+  importBindings: Map<string, ResidualImport> | ImportBindingResolver = new Map(),
 ): ExpansionResult {
   const values = new Map<number, CodeValue>();
   const diagnostics: Diagnostic[] = [];
   const bindingResolver =
     codeBindings instanceof Map ? () => codeBindings : codeBindings;
+  const importResolver =
+    importBindings instanceof Map ? () => importBindings : importBindings;
 
   for (const fragment of fragments) {
     values.set(fragment.quote.id, {
@@ -139,11 +150,13 @@ export function expandFragments(
       value.runtimeHostValues,
       values,
       semantic,
+      importResolver(value.parsed),
       expandValue,
       (candidate) => expanding.has(candidate.quote.id),
     );
     diagnostics.push(...expanded.diagnostics);
     value.expandedNodes = expanded.nodes;
+    value.residualImports = expanded.residualImports;
     expanding.delete(value.quote.id);
 
     return value;
@@ -171,11 +184,13 @@ function expandParsedFragment(
   runtimeHostValues: Record<string, unknown> | undefined,
   values: Map<number, CodeValue>,
   semantic: SemanticContext | undefined,
+  importBindings: Map<string, ResidualImport>,
   expandValue: (value: CodeValue) => CodeValue,
   isExpanding: (value: CodeValue) => boolean,
 ): {
   diagnostics: Diagnostic[];
   nodes: ts.Node[];
+  residualImports: ResidualImport[];
 } {
   const diagnostics: Diagnostic[] = [];
   annotateFragmentNodeOrigins(fragment);
@@ -197,9 +212,17 @@ function expandParsedFragment(
     renamedFragment,
     codeBindings,
     semantic,
+    importBindings,
     {diagnoseUnresolved: true},
   );
   diagnostics.push(...referenceAnalysis.diagnostics);
+  const residualImports = new Map(referenceAnalysis.residualImports);
+
+  const addResidualImports = (imports: readonly ResidualImport[] | undefined) => {
+    for (const residualImport of imports ?? []) {
+      residualImports.set(residualImportKey(residualImport), residualImport);
+    }
+  };
 
   const occupiedLocalNames = new Set(locals);
   const usedIdentifierNames = allIdentifierNames(sourceNodes);
@@ -548,6 +571,8 @@ function expandParsedFragment(
       values.set(expanded.quote.id, expanded);
     }
 
+    addResidualImports(expanded.residualImports);
+
     const expandedNodes = expanded.expandedNodes ?? expanded.parsed.nodes;
 
     if (expanded.kind === "ident") {
@@ -830,7 +855,11 @@ function expandParsedFragment(
 
   annotateFragmentNodeOrigins({...fragment, nodes: expandedNodes});
 
-  return {diagnostics, nodes: expandedNodes};
+  return {
+    diagnostics,
+    nodes: expandedNodes,
+    residualImports: Array.from(residualImports.values()),
+  };
 }
 
 function codeValueForExpression(
@@ -883,6 +912,7 @@ function codeValueForRuntimeCode(
       kind: codeValue.kind,
       parsed: codeValue.parsed,
       quote: codeValue.quote,
+      residualImports: codeValue.residualImports,
       runtimeValues: value.values,
       runtimeHostValues: value.hostValues,
     }
@@ -893,6 +923,7 @@ function analyzeResidualReferences(
   fragment: ParsedFragment,
   codeBindings: Map<string, CodeValue>,
   semantic?: SemanticContext,
+  importBindings: Map<string, ResidualImport> = new Map(),
   options: {
     diagnoseUnresolved?: boolean;
     onlyCurrentOrigin?: boolean;
@@ -900,6 +931,7 @@ function analyzeResidualReferences(
 ): ReferenceAnalysis {
   const diagnostics: Diagnostic[] = [];
   const hostNames = new Set<string>();
+  const residualImports = new Map<string, ResidualImport>();
   const identifiers = new WeakMap<ts.Identifier, ReferenceResolution>();
   const typeReferences = new WeakMap<ts.TypeReferenceNode, ReferenceResolution>();
   const holeNames = new Set(fragment.quote.holes.map((hole) => hole.placeholder));
@@ -920,6 +952,13 @@ function analyzeResidualReferences(
       codeBindingMatchesPosition(binding.kind, "expr")
     ) {
       return {kind: "code", value: binding};
+    }
+
+    const imported = importBindings.get(identifier.text);
+
+    if (imported && !imported.isTypeOnly) {
+      residualImports.set(residualImportKey(imported), imported);
+      return {kind: "import", value: imported};
     }
 
     if (resolveHostValueName(semantic, fragment, identifier.text, true)) {
@@ -953,6 +992,13 @@ function analyzeResidualReferences(
       codeBindingMatchesPosition(binding.kind, "type")
     ) {
       return {kind: "code", value: binding};
+    }
+
+    const imported = importBindings.get(name.text);
+
+    if (imported) {
+      residualImports.set(residualImportKey(imported), imported);
+      return {kind: "import", value: imported};
     }
 
     if (
@@ -1130,7 +1176,17 @@ function analyzeResidualReferences(
 
   visitNodeList(fragment.nodes, []);
 
-  return {diagnostics, hostNames, identifiers, typeReferences};
+  return {diagnostics, hostNames, residualImports, identifiers, typeReferences};
+}
+
+function residualImportKey(residualImport: ResidualImport): string {
+  return [
+    residualImport.moduleId,
+    residualImport.specifier,
+    residualImport.imported,
+    residualImport.local,
+    residualImport.isTypeOnly ? "type" : "value",
+  ].join("\0");
 }
 
 function collectInferTypeNames(node: ts.Node, names: Set<string>) {

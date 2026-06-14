@@ -1,0 +1,106 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/import-capture-local-collision/input/helper.ts",
+      "outputPath": "helper.ts",
+      "quotes": [],
+      "bindings": {
+        "codeBindings": [],
+        "localBindingsByQuote": []
+      }
+    },
+    {
+      "inputPath": "tests/fixtures/pass/import-capture-local-collision/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "decl",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "decl",
+            "kind": "decl",
+            "quoteId": 0
+          },
+          {
+            "name": "term",
+            "kind": "expr",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": [
+              "make",
+              "run"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "inputPath": "tests/fixtures/pass/import-capture-local-collision/input/parts.ts",
+      "outputPath": "parts.ts",
+      "quotes": [
+        {
+          "id": 1,
+          "moduleId": "parts.ts",
+          "kind": "expr",
+          "bindingName": "term",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "term",
+            "kind": "expr",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 1,
+            "names": []
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "decl",
+      "text": "export function run() {\n    const make_1 = () => 0;\n    return make();\n}"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "parts.ts",
+      "kind": "expr",
+      "text": "make()"
+    }
+  ],
+  "diagnostics": [],
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/import-capture-local-collision/input/helper.ts",
+      "outputPath": "helper.ts"
+    },
+    {
+      "inputPath": "tests/fixtures/pass/import-capture-local-collision/input/main.ts",
+      "outputPath": "main.ts"
+    },
+    {
+      "inputPath": "tests/fixtures/pass/import-capture-local-collision/input/parts.ts",
+      "outputPath": "parts.ts"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+tests/fixtures/pass/imported-function-explicit-persistence/input/main.ts:6:5 TSG1005: persistent splice 'makeValue' is unsupported: function values cannot be persisted

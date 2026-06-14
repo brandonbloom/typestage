@@ -27,6 +27,7 @@ import type {
   CompileGraphResult,
   Diagnostic,
   ParsedFragment,
+  ResidualImport,
 } from "./types.ts";
 
 /** Options for compiling a TypeStage module graph. */
@@ -45,6 +46,7 @@ type GraphModule = {
   parseDiagnostics: Diagnostic[];
   localCodeBindings: Map<string, CodeValue>;
   imports: LocalImport[];
+  residualImports: Map<string, ResidualImport>;
   reexports: LocalReexport[];
 };
 
@@ -64,6 +66,7 @@ type LocalReexport = {
 
 type GeneratedStatementGroup = {
   origin: CodeValue["quote"]["origin"];
+  residualImports: ResidualImport[];
   statements: ts.Statement[];
 };
 
@@ -112,6 +115,7 @@ export async function compileFileGraph(
         fragments,
         (fragment) => visibleBindingsByModule.get(fragment.quote.moduleId ?? "") ?? new Map(),
         semantic,
+        (fragment) => residualImportsForModule(modules, fragment.quote.moduleId),
       )
     : {diagnostics: [], hostCaptureNames: new Map<number, Set<string>>()};
   const earlyDiagnostics = [
@@ -152,6 +156,7 @@ export async function compileFileGraph(
     staging.capturedValues,
     staging.capturedHostValues,
     semantic,
+    (fragment) => residualImportsForModule(modules, fragment.quote.moduleId),
   );
   const diagnostics = [
     ...graphDiagnostics,
@@ -284,6 +289,7 @@ class GraphBuilder {
       parseDiagnostics: parsed.diagnostics,
       localCodeBindings: new Map(),
       imports: [],
+      residualImports: new Map(),
       reexports: [],
     };
 
@@ -297,6 +303,26 @@ class GraphBuilder {
   }
 
   private collectEdges(module: GraphModule, statement: ts.Statement) {
+    if (ts.isImportDeclaration(statement)) {
+      if (
+        statement.moduleSpecifier &&
+        ts.isStringLiteral(statement.moduleSpecifier)
+      ) {
+        const targetPath = isRelativeSpecifier(statement.moduleSpecifier.text)
+          ? this.resolveLocalSpecifier(statement.moduleSpecifier.text, module.inputPath)
+          : undefined;
+
+        for (const residualImport of residualNamedImports(
+          statement,
+          module,
+          targetPath,
+          this.sourceRoot,
+        )) {
+          module.residualImports.set(residualImport.local, residualImport);
+        }
+      }
+    }
+
     if (
       (ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) &&
       statement.moduleSpecifier &&
@@ -439,6 +465,14 @@ function buildVisibleBindings(
   return visible;
 }
 
+function residualImportsForModule(
+  modules: GraphModule[],
+  moduleId: string | undefined,
+): Map<string, ResidualImport> {
+  return modules.find((module) => module.outputPath === moduleId)?.residualImports ??
+    new Map();
+}
+
 function validateLocalImports(modules: GraphModule[]): Diagnostic[] {
   const byPath = new Map(modules.map((module) => [module.inputPath, module]));
   const exportNamesByPath = new Map(
@@ -483,6 +517,7 @@ function emitGraphFiles(
       .map((value) => values.get(value.quote.id) ?? value)
       .map((value) => ({
         origin: value.quote.origin,
+        residualImports: value.residualImports ?? [],
         statements: moduleStatementsForValue(value),
       }))
       .filter((group) => group.statements.length > 0);
@@ -494,7 +529,7 @@ function emitGraphFiles(
 
   const residualDemandByPath = collectResidualSourceDemands(
     modules,
-    generatedStatementsByPath,
+    generatedGroupsByPath,
   );
 
   return modules.map((module) => {
@@ -512,6 +547,10 @@ function emitGraphFiles(
       .filter(ts.isImportDeclaration)
       .map((statement) => filteredImportDeclaration(statement, usedIdentifiers))
       .filter((statement): statement is ts.ImportDeclaration => Boolean(statement));
+    const capturedImportStatements = movedResidualImportDeclarations(
+      module,
+      generatedGroups,
+    );
     const exportStatements = module.sourceFile.statements
       .filter(ts.isExportDeclaration)
       .map(clonedExportDeclaration);
@@ -519,10 +558,12 @@ function emitGraphFiles(
       {
         statements: [
           ...importStatements,
+          ...capturedImportStatements,
           ...exportStatements,
         ],
         text: printStatements([
           ...importStatements,
+          ...capturedImportStatements,
           ...exportStatements,
         ]),
       },
@@ -567,7 +608,7 @@ function sourceTextForFile(sourceFile: string, modules: GraphModule[]): string {
 
 function collectResidualSourceDemands(
   modules: GraphModule[],
-  generatedStatementsByPath: Map<string, ts.Statement[]>,
+  generatedGroupsByPath: Map<string, GeneratedStatementGroup[]>,
 ): Map<string, Set<string>> {
   const demandByPath = new Map<string, Set<string>>();
   let changed = true;
@@ -582,7 +623,8 @@ function collectResidualSourceDemands(
       );
       const usedIdentifiers = referenceIdentifiers([
         ...sourceStatements,
-        ...(generatedStatementsByPath.get(module.inputPath) ?? []),
+        ...(generatedGroupsByPath.get(module.inputPath) ?? [])
+          .flatMap((group) => group.statements),
       ]);
 
       for (const imported of module.imports) {
@@ -595,6 +637,24 @@ function collectResidualSourceDemands(
 
         demandedNames.add(imported.imported);
         demandByPath.set(imported.targetPath, demandedNames);
+
+        if (demandedNames.size !== previousSize) {
+          changed = true;
+        }
+      }
+
+      for (const residualImport of (generatedGroupsByPath.get(module.inputPath) ?? [])
+        .flatMap((group) => group.residualImports)) {
+        if (!residualImport.targetInputPath) {
+          continue;
+        }
+
+        const demandedNames = demandByPath.get(residualImport.targetInputPath) ??
+          new Set<string>();
+        const previousSize = demandedNames.size;
+
+        demandedNames.add(residualImport.imported);
+        demandByPath.set(residualImport.targetInputPath, demandedNames);
 
         if (demandedNames.size !== previousSize) {
           changed = true;
@@ -692,6 +752,38 @@ function namedImports(
       start: specifier.getStart(sourceFile),
       end: specifier.getEnd(),
     },
+  }));
+}
+
+function residualNamedImports(
+  statement: ts.ImportDeclaration,
+  module: GraphModule,
+  targetPath: string | undefined,
+  sourceRoot: string,
+): ResidualImport[] {
+  if (
+    !statement.moduleSpecifier ||
+    !ts.isStringLiteral(statement.moduleSpecifier) ||
+    statement.moduleSpecifier.text === "typestage"
+  ) {
+    return [];
+  }
+
+  const moduleSpecifier = statement.moduleSpecifier.text;
+  const namedBindings = statement.importClause?.namedBindings;
+
+  if (!namedBindings || !ts.isNamedImports(namedBindings)) {
+    return [];
+  }
+
+  return namedBindings.elements.map((specifier) => ({
+    imported: specifier.propertyName?.text ?? specifier.name.text,
+    local: specifier.name.text,
+    moduleId: module.outputPath,
+    specifier: moduleSpecifier,
+    isTypeOnly: Boolean(statement.importClause?.isTypeOnly || specifier.isTypeOnly),
+    targetInputPath: targetPath,
+    targetOutputPath: targetPath ? normalizePath(relative(sourceRoot, targetPath)) : undefined,
   }));
 }
 
@@ -827,6 +919,79 @@ function filteredImportDeclaration(
   );
 }
 
+function movedResidualImportDeclarations(
+  module: GraphModule,
+  generatedGroups: GeneratedStatementGroup[],
+): ts.ImportDeclaration[] {
+  const importsBySpecifier = new Map<string, ResidualImport[]>();
+
+  for (const residualImport of generatedGroups.flatMap((group) => group.residualImports)) {
+    if (residualImport.moduleId === module.outputPath) {
+      continue;
+    }
+
+    const specifier = residualImportSpecifier(module.outputPath, residualImport);
+    const imports = importsBySpecifier.get(specifier) ?? [];
+
+    if (!imports.some((existing) =>
+      existing.imported === residualImport.imported &&
+      existing.local === residualImport.local &&
+      existing.isTypeOnly === residualImport.isTypeOnly
+    )) {
+      imports.push(residualImport);
+    }
+
+    importsBySpecifier.set(specifier, imports);
+  }
+
+  return Array.from(importsBySpecifier.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([specifier, imports]) => {
+      const isTypeOnly = imports.every((residualImport) => residualImport.isTypeOnly);
+      const elements = imports
+        .sort((left, right) => left.local.localeCompare(right.local))
+        .map((residualImport) =>
+          ts.factory.createImportSpecifier(
+            !isTypeOnly && residualImport.isTypeOnly,
+            residualImport.imported === residualImport.local
+              ? undefined
+              : ts.factory.createIdentifier(residualImport.imported),
+            ts.factory.createIdentifier(residualImport.local),
+          )
+        );
+
+      return ts.factory.createImportDeclaration(
+        undefined,
+        ts.factory.createImportClause(
+          isTypeOnly,
+          undefined,
+          ts.factory.createNamedImports(elements),
+        ),
+        ts.factory.createStringLiteral(specifier),
+      );
+    });
+}
+
+function residualImportSpecifier(
+  importerOutputPath: string,
+  residualImport: ResidualImport,
+): string {
+  if (!residualImport.targetOutputPath) {
+    return residualImport.specifier;
+  }
+
+  const relativePath = normalizePath(relative(
+    dirname(importerOutputPath),
+    stripTypeScriptExtension(residualImport.targetOutputPath),
+  ));
+
+  return relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
+}
+
+function stripTypeScriptExtension(path: string): string {
+  return path.replace(/\.(?:cts|mts|tsx?|jsx?)$/, "");
+}
+
 function clonedExportDeclaration(statement: ts.ExportDeclaration): ts.ExportDeclaration {
   return ts.factory.updateExportDeclaration(
     statement,
@@ -864,19 +1029,140 @@ function filteredNamedBindings(
 function referenceIdentifiers(statements: ts.Statement[]): Set<string> {
   const names = new Set<string>();
 
-  const visit = (node: ts.Node) => {
+  const visit = (node: ts.Node, scopes: readonly Set<string>[]) => {
     if (ts.isIdentifier(node) && isReferenceIdentifier(node)) {
-      names.add(node.text);
+      if (!scopes.some((scope) => scope.has(node.text))) {
+        names.add(node.text);
+      }
     }
 
-    ts.forEachChild(node, visit);
+    if (isFunctionLikeWithBody(node)) {
+      const scope = new Set<string>();
+
+      if (ts.isFunctionExpression(node) && node.name) {
+        scope.add(node.name.text);
+      }
+
+      for (const parameter of node.parameters) {
+        collectBindingNames(parameter.name, scope);
+      }
+
+      if (node.body) {
+        visitNodeList([node.body], [...scopes, scope]);
+      }
+      return;
+    }
+
+    if (ts.isBlock(node)) {
+      visitNodeList(Array.from(node.statements), scopes);
+      return;
+    }
+
+    if (ts.isForStatement(node)) {
+      const scope = new Set<string>();
+
+      if (node.initializer && ts.isVariableDeclarationList(node.initializer)) {
+        for (const declaration of node.initializer.declarations) {
+          collectBindingNames(declaration.name, scope);
+        }
+      }
+
+      ts.forEachChild(node, (child) => visit(child, [...scopes, scope]));
+      return;
+    }
+
+    if (ts.isCatchClause(node)) {
+      const scope = new Set<string>();
+
+      if (node.variableDeclaration) {
+        collectBindingNames(node.variableDeclaration.name, scope);
+      }
+
+      visit(node.block, [...scopes, scope]);
+      return;
+    }
+
+    ts.forEachChild(node, (child) => visit(child, scopes));
   };
 
-  for (const statement of statements) {
-    visit(statement);
-  }
+  const visitNodeList = (nodes: readonly ts.Node[], scopes: readonly Set<string>[]) => {
+    const scope = new Set<string>();
+
+    for (const node of nodes) {
+      collectDirectBindingNames(node, scope);
+    }
+
+    const nextScopes = [...scopes, scope];
+
+    for (const node of nodes) {
+      visit(node, nextScopes);
+    }
+  };
+
+  visitNodeList(statements, []);
 
   return names;
+}
+
+function collectDirectBindingNames(node: ts.Node, names: Set<string>) {
+  if (ts.isVariableStatement(node)) {
+    for (const declaration of node.declarationList.declarations) {
+      collectBindingNames(declaration.name, names);
+    }
+    return;
+  }
+
+  if (
+    (ts.isFunctionDeclaration(node) ||
+      ts.isClassDeclaration(node) ||
+      ts.isInterfaceDeclaration(node) ||
+      ts.isTypeAliasDeclaration(node) ||
+      ts.isEnumDeclaration(node)) &&
+    node.name
+  ) {
+    names.add(node.name.text);
+    return;
+  }
+
+  if (ts.isImportDeclaration(node)) {
+    const clause = node.importClause;
+
+    if (clause?.name) {
+      names.add(clause.name.text);
+    }
+
+    if (clause?.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
+      names.add(clause.namedBindings.name.text);
+    } else if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+      for (const specifier of clause.namedBindings.elements) {
+        names.add(specifier.name.text);
+      }
+    }
+  }
+}
+
+function collectBindingNames(name: ts.BindingName, names: Set<string>) {
+  if (ts.isIdentifier(name)) {
+    names.add(name.text);
+    return;
+  }
+
+  for (const element of name.elements) {
+    if (!ts.isOmittedExpression(element) && element.name) {
+      collectBindingNames(element.name, names);
+    }
+  }
+}
+
+function isFunctionLikeWithBody(node: ts.Node): node is ts.FunctionLikeDeclaration {
+  return (
+    (ts.isFunctionDeclaration(node) ||
+      ts.isFunctionExpression(node) ||
+      ts.isArrowFunction(node) ||
+      ts.isMethodDeclaration(node) ||
+      ts.isConstructorDeclaration(node)) &&
+    Boolean(node.body)
+  );
 }
 
 function isReferenceIdentifier(node: ts.Identifier): boolean {

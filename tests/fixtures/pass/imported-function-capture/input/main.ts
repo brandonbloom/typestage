@@ -1,6 +1,6 @@
 import {q} from "typestage";
-import {settings} from "./settings";
+import {makeValue} from "./helper";
 
 export const expr = q.expr`
-  ${settings}
+  makeValue()
 `;

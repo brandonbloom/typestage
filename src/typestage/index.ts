@@ -21,4 +21,5 @@ export type {
   Origin,
   ParsedFragment,
   QuoteForm,
+  ResidualImport,
 } from "./types.ts";

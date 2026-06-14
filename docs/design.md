@@ -147,15 +147,16 @@ Resolution order inside quotes:
 2. Resolve against enclosing quoted bindings.
 3. If unresolved in the residual environment, check enclosing host bindings.
 4. If a matching host binding is code-valued and compatible with the current syntactic position, implicitly unquote it.
-5. If a matching host binding is value-valued, persist its staging-time value.
-6. If TypeScript resolves the name as an ambient value or type from the configured `lib`, `types`, or `.d.ts` environment, leave it as a residual reference.
-7. Otherwise report an unresolved residual reference.
+5. If a matching host binding is an import, capture it as a residual import dependency.
+6. If a matching host binding is value-valued, persist its staging-time value.
+7. If TypeScript resolves the name as an ambient value or type from the configured `lib`, `types`, or `.d.ts` environment, leave it as a residual reference.
+8. Otherwise report an unresolved residual reference.
 
-Imported values are ordinary host bindings for this lookup. If an import is
-persisted, TypeStage emits a staging-time snapshot of that value; it does not
-preserve ECMAScript live-binding behavior across phases. If residual code
-should keep calling an imported function by name, generate that name explicitly
-with an identifier fragment and splice it into the quote.
+Imported values are residual names by default. If residual code references an
+imported function or value, TypeStage emits the corresponding import with the
+generated code, even when the quote is imported and emitted from another module.
+Use an explicit splice such as `${settings}` when you want the staging-time
+snapshot of an imported value instead.
 
 ## Binding Analysis
 

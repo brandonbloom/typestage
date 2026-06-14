@@ -540,9 +540,15 @@ export const expr = q.expr`
 
 // parts.ts
 import {q} from "typestage";
+import {fn} from "./helper";
 
 export function call(args: unknown) {
   return q.expr`fn(${args})`;
+}
+
+// helper.ts
+export function fn(...values: number[]) {
+  return Math.max(...values);
 }
 ```
 
@@ -550,15 +556,23 @@ export function call(args: unknown) {
 
 ```ts
 // main.ts
+import { fn } from "./helper";
 export const expr = (fn(first, second));
 
 // parts.ts
+
+// helper.ts
+export function fn(...values: number[]) {
+    return Math.max(...values);
+}
 ```
 
 The helper module exports a host-stage function that returns a TypeStage code
 value. Calling it from `main.ts` is ordinary TypeScript execution during
-staging. Because `parts.ts` produces no residual declarations in this example,
-its emitted residual file is empty.
+staging. The `fn` import is referenced by residual code inside the quote, so
+TypeStage captures it as a residual import and emits it with `main.ts`. Because
+`parts.ts` produces no residual declarations in this example, its emitted
+residual file is empty.
 
 For larger generators, this is what lets you organize compiler code normally:
 parsers, analyzers, lowering helpers, and syntax builders can live in separate
