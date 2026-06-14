@@ -198,6 +198,131 @@ function expandParsedFragment(
     return hygienicReplacementNodes([setTreeOrigin(persisted.expression, hole.origin)]);
   };
 
+  const codeValuesForSplice = (hole: SpliceHole): CodeValue[] | undefined => {
+    const value = codeValueForExpression(hole.expression, codeBindings, values);
+
+    if (value) {
+      return [value];
+    }
+
+    const captured = capturedValueForHole(fragment, hole, capturedValues);
+
+    if (!captured.found) {
+      return undefined;
+    }
+
+    if (isRuntimeCode(captured.value)) {
+      const codeValue = codeValueForRuntimeCode(captured.value, values);
+
+      return codeValue ? [codeValue] : undefined;
+    }
+
+    if (!Array.isArray(captured.value)) {
+      return undefined;
+    }
+
+    const codeValues: CodeValue[] = [];
+
+    for (const item of captured.value) {
+      if (!isRuntimeCode(item)) {
+        return undefined;
+      }
+
+      const codeValue = codeValueForRuntimeCode(item, values);
+
+      if (!codeValue) {
+        return undefined;
+      }
+
+      codeValues.push(codeValue);
+    }
+
+    return codeValues;
+  };
+
+  const typedIdentifierBinding = (value: CodeValue): {
+    name: ts.Identifier;
+    type?: ts.TypeNode;
+  } | undefined => {
+    const expanded = expandValue(value);
+
+    if (expanded.kind !== "ident") {
+      return undefined;
+    }
+
+    const nodes = expanded.expandedNodes ?? expanded.parsed.nodes;
+    const name = nodes[0];
+
+    return name && ts.isIdentifier(name)
+      ? {name, type: expanded.parsed.identType}
+      : undefined;
+  };
+
+  const parameterReplacementsForSplice = (
+    hole: SpliceHole,
+    parameter: ts.ParameterDeclaration,
+  ): ts.ParameterDeclaration[] | undefined => {
+    const codeValues = codeValuesForSplice(hole);
+
+    if (!codeValues) {
+      return undefined;
+    }
+
+    const replacements: ts.ParameterDeclaration[] = [];
+
+    for (const codeValue of codeValues) {
+      const binding = typedIdentifierBinding(codeValue);
+
+      if (!binding) {
+        return undefined;
+      }
+
+      replacements.push(cloneParameterWithNameAndType(
+        parameter,
+        binding.name,
+        parameter.type ?? binding.type,
+      ));
+    }
+
+    return hygienicReplacementNodes(replacements)
+      .filter(ts.isParameter);
+  };
+
+  const variableDeclarationReplacementForSplice = (
+    hole: SpliceHole,
+    declaration: ts.VariableDeclaration,
+  ): ts.VariableDeclaration | undefined => {
+    const codeValues = codeValuesForSplice(hole);
+
+    if (!codeValues || codeValues.length !== 1) {
+      return undefined;
+    }
+
+    const binding = typedIdentifierBinding(codeValues[0]!);
+
+    if (!binding) {
+      return undefined;
+    }
+
+    const replacements = hygienicReplacementNodes([
+      copyNodeOrigin(
+        ts.factory.updateVariableDeclaration(
+          declaration,
+          binding.name,
+          declaration.exclamationToken,
+          declaration.type ?? binding.type,
+          declaration.initializer,
+        ),
+        declaration,
+      ),
+    ]);
+    const replacement = replacements[0];
+
+    return replacement && ts.isVariableDeclaration(replacement)
+      ? replacement
+      : undefined;
+  };
+
   const expandCodeValue = (
     value: CodeValue,
     expected: FragmentKind,
@@ -346,10 +471,28 @@ function expandParsedFragment(
           }
         }
 
+        if (
+          ts.isVariableDeclaration(candidate) &&
+          ts.isIdentifier(candidate.name)
+        ) {
+          const hole = holes.get(candidate.name.text);
+
+          if (hole) {
+            return variableDeclarationReplacementForSplice(hole, candidate) ??
+              candidate;
+          }
+        }
+
         if (ts.isParameter(candidate) && ts.isIdentifier(candidate.name)) {
           const hole = holes.get(candidate.name.text);
 
           if (hole) {
+            const typedReplacements = parameterReplacementsForSplice(hole, candidate);
+
+            if (typedReplacements) {
+              return typedReplacements;
+            }
+
             const replacements = expandSpliceExpression(hole, "pattern", "many");
             const bindingNames = bindingNameReplacements(replacements);
 
@@ -918,14 +1061,25 @@ function cloneParameterWithName(
   parameter: ts.ParameterDeclaration,
   name: ts.BindingName,
 ): ts.ParameterDeclaration {
-  return ts.factory.updateParameterDeclaration(
+  return cloneParameterWithNameAndType(parameter, name, parameter.type);
+}
+
+function cloneParameterWithNameAndType(
+  parameter: ts.ParameterDeclaration,
+  name: ts.BindingName,
+  type: ts.TypeNode | undefined,
+): ts.ParameterDeclaration {
+  return copyNodeOrigin(
+    ts.factory.updateParameterDeclaration(
+      parameter,
+      ts.getModifiers(parameter),
+      parameter.dotDotDotToken,
+      name,
+      parameter.questionToken,
+      type,
+      parameter.initializer,
+    ),
     parameter,
-    ts.getModifiers(parameter),
-    parameter.dotDotDotToken,
-    name,
-    parameter.questionToken,
-    parameter.type,
-    parameter.initializer,
   );
 }
 
@@ -1203,6 +1357,10 @@ function annotateFragmentNodeOrigins(fragment: ParsedFragment) {
 
   for (const node of fragment.nodes) {
     visit(node);
+  }
+
+  if (fragment.identType) {
+    visit(fragment.identType);
   }
 }
 

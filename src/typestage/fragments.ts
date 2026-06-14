@@ -69,6 +69,7 @@ export function parseFragment(quote: QuoteForm): {
       fragmentStart,
       sourceFile,
       nodes: fragmentNodes(quote.kind, quote.cardinality, sourceFile),
+      identType: identTypeNode(quote.kind, sourceFile),
     },
   };
 }
@@ -102,8 +103,8 @@ function wrapFragment(
     }
 
     case "ident": {
-      const prefix = "const __typestage_fragment = ";
-      const suffix = ";\n";
+      const prefix = "function __typestage_fragment(";
+      const suffix = ") {}\n";
 
       return {source: `${prefix}${source}${suffix}`, prefix};
     }
@@ -176,14 +177,14 @@ function fragmentNodes(
     case "ident": {
       const statement = sourceFile.statements[0];
 
-      if (!statement || !ts.isVariableStatement(statement)) {
+      if (!statement || !ts.isFunctionDeclaration(statement)) {
         return [];
       }
 
-      const declaration = statement.declarationList.declarations[0];
-      const initializer = declaration?.initializer;
+      const parameter = statement.parameters[0];
+      const name = parameter?.name;
 
-      return initializer && ts.isIdentifier(initializer) ? [initializer] : [];
+      return name && ts.isIdentifier(name) ? [name] : [];
     }
 
     case "type": {
@@ -222,6 +223,23 @@ function fragmentNodes(
     case "decl":
       return Array.from(sourceFile.statements);
   }
+}
+
+function identTypeNode(
+  kind: FragmentKind,
+  sourceFile: ts.SourceFile,
+): ts.TypeNode | undefined {
+  if (kind !== "ident") {
+    return undefined;
+  }
+
+  const statement = sourceFile.statements[0];
+
+  if (!statement || !ts.isFunctionDeclaration(statement)) {
+    return undefined;
+  }
+
+  return statement.parameters[0]?.type;
 }
 
 function remapParseDiagnostic(

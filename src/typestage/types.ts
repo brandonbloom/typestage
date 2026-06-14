@@ -75,6 +75,8 @@ export type ParsedFragment = {
   fragmentStart: number;
   sourceFile: ts.SourceFile;
   nodes: ts.Node[];
+  /** Optional type annotation carried by `q.ident` fragments. */
+  identType?: ts.TypeNode;
 };
 
 /** Compile-time representation of quoted code plus lexical metadata. */

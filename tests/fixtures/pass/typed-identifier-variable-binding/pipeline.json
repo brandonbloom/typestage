@@ -1,0 +1,94 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/typed-identifier-variable-binding/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "count",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "label",
+          "exported": false
+        },
+        {
+          "id": 2,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "decl",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "count",
+            "kind": "ident",
+            "quoteId": 0
+          },
+          {
+            "name": "decl",
+            "kind": "decl",
+            "quoteId": 2
+          },
+          {
+            "name": "label",
+            "kind": "ident",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": []
+          },
+          {
+            "quoteId": 2,
+            "names": [
+              "__typestage_hole_2_0",
+              "__typestage_hole_2_1"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "ident",
+      "text": "count"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
+      "kind": "ident",
+      "text": "label"
+    },
+    {
+      "quoteId": 2,
+      "moduleId": "main.ts",
+      "kind": "decl",
+      "text": "export const count: number = 1;\nexport let label: string = \"one\";"
+    }
+  ],
+  "diagnostics": [],
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/typed-identifier-variable-binding/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
+}
