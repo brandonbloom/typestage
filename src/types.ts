@@ -3,6 +3,7 @@ import type * as ts from "typescript";
 /** Supported TypeScript grammar entry points for TypeStage fragments. */
 export type FragmentKind =
   | "expr"
+  | "ident"
   | "type"
   | "pattern"
   | "stmt"

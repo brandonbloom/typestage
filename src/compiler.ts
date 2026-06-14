@@ -204,6 +204,14 @@ function syntaxSequenceNodes(
         syntaxNodes.push(cardinality === "one" ? unwrapExpressionListElement(node) : node);
         break;
 
+      case "ident":
+        if (!ts.isIdentifier(node)) {
+          return undefined;
+        }
+
+        syntaxNodes.push(node);
+        break;
+
       case "type":
         if (!ts.isTypeNode(node)) {
           return undefined;

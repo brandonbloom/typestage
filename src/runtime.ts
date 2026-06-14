@@ -29,6 +29,8 @@ export const q = {
     code("expr", "one", strings, ...values),
   exprs: (strings: TemplateStringsArray, ...values: unknown[]) =>
     code("expr", "many", strings, ...values),
+  ident: (strings: TemplateStringsArray, ...values: unknown[]) =>
+    code("ident", "one", strings, ...values),
   type: (strings: TemplateStringsArray, ...values: unknown[]) =>
     code("type", "one", strings, ...values),
   types: (strings: TemplateStringsArray, ...values: unknown[]) =>

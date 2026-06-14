@@ -17,6 +17,7 @@ type QuoteTag = {
 const quoteTags = new Map<string, QuoteTag>([
   ["expr", {cardinality: "one", kind: "expr"}],
   ["exprs", {cardinality: "many", kind: "expr"}],
+  ["ident", {cardinality: "one", kind: "ident"}],
   ["type", {cardinality: "one", kind: "type"}],
   ["types", {cardinality: "many", kind: "type"}],
   ["pattern", {cardinality: "one", kind: "pattern"}],

@@ -95,6 +95,13 @@ function wrapFragment(
       return {source: `${prefix}${source}${suffix}`, prefix};
     }
 
+    case "ident": {
+      const prefix = "const __typestage_fragment = ";
+      const suffix = ";\n";
+
+      return {source: `${prefix}${source}${suffix}`, prefix};
+    }
+
     case "type": {
       if (cardinality === "many") {
         const prefix = "type __typestage_fragment = [";
@@ -158,6 +165,19 @@ function fragmentNodes(
       return cardinality === "many" && ts.isArrayLiteralExpression(initializer)
         ? Array.from(initializer.elements)
         : [initializer];
+    }
+
+    case "ident": {
+      const statement = sourceFile.statements[0];
+
+      if (!statement || !ts.isVariableStatement(statement)) {
+        return [];
+      }
+
+      const declaration = statement.declarationList.declarations[0];
+      const initializer = declaration?.initializer;
+
+      return initializer && ts.isIdentifier(initializer) ? [initializer] : [];
     }
 
     case "type": {

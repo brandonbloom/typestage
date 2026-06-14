@@ -1,0 +1,123 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "ident",
+      "bindingName": "tmpName",
+      "exported": false,
+      "source": "tmp",
+      "holes": []
+    },
+    {
+      "id": 1,
+      "kind": "stmt",
+      "bindingName": "setup",
+      "exported": false,
+      "source": "\n  const __typestage_hole_1_0 = compute();\n  use(__typestage_hole_1_1);\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_1_0",
+          "expression": "tmpName"
+        },
+        {
+          "placeholder": "__typestage_hole_1_1",
+          "expression": "tmpName"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "decl",
+      "bindingName": "fn",
+      "exported": true,
+      "source": "\n  export function run() {\n    const tmp = \"outer\";\n    __typestage_hole_2_0\n    return tmp;\n  }\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_2_0",
+          "expression": "setup"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "const __typestage_fragment = tmp;\n",
+      "nodes": [
+        "tmp"
+      ]
+    },
+    {
+      "quoteId": 1,
+      "virtualSource": "function __typestage_fragment() {\n\n  const __typestage_hole_1_0 = compute();\n  use(__typestage_hole_1_1);\n\n}\n",
+      "nodes": [
+        "const __typestage_hole_1_0 = compute();",
+        "use(__typestage_hole_1_1);"
+      ]
+    },
+    {
+      "quoteId": 2,
+      "virtualSource": "\n  export function run() {\n    const tmp = \"outer\";\n    __typestage_hole_2_0\n    return tmp;\n  }\n\n",
+      "nodes": [
+        "export function run() {\n    const tmp = \"outer\";\n    __typestage_hole_2_0\n    return tmp;\n  }"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "fn",
+        "kind": "decl",
+        "quoteId": 2
+      },
+      {
+        "name": "setup",
+        "kind": "stmt",
+        "quoteId": 1
+      },
+      {
+        "name": "tmpName",
+        "kind": "ident",
+        "quoteId": 0
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      },
+      {
+        "quoteId": 1,
+        "names": [
+          "__typestage_hole_1_0"
+        ]
+      },
+      {
+        "quoteId": 2,
+        "names": [
+          "run",
+          "tmp"
+        ]
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "ident",
+      "text": "tmp"
+    },
+    {
+      "quoteId": 1,
+      "kind": "stmt",
+      "text": "const tmp = compute();\nuse(tmp);"
+    },
+    {
+      "quoteId": 2,
+      "kind": "decl",
+      "text": "export function run() {\n    const tmp = \"outer\";\n    const tmp_1 = compute();\n    use(tmp_1);\n    return tmp;\n}"
+    }
+  ],
+  "diagnostics": [],
+  "outputText": "export function run() {\n    const tmp = \"outer\";\n    const tmp_1 = compute();\n    use(tmp_1);\n    return tmp;\n}"
+}

@@ -139,6 +139,15 @@ function expandParsedFragment(
 
     const expanded = expandValue(value);
     const expandedNodes = expanded.expandedNodes ?? expanded.parsed.nodes;
+
+    if (expanded.kind === "ident") {
+      const replacements = identifierReplacementNodes(expandedNodes, expected);
+
+      if (replacements) {
+        return hygienicReplacementNodes(replacements);
+      }
+    }
+
     const expectedFamily = syntaxFamilyForKind(expected);
     const actualFamily = syntaxFamilyForKind(expanded.kind);
 
@@ -622,11 +631,44 @@ function syntaxFamilyForKind(kind: FragmentKind): SyntaxFamily | undefined {
     case "expr":
       return "expr";
 
+    case "ident":
+      return undefined;
+
     case "type":
       return "type";
 
     case "pattern":
       return "pattern";
+
+    case "stmt":
+    case "block":
+    case "decl":
+      return undefined;
+  }
+}
+
+function identifierReplacementNodes(
+  nodes: ts.Node[],
+  expected: FragmentKind,
+): ts.Node[] | undefined {
+  if (nodes.length !== 1) {
+    return undefined;
+  }
+
+  const identifier = nodes[0];
+
+  if (!identifier || !ts.isIdentifier(identifier)) {
+    return undefined;
+  }
+
+  switch (expected) {
+    case "expr":
+    case "ident":
+    case "pattern":
+      return [identifier];
+
+    case "type":
+      return [ts.factory.createTypeReferenceNode(identifier.text)];
 
     case "stmt":
     case "block":
