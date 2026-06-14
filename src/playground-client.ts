@@ -28,6 +28,7 @@ import {
   keymap,
   lineNumbers,
   rectangularSelection,
+  ViewPlugin,
   type KeyBinding,
 } from "@codemirror/view";
 
@@ -66,6 +67,19 @@ type CompileResult = {
   sourceDiagnostics: PlaygroundDiagnostic[];
 };
 
+type SourceMapMapping = {
+  generatedColumn: number;
+  generatedLine: number;
+  sourceColumn: number;
+  sourceFile: string;
+  sourceLine: number;
+};
+
+type SourceMapLookup = {
+  mappings: SourceMapMapping[];
+  sources: string[];
+};
+
 const examplesSelect = query<HTMLSelectElement>("#examples");
 const sourceElement = query<HTMLElement>("#source");
 const sourceTabs = query<HTMLElement>("#sourceTabs");
@@ -75,6 +89,8 @@ const diagnostics = query<HTMLElement>("#diagnostics");
 const diagnosticsText = query<HTMLElement>("#diagnosticsText");
 const sourceLanguage = new Compartment();
 const outputLanguage = new Compartment();
+const base64Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const base64Values = new Map(Array.from(base64Digits, (digit, index) => [digit, index]));
 let examples: Example[] = [];
 let selectedExample: Example | undefined;
 let currentFileName = "";
@@ -121,6 +137,7 @@ const outputView = new EditorView({
       outputLanguage.of(languageForOutputFile("main.ts")),
       EditorState.readOnly.of(true),
       EditorView.editable.of(false),
+      outputSourceMapClickHandler(),
     ],
   }),
 });
@@ -239,6 +256,28 @@ const editorTheme = EditorView.theme({
 
 function languageForOutputFile(fileName: string) {
   return fileName.endsWith(".map") ? json() : javascript({typescript: true});
+}
+
+function outputSourceMapClickHandler() {
+  return ViewPlugin.define(() => ({}), {
+    eventHandlers: {
+      click(event, view) {
+        const position = view.posAtCoords({
+          x: event.clientX,
+          y: event.clientY,
+        });
+
+        if (position === null) {
+          return false;
+        }
+
+        const line = view.state.doc.lineAt(position);
+        const column = position - line.from + 1;
+
+        return navigateToSourceMapLocation(line.number, column);
+      },
+    },
+  });
 }
 
 function exampleFromLocation() {
@@ -510,6 +549,207 @@ function renderOutput() {
     effects: outputLanguage.reconfigure(languageForOutputFile(currentOutputFileName)),
   });
   replaceDocument(outputView, outputFile?.outputText ?? lastCompileResult?.outputText ?? "");
+}
+
+function navigateToSourceMapLocation(generatedLine: number, generatedColumn: number) {
+  if (currentOutputFileName.endsWith(".map")) {
+    return false;
+  }
+
+  const sourceMapText = sourceMapTextForOutput(currentOutputFileName);
+  const original = sourceMapText
+    ? originalPositionForGeneratedLocation(sourceMapText, generatedLine, generatedColumn)
+    : undefined;
+
+  if (!original) {
+    return false;
+  }
+
+  const fileName = sourceFileNameForTab(original.sourceFile);
+
+  if (!currentFiles().some((file) => file.fileName === fileName)) {
+    return false;
+  }
+
+  saveCurrentSource();
+  currentFileName = fileName;
+  renderSourceTabs();
+  loadCurrentSource();
+  applySourceDiagnostics();
+
+  const position = positionForLineAndColumn(
+    sourceView.state,
+    original.line,
+    original.column,
+  );
+  const selection = tokenSelectionAround(sourceView.state, position);
+
+  sourceView.dispatch({
+    effects: EditorView.scrollIntoView(selection.from, {y: "center"}),
+    selection: {
+      anchor: selection.from,
+      head: selection.to,
+    },
+  });
+  sourceView.focus();
+
+  return true;
+}
+
+function sourceMapTextForOutput(fileName: string): string | undefined {
+  return currentOutputFiles().find((file) => file.fileName === `${fileName}.map`)?.outputText;
+}
+
+function sourceFileNameForTab(sourceFile: string): string {
+  const fixtureRelativeName = sourceFile.replace(/^.*\/input\//u, "");
+
+  if (currentFiles().some((file) => file.fileName === fixtureRelativeName)) {
+    return fixtureRelativeName;
+  }
+
+  const sourceBaseName = sourceFile.split("/").at(-1);
+
+  return currentFiles().find((file) => file.fileName.split("/").at(-1) === sourceBaseName)
+    ?.fileName ?? fixtureRelativeName;
+}
+
+function positionForLineAndColumn(
+  state: EditorState,
+  lineNumber: number,
+  columnNumber: number,
+): number {
+  const line = state.doc.line(Math.max(1, Math.min(lineNumber, state.doc.lines)));
+
+  return clampPosition(line.from + Math.max(0, columnNumber - 1), state.doc.length);
+}
+
+function tokenSelectionAround(
+  state: EditorState,
+  position: number,
+): {
+  from: number;
+  to: number;
+} {
+  const text = state.doc.toString();
+  let from = clampPosition(position, text.length);
+  let to = from;
+
+  while (from > 0 && isTokenCharacter(text[from - 1]!)) {
+    from--;
+  }
+
+  while (to < text.length && isTokenCharacter(text[to]!)) {
+    to++;
+  }
+
+  if (from === to) {
+    to = Math.min(text.length, from + 1);
+  }
+
+  return {from, to};
+}
+
+function isTokenCharacter(character: string): boolean {
+  return /[$\w]/u.test(character);
+}
+
+function originalPositionForGeneratedLocation(
+  sourceMapText: string,
+  line: number,
+  column: number,
+): {
+  column: number;
+  line: number;
+  sourceFile: string;
+} | undefined {
+  const sourceMap = parsedSourceMap(sourceMapText);
+  const lineMappings = sourceMap.mappings.filter((mapping) =>
+    mapping.generatedLine === line - 1
+  );
+  let best: SourceMapMapping | undefined;
+
+  for (const mapping of lineMappings) {
+    if (mapping.generatedColumn <= column - 1) {
+      best = mapping;
+    }
+  }
+
+  return best
+    ? {
+        column: best.sourceColumn + 1,
+        line: best.sourceLine + 1,
+        sourceFile: best.sourceFile,
+      }
+    : undefined;
+}
+
+function parsedSourceMap(sourceMapText: string): SourceMapLookup {
+  const sourceMap = JSON.parse(sourceMapText) as {
+    mappings: string;
+    sources: string[];
+  };
+
+  return {
+    mappings: decodeMappings(sourceMap.mappings, sourceMap.sources),
+    sources: sourceMap.sources,
+  };
+}
+
+function decodeMappings(mappings: string, sourceFiles: string[]): SourceMapMapping[] {
+  const decoded: SourceMapMapping[] = [];
+  let previousSourceIndex = 0;
+  let previousSourceLine = 0;
+  let previousSourceColumn = 0;
+
+  mappings.split(";").forEach((line, generatedLine) => {
+    let previousGeneratedColumn = 0;
+
+    for (const segment of line.split(",").filter(Boolean)) {
+      const values = decodeVlqSegment(segment);
+
+      if (values.length < 4) {
+        continue;
+      }
+
+      previousGeneratedColumn += values[0]!;
+      previousSourceIndex += values[1]!;
+      previousSourceLine += values[2]!;
+      previousSourceColumn += values[3]!;
+      decoded.push({
+        generatedColumn: previousGeneratedColumn,
+        generatedLine,
+        sourceColumn: previousSourceColumn,
+        sourceFile: sourceFiles[previousSourceIndex] ?? "",
+        sourceLine: previousSourceLine,
+      });
+    }
+  });
+
+  return decoded;
+}
+
+function decodeVlqSegment(segment: string): number[] {
+  const values: number[] = [];
+  let shift = 0;
+  let value = 0;
+
+  for (const character of segment) {
+    const digit = base64Values.get(character) ?? 0;
+    const continuation = Boolean(digit & 32);
+
+    value += (digit & 31) << shift;
+
+    if (continuation) {
+      shift += 5;
+      continue;
+    }
+
+    values.push(value & 1 ? -(value >> 1) : value >> 1);
+    value = 0;
+    shift = 0;
+  }
+
+  return values;
 }
 
 function applySourceDiagnostics() {
