@@ -6,7 +6,9 @@
     "test": "bun test",
     "typecheck": "tsgo --noEmit -p tsconfig.json",
     "build": "bun build src/typestage/cli.ts --outdir=dist --target=bun",
-    "playground": "bun --watch src/playground/server.ts"
+    "playground": "bun --watch src/playground/server.ts",
+    "playground:build": "bun scripts/build-playground.ts",
+    "playground:preview": "bun scripts/serve-playground.ts"
   },
   "bin": {
     "typestage": "./src/typestage/cli.ts"
@@ -26,6 +28,7 @@
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.43.1",
     "lines-and-columns": "^2.0.4",
+    "pathe": "^2.0.3",
     "typescript": "^5.9.3"
   },
   "devDependencies": {

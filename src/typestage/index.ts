@@ -4,11 +4,16 @@
  * available to user source as `import {q} from "typestage"`.
  */
 export {
+  compileVirtualGraph,
+  type CompileVirtualGraphOptions,
+  type VirtualGraphFile,
+} from "./graph.ts";
+export {
   compileFileGraph,
   emitFileGraph,
   formatGraphDiagnostics,
   type CompileFileGraphOptions,
-} from "./graph.ts";
+} from "./nodejs.ts";
 export {
   compileRuntimeModule,
   type CompileRuntimeModuleOptions,

@@ -1,23 +1,10 @@
-/**
- * Dynamic staging evaluator for TypeStage source.
- * It rewrites TypeStage imports to the local runtime, wraps quote tags with
- * stable quote ids, mirrors graph modules into a temp tree, and imports the
- * entry module to capture actual interpolation values.
- */
-import {mkdir, mkdtemp, writeFile} from "node:fs/promises";
-import {tmpdir} from "node:os";
-import {dirname, isAbsolute, join, resolve} from "node:path";
-import {pathToFileURL} from "node:url";
 import * as ts from "typescript";
 import {
-  localModuleNotResolved,
-  stagingEvaluationFailed,
-} from "./diagnostics/index.ts";
-import {
-  __typestageCapturedHostValues,
-  __typestageCapturedValues,
-  __typestageResetCapturedValues,
-} from "./runtime.ts";
+  dirname as dirnamePath,
+  isAbsolute as isAbsolutePath,
+  join as joinPath,
+  normalize as normalizePath,
+} from "pathe";
 import type {Diagnostic, QuoteForm} from "./types.ts";
 
 /** Values captured while evaluating a TypeStage source module. */
@@ -41,87 +28,20 @@ export type StagingImportResolver = (
   importerPath: string,
 ) => string | undefined;
 
+/** Evaluates an instrumented TypeStage module graph. */
+export type StagingEvaluator = (
+  entryPath: string,
+  modules: StagingGraphModule[],
+  resolveImport: StagingImportResolver,
+  hostCaptureNames?: Map<number, Set<string>>,
+) => Promise<StagingEvaluation>;
+
 const printer = ts.createPrinter({
   newLine: ts.NewLineKind.LineFeed,
   removeComments: false,
 });
 
-/** Evaluates an instrumented TypeStage module graph from its entry module. */
-export async function evaluateStagingGraph(
-  entryPath: string,
-  modules: StagingGraphModule[],
-  resolveImport: StagingImportResolver,
-  hostCaptureNames: Map<number, Set<string>> = new Map(),
-): Promise<StagingEvaluation> {
-  const runtimeUrl = new URL("./runtime.ts", import.meta.url).href;
-  const directory = await mkdtemp(join(tmpdir(), "typestage-"));
-  const tempPaths = new Map<string, string>();
-
-  for (const module of modules) {
-    const tempPath = join(directory, module.relativePath);
-
-    tempPaths.set(module.inputPath, tempPath);
-    await mkdir(dirname(tempPath), {recursive: true});
-  }
-
-  for (const module of modules) {
-    const tempPath = tempPaths.get(module.inputPath)!;
-    const sourceText = stagingSource(
-      module.sourceFile,
-      module.quotes,
-      runtimeUrl,
-      hostCaptureNames,
-      (specifier) => {
-        const targetPath = resolveImport(specifier, module.inputPath);
-        const targetTempPath = targetPath ? tempPaths.get(targetPath) : undefined;
-
-        return targetTempPath ? pathToFileURL(targetTempPath).href : undefined;
-      },
-    );
-
-    await writeFile(tempPath, sourceText);
-  }
-
-  const entryTempPath = tempPaths.get(entryPath);
-
-  if (!entryTempPath) {
-    return {
-      capturedValues: new Map(),
-      capturedHostValues: new Map(),
-      diagnostics: [
-        {
-          code: localModuleNotResolved.code,
-          message: `entry module '${entryPath}' was not found in the staging graph`,
-        },
-      ],
-    };
-  }
-
-  __typestageResetCapturedValues();
-
-  try {
-    await import(`${pathToFileURL(entryTempPath).href}?t=${Date.now()}`);
-  } catch (error) {
-    return {
-      capturedValues: __typestageCapturedValues(),
-      capturedHostValues: __typestageCapturedHostValues(),
-      diagnostics: [
-        {
-          code: stagingEvaluationFailed.code,
-          message: `staging evaluation failed: ${errorMessage(error)}`,
-        },
-      ],
-    };
-  }
-
-  return {
-    capturedValues: __typestageCapturedValues(),
-    capturedHostValues: __typestageCapturedHostValues(),
-    diagnostics: [],
-  };
-}
-
-function stagingSource(
+export function stagingSource(
   sourceFile: ts.SourceFile,
   quotes: QuoteForm[],
   runtimeUrl: string,
@@ -132,7 +52,7 @@ function stagingSource(
     quotes.map((quote) => [nodeKey(quote.node), quote.id]),
   );
   const helperName = freshHelperName(sourceFile);
-  const baseDirectory = dirname(resolveSourcePath(sourceFile.fileName));
+  const baseDirectory = dirnamePath(resolveSourcePath(sourceFile.fileName));
   const transformed = ts.transform(sourceFile, [
     (context) => {
       const visit = (node: ts.Node): ts.VisitResult<ts.Node> => {
@@ -268,8 +188,7 @@ function rewriteModuleSpecifier(
     return specifier;
   }
 
-  return resolveImport?.(specifier) ??
-    pathToFileURL(resolve(baseDirectory, specifier)).href;
+  return resolveImport?.(specifier) ?? resolvePath(baseDirectory, specifier);
 }
 
 function isRelativeSpecifier(specifier: string): boolean {
@@ -281,7 +200,21 @@ function nodeKey(node: ts.Node): string {
 }
 
 function resolveSourcePath(fileName: string): string {
-  return isAbsolute(fileName) ? fileName : resolve(process.cwd(), fileName);
+  return isAbsolutePath(fileName) ? fileName : resolvePath("/", fileName);
+}
+
+function resolvePath(currentDirectory: string, ...parts: string[]): string {
+  let resolved = normalizePath(currentDirectory);
+
+  for (const part of parts) {
+    if (!part) {
+      continue;
+    }
+
+    resolved = isAbsolutePath(part) ? normalizePath(part) : joinPath(resolved, part);
+  }
+
+  return resolved;
 }
 
 function freshHelperName(sourceFile: ts.SourceFile): string {
@@ -307,6 +240,6 @@ function freshHelperName(sourceFile: ts.SourceFile): string {
   return name;
 }
 
-function errorMessage(error: unknown): string {
+export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }

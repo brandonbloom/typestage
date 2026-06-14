@@ -4,7 +4,7 @@
  * The CLI compiles a local module graph and writes one residual file per
  * source module under the requested output directory.
  */
-import {emitFileGraph, formatGraphDiagnostics} from "./graph.ts";
+import {emitFileGraph, formatGraphDiagnostics} from "./nodejs.ts";
 
 const [, , inputPath, outDir] = Bun.argv;
 

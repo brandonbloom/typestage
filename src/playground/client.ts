@@ -31,41 +31,13 @@ import {
   ViewPlugin,
   type KeyBinding,
 } from "@codemirror/view";
-
-type ExampleFile = {
-  fileName: string;
-  source: string;
-};
-
-type OutputFile = {
-  fileName: string;
-  outputText: string;
-};
-
-type Example = {
-  entryFileName: string;
-  files: ExampleFile[];
-  id: string;
-  group: string;
-  name: string;
-  outputFiles: OutputFile[];
-};
-
-type PlaygroundDiagnostic = {
-  code: string;
-  fileName: string;
-  from: number;
-  message: string;
-  severity: "error";
-  to: number;
-};
-
-type CompileResult = {
-  diagnostics: string;
-  outputFiles: OutputFile[];
-  outputText: string;
-  sourceDiagnostics: PlaygroundDiagnostic[];
-};
+import type {
+  CompileRequest,
+  CompileResult,
+  Example,
+  ExampleFile,
+  PlaygroundDiagnostic,
+} from "./protocol.ts";
 
 type SourceMapMapping = {
   generatedColumn: number;
@@ -93,6 +65,8 @@ const sourceLanguage = new Compartment();
 const outputLanguage = new Compartment();
 const base64Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const base64Values = new Map(Array.from(base64Digits, (digit, index) => [digit, index]));
+const compilerWorker = new Worker("compiler-worker.js", {type: "module"});
+let nextCompileRequestId = 0;
 let examples: Example[] = [];
 let selectedExample: Example | undefined;
 let currentFileName = "";
@@ -152,7 +126,7 @@ const outputView = new EditorView({
 void boot();
 
 async function boot() {
-  examples = await fetchJson<Example[]>("/api/examples");
+  examples = await fetchJson<Example[]>("examples.json");
   populateExamples(examples);
   selectedExample = exampleFromLocation() ?? examples[0];
 
@@ -526,7 +500,7 @@ async function compileNow() {
   saveCurrentSource();
 
   try {
-    const result = await fetchJson<CompileResult>("/api/compile", compileRequest());
+    const result = await compileInWorker(compileRequest());
 
     lastCompileResult = result;
     sourceDiagnostics = result.sourceDiagnostics;
@@ -545,15 +519,45 @@ async function compileNow() {
   }
 }
 
-function compileRequest(): RequestInit {
+function compileRequest(): CompileRequest {
   return {
-    body: JSON.stringify({
-      entryFileName: selectedExample?.entryFileName ?? "main.ts",
-      files: currentFiles(),
-    }),
-    headers: {"content-type": "application/json"},
-    method: "POST",
+    entryFileName: selectedExample?.entryFileName ?? "main.ts",
+    files: currentFiles(),
   };
+}
+
+function compileInWorker(request: CompileRequest): Promise<CompileResult> {
+  const id = nextCompileRequestId++;
+
+  return new Promise((resolve, reject) => {
+    const handleMessage = (event: MessageEvent<{
+      error?: string;
+      id: number;
+      result?: CompileResult;
+    }>) => {
+      if (event.data.id !== id) {
+        return;
+      }
+
+      compilerWorker.removeEventListener("message", handleMessage);
+      compilerWorker.removeEventListener("error", handleError);
+
+      if (event.data.result) {
+        resolve(event.data.result);
+      } else {
+        reject(new Error(event.data.error ?? "Compiler worker failed."));
+      }
+    };
+    const handleError = (event: ErrorEvent) => {
+      compilerWorker.removeEventListener("message", handleMessage);
+      compilerWorker.removeEventListener("error", handleError);
+      reject(event.error instanceof Error ? event.error : new Error(event.message));
+    };
+
+    compilerWorker.addEventListener("message", handleMessage);
+    compilerWorker.addEventListener("error", handleError);
+    compilerWorker.postMessage({id, request});
+  });
 }
 
 function renderOutput() {

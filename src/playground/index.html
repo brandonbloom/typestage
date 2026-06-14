@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TypeStage Playground</title>
+  <link rel="stylesheet" href="playground.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="toolbar">
+      <div class="brand">TypeStage Playground</div>
+      <label for="examples">Example</label>
+      <select id="examples"></select>
+    </header>
+    <section class="workspace">
+      <section class="pane source-pane">
+        <div class="pane-header"><span>Source</span></div>
+        <div id="sourceTabs" class="file-tabs" role="tablist" aria-label="Source files"></div>
+        <div id="source" class="editor-host"></div>
+        <footer id="diagnostics" class="details-panel diagnostics">
+          <p class="details-title">Diagnostics</p>
+          <button class="copy-button" type="button" data-copy-target="diagnosticsText" aria-label="Copy diagnostics" title="Copy diagnostics">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+              <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
+            </svg>
+          </button>
+          <pre id="diagnosticsText">Loading examples...</pre>
+        </footer>
+      </section>
+      <section class="pane output-pane">
+        <div class="pane-header"><span>Compiled Output</span></div>
+        <div id="outputTabs" class="file-tabs" role="tablist" aria-label="Output files"></div>
+        <div id="output" class="editor-host"></div>
+        <footer id="outputSelection" class="details-panel mapping-info">
+          <p class="details-title">Output Selection</p>
+          <button class="copy-button" type="button" data-copy-target="outputSelectionText" aria-label="Copy output selection" title="Copy output selection">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+              <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
+            </svg>
+          </button>
+          <pre id="outputSelectionText">No output selected.</pre>
+        </footer>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="playground-client.js"></script>
+</body>
+</html>
