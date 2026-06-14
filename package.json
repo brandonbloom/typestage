@@ -5,11 +5,17 @@
   "scripts": {
     "test": "bun test",
     "typecheck": "tsgo --noEmit -p tsconfig.json",
-    "build": "bun build src/cli.ts --outdir=dist --target=bun",
-    "playground": "bun --watch src/playground.ts"
+    "build": "bun build src/typestage/cli.ts --outdir=dist --target=bun",
+    "playground": "bun --watch src/playground/server.ts"
   },
   "bin": {
-    "typestage": "./src/cli.ts"
+    "typestage": "./src/typestage/cli.ts"
+  },
+  "exports": {
+    ".": "./src/typestage/index.ts",
+    "./playground/*": "./src/playground/*.ts",
+    "./typestage": "./src/typestage/index.ts",
+    "./typestage/*": "./src/typestage/*.ts"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.3",

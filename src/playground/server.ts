@@ -8,9 +8,8 @@ import {mkdir, mkdtemp, rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {basename, dirname, join, relative, resolve} from "node:path";
 import {LinesAndColumns} from "lines-and-columns";
-import {compileFileGraph} from "./graph.ts";
-import {originalPositionForGeneratedLocation} from "./source-map.ts";
-import type {CompileGraphFile, Diagnostic} from "./types.ts";
+import {compileFileGraph, originalPositionForGeneratedLocation} from "typestage";
+import type {CompileGraphFile, Diagnostic} from "typestage";
 
 type ExampleFile = {
   fileName: string;
@@ -65,19 +64,23 @@ const server = Bun.serve({
     },
     "/api/compile": {
       async POST(request) {
-        const body = (await request.json()) as {
-          entryFileName?: string;
-          files?: ExampleFile[];
-        };
-        const files = body.files?.length
-          ? body.files
-          : [{fileName: "main.ts", source: ""}];
-        const result = await compilePlaygroundGraph(
-          files,
-          body.entryFileName ?? files[0]?.fileName ?? "main.ts",
-        );
+        try {
+          const body = (await request.json()) as {
+            entryFileName?: string;
+            files?: ExampleFile[];
+          };
+          const files = body.files?.length
+            ? body.files
+            : [{fileName: "main.ts", source: ""}];
+          const result = await compilePlaygroundGraph(
+            files,
+            body.entryFileName ?? files[0]?.fileName ?? "main.ts",
+          );
 
-        return Response.json(result);
+          return Response.json(result);
+        } catch (error) {
+          return Response.json(playgroundErrorResult(error));
+        }
       },
     },
   },
@@ -87,6 +90,15 @@ const server = Bun.serve({
 });
 
 console.log(`TypeStage playground: http://localhost:${server.port}`);
+
+function playgroundErrorResult(error: unknown) {
+  return {
+    diagnostics: `Internal Error: ${errorMessage(error)}`,
+    outputFiles: [],
+    outputText: "",
+    sourceDiagnostics: [],
+  };
+}
 
 function readExamples(): Example[] {
   return [
@@ -196,7 +208,7 @@ async function compilePlaygroundGraph(files: ExampleFile[], entryFileName: strin
 
 async function playgroundClientResponse(): Promise<Response> {
   const result = await Bun.build({
-    entrypoints: [join(import.meta.dir, "playground-client.ts")],
+    entrypoints: [join(import.meta.dir, "client.ts")],
     format: "esm",
     target: "browser",
   });
@@ -304,9 +316,9 @@ async function typecheckPlaygroundOutput(
       }, null, 2)}\n`,
     );
 
-    const process = Bun.spawn(
+    const child = Bun.spawn(
       [
-        join(import.meta.dir, "..", "node_modules", ".bin", "tsgo"),
+        join(process.cwd(), "node_modules", ".bin", "tsgo"),
         "--pretty",
         "false",
         "-p",
@@ -319,9 +331,9 @@ async function typecheckPlaygroundOutput(
       },
     );
     const [stdout, stderr, status] = await Promise.all([
-      new Response(process.stdout).text(),
-      new Response(process.stderr).text(),
-      process.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+      child.exited,
     ]);
     const output = `${stdout}${stderr}`.trim();
 
@@ -428,6 +440,10 @@ function diagnosticEnd(sourceText: string, start: number): number {
   }
 
   return end > start ? end : Math.min(sourceText.length, start + 1);
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function pageHtml(): string {

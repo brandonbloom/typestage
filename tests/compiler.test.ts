@@ -4,9 +4,8 @@ import {existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, w
 import {tmpdir} from "node:os";
 import {basename, dirname, join, relative, resolve} from "node:path";
 import {LinesAndColumns} from "lines-and-columns";
-import {compileFileGraph} from "../src/index.ts";
-import {originalPositionForGeneratedLocation} from "../src/source-map.ts";
-import type {Diagnostic} from "../src/index.ts";
+import {compileFileGraph, originalPositionForGeneratedLocation} from "typestage";
+import type {Diagnostic} from "typestage";
 
 const fixturesRoot = join(import.meta.dir, "fixtures", "pass");
 const expectedFailuresRoot = join(import.meta.dir, "fixtures", "fail");
