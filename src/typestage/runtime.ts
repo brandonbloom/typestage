@@ -101,4 +101,6 @@ export const q = {
     code("block", "one", strings, ...values),
   decl: (strings: TemplateStringsArray, ...values: unknown[]) =>
     code("decl", "one", strings, ...values),
+  decls: (strings: TemplateStringsArray, ...values: unknown[]) =>
+    code("decl", "many", strings, ...values),
 };

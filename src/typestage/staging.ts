@@ -128,15 +128,17 @@ function stagingSource(
           const quoteId = quoteIds.get(nodeKey(node));
 
           if (quoteId !== undefined) {
+            const visited = ts.visitEachChild(node, visit, context);
+
             return ts.factory.updateTaggedTemplateExpression(
-              node,
+              visited,
               ts.factory.createCallExpression(
                 ts.factory.createIdentifier(helperName),
                 undefined,
-                [ts.factory.createNumericLiteral(quoteId), node.tag],
+                [ts.factory.createNumericLiteral(quoteId), visited.tag],
               ),
-              node.typeArguments,
-              node.template,
+              visited.typeArguments,
+              visited.template,
             );
           }
         }

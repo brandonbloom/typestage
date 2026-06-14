@@ -31,6 +31,7 @@ const quoteTags = new Map<string, QuoteTag>([
   ["stmt", {cardinality: "one", kind: "stmt"}],
   ["block", {cardinality: "one", kind: "block"}],
   ["decl", {cardinality: "one", kind: "decl"}],
+  ["decls", {cardinality: "many", kind: "decl"}],
 ]);
 
 /** Parses host TypeScript source without interpreting quote contents. */

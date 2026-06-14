@@ -131,12 +131,6 @@ function expandParsedFragment(
     expected: FragmentKind,
     expectedCardinality: QuoteCardinality = "one",
   ): ts.Node[] | undefined => {
-    const value = codeValueForExpression(hole.expression, codeBindings, values);
-
-    if (value) {
-      return expandCodeValue(value, expected, expectedCardinality, hole.origin);
-    }
-
     const captured = capturedValueForHole(
       fragment,
       hole,
@@ -151,6 +145,12 @@ function expandParsedFragment(
         expectedCardinality,
         hole,
       );
+    }
+
+    const value = codeValueForExpression(hole.expression, codeBindings, values);
+
+    if (value) {
+      return expandCodeValue(value, expected, expectedCardinality, hole.origin);
     }
 
     diagnostics.push({
@@ -298,12 +298,6 @@ function expandParsedFragment(
   };
 
   const codeValuesForSplice = (hole: SpliceHole): CodeValue[] | undefined => {
-    const value = codeValueForExpression(hole.expression, codeBindings, values);
-
-    if (value) {
-      return [value];
-    }
-
     const captured = capturedValueForHole(
       fragment,
       hole,
@@ -312,7 +306,9 @@ function expandParsedFragment(
     );
 
     if (!captured.found) {
-      return undefined;
+      const value = codeValueForExpression(hole.expression, codeBindings, values);
+
+      return value ? [value] : undefined;
     }
 
     if (isRuntimeCode(captured.value)) {
@@ -537,6 +533,21 @@ function expandParsedFragment(
 
   const expandedNodes = sourceNodes
     .flatMap((node) => {
+      if (
+        ts.isExpressionStatement(node) &&
+        ts.isIdentifier(node.expression)
+      ) {
+        const hole = holes.get(node.expression.text);
+
+        if (hole) {
+          return expandSpliceExpression(
+            hole,
+            "stmt",
+            fragment.quote.cardinality,
+          ) ?? [node];
+        }
+      }
+
       const transformed = transformNode(node, (candidate) => {
         if (ts.isTypeReferenceNode(candidate)) {
           const name = typeReferenceIdentifier(candidate);
@@ -613,7 +624,11 @@ function expandParsedFragment(
           const hole = holes.get(candidate.expression.text);
 
           if (hole) {
-            return expandSpliceExpression(hole, "stmt") ?? candidate;
+            return expandSpliceExpression(
+              hole,
+              "stmt",
+              fragment.quote.cardinality,
+            ) ?? candidate;
           }
         }
 

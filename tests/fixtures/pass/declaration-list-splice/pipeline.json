@@ -1,0 +1,89 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/declaration-list-splice/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "field",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "exported": false
+        },
+        {
+          "id": 2,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "decls",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "decls",
+            "kind": "decl",
+            "quoteId": 2
+          },
+          {
+            "name": "field",
+            "kind": "ident",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": [
+              "__typestage_hole_1_0"
+            ]
+          },
+          {
+            "quoteId": 2,
+            "names": [
+              "fieldCount"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "ident",
+      "text": "name"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
+      "kind": "decl",
+      "text": "export const name: string = \"name\";"
+    },
+    {
+      "quoteId": 2,
+      "moduleId": "main.ts",
+      "kind": "decl",
+      "text": "export const fieldCount = 2;\nexport const id: string = \"id\";\nexport const name: string = \"name\";"
+    }
+  ],
+  "diagnostics": [],
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/declaration-list-splice/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
+}
