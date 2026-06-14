@@ -42,7 +42,7 @@
     {
       "quoteId": 0,
       "kind": "expr",
-      "text": "(__typestage_hole_0_0 + 1)"
+      "text": "__typestage_hole_0_0 + 1"
     }
   ],
   "diagnostics": [

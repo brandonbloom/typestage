@@ -63,12 +63,12 @@
     {
       "quoteId": 0,
       "kind": "expr",
-      "text": "(x + 1)"
+      "text": "x + 1"
     },
     {
       "quoteId": 1,
       "kind": "expr",
-      "text": "((() => {\n    const x = 10;\n    return (x + 1);\n})())"
+      "text": "(() => {\n    const x = 10;\n    return (x + 1);\n})()"
     }
   ],
   "diagnostics": [],

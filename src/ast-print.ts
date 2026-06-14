@@ -28,6 +28,11 @@ export function printExpression(expression: ts.Expression): string {
   return text.replace(/;\s*$/, "");
 }
 
+/** Prints a comma-separated list of TypeScript expression nodes. */
+export function printExpressionList(expressions: readonly ts.Expression[]): string {
+  return expressions.map(printExpression).join(", ");
+}
+
 /** Prints a single TypeScript AST node using the shared compiler printer. */
 export function printNode(node: ts.Node): string {
   return printer.printNode(ts.EmitHint.Unspecified, node, emptySourceFile());

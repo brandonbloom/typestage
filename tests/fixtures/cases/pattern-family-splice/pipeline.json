@@ -1,0 +1,117 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "pattern",
+      "bindingName": "First",
+      "exported": false,
+      "source": "first",
+      "holes": []
+    },
+    {
+      "id": 1,
+      "kind": "pattern",
+      "bindingName": "Rest",
+      "exported": false,
+      "source": "second, {third}",
+      "holes": []
+    },
+    {
+      "id": 2,
+      "kind": "decl",
+      "bindingName": "decl",
+      "exported": true,
+      "source": "\n  export function collect(__typestage_hole_2_0, __typestage_hole_2_1) {\n    return [first, second, third];\n  }\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_2_0",
+          "expression": "First"
+        },
+        {
+          "placeholder": "__typestage_hole_2_1",
+          "expression": "Rest"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "function __typestage_fragment(first) {}\n",
+      "nodes": [
+        "first"
+      ]
+    },
+    {
+      "quoteId": 1,
+      "virtualSource": "function __typestage_fragment(second, {third}) {}\n",
+      "nodes": [
+        "second",
+        "{third}"
+      ]
+    },
+    {
+      "quoteId": 2,
+      "virtualSource": "\n  export function collect(__typestage_hole_2_0, __typestage_hole_2_1) {\n    return [first, second, third];\n  }\n\n",
+      "nodes": [
+        "export function collect(__typestage_hole_2_0, __typestage_hole_2_1) {\n    return [first, second, third];\n  }"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "decl",
+        "kind": "decl",
+        "quoteId": 2
+      },
+      {
+        "name": "First",
+        "kind": "pattern",
+        "quoteId": 0
+      },
+      {
+        "name": "Rest",
+        "kind": "pattern",
+        "quoteId": 1
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      },
+      {
+        "quoteId": 1,
+        "names": []
+      },
+      {
+        "quoteId": 2,
+        "names": [
+          "__typestage_hole_2_0",
+          "__typestage_hole_2_1",
+          "collect"
+        ]
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "pattern",
+      "text": "first"
+    },
+    {
+      "quoteId": 1,
+      "kind": "pattern",
+      "text": "second, { third }"
+    },
+    {
+      "quoteId": 2,
+      "kind": "decl",
+      "text": "export function collect(first, second, { third }) {\n    return [first, second, third];\n}"
+    }
+  ],
+  "diagnostics": [],
+  "outputText": "export function collect(first, second, { third }) {\n    return [first, second, third];\n}"
+}

@@ -61,12 +61,12 @@
     {
       "quoteId": 0,
       "kind": "expr",
-      "text": "(y + 1)"
+      "text": "y + 1"
     },
     {
       "quoteId": 1,
       "kind": "expr",
-      "text": "(x + (y + 1))"
+      "text": "x + (y + 1)"
     }
   ],
   "diagnostics": [],

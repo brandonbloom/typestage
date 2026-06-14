@@ -71,7 +71,7 @@
     {
       "quoteId": 1,
       "kind": "expr",
-      "text": "(__typestage_hole_1_0 + 1)"
+      "text": "__typestage_hole_1_0 + 1"
     }
   ],
   "diagnostics": [

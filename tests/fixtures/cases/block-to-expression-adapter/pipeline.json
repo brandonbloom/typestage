@@ -73,7 +73,7 @@
     {
       "quoteId": 1,
       "kind": "expr",
-      "text": "((() => {\n    const value = compute();\n    return value + 1;\n})() * 2)"
+      "text": "(() => {\n    const value = compute();\n    return value + 1;\n})() * 2"
     }
   ],
   "diagnostics": [],

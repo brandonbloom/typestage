@@ -28,6 +28,7 @@ export function buildCodeBindings(
     }
 
     bindings.set(name, {
+      cardinality: fragment.quote.cardinality,
       kind: fragment.quote.kind,
       quote: fragment.quote,
       parsed: fragment,

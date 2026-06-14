@@ -44,7 +44,7 @@
     {
       "quoteId": 0,
       "kind": "expr",
-      "text": "((() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n})())"
+      "text": "(() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n})()"
     }
   ],
   "diagnostics": [

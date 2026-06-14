@@ -60,12 +60,12 @@
     {
       "quoteId": 0,
       "kind": "expr",
-      "text": "((nested + 1) * 2)"
+      "text": "(nested + 1) * 2"
     },
     {
       "quoteId": 1,
       "kind": "expr",
-      "text": "(nested + 1)"
+      "text": "nested + 1"
     }
   ],
   "diagnostics": [],

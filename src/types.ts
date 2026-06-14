@@ -1,7 +1,16 @@
 import type * as ts from "typescript";
 
 /** Supported TypeScript grammar entry points for TypeStage fragments. */
-export type FragmentKind = "expr" | "stmt" | "block" | "decl";
+export type FragmentKind =
+  | "expr"
+  | "type"
+  | "pattern"
+  | "stmt"
+  | "block"
+  | "decl";
+
+/** Whether a quote parses one syntax node or a comma-separated syntax list. */
+export type QuoteCardinality = "one" | "many";
 
 /** Half-open range in an original source file. */
 export type Origin = {
@@ -38,6 +47,7 @@ export type SpliceHole = {
 export type QuoteForm = {
   id: number;
   kind: FragmentKind;
+  cardinality: QuoteCardinality;
   node: ts.TaggedTemplateExpression;
   template: ts.TemplateLiteral;
   origin: Origin;
@@ -62,6 +72,7 @@ export type ParsedFragment = {
 /** Compile-time representation of quoted code plus lexical metadata. */
 export type CodeValue = {
   kind: FragmentKind;
+  cardinality: QuoteCardinality;
   quote: QuoteForm;
   parsed: ParsedFragment;
   expandedNodes?: ts.Node[];

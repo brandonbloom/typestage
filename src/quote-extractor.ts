@@ -3,12 +3,28 @@ import {originForRange, originMapForText} from "./origin.ts";
 import type {
   FragmentKind,
   Origin,
+  QuoteCardinality,
   QuoteForm,
   SpliceHole,
   TemplatePart,
 } from "./types.ts";
 
-const fragmentKinds = new Set<FragmentKind>(["expr", "stmt", "block", "decl"]);
+type QuoteTag = {
+  cardinality: QuoteCardinality;
+  kind: FragmentKind;
+};
+
+const quoteTags = new Map<string, QuoteTag>([
+  ["expr", {cardinality: "one", kind: "expr"}],
+  ["exprs", {cardinality: "many", kind: "expr"}],
+  ["type", {cardinality: "one", kind: "type"}],
+  ["types", {cardinality: "many", kind: "type"}],
+  ["pattern", {cardinality: "one", kind: "pattern"}],
+  ["patterns", {cardinality: "many", kind: "pattern"}],
+  ["stmt", {cardinality: "one", kind: "stmt"}],
+  ["block", {cardinality: "one", kind: "block"}],
+  ["decl", {cardinality: "one", kind: "decl"}],
+]);
 
 /** Parses host TypeScript source without interpreting quote contents. */
 export function parseHostSource(sourceText: string, fileName: string): ts.SourceFile {
@@ -29,10 +45,10 @@ export function extractQuotes(sourceFile: ts.SourceFile): QuoteForm[] {
 
   const visit = (node: ts.Node) => {
     if (ts.isTaggedTemplateExpression(node)) {
-      const kind = quoteKind(node.tag, qNames);
+      const tag = quoteTag(node.tag, qNames);
 
-      if (kind) {
-        quotes.push(buildQuote(sourceFile, node, kind, nextQuoteId));
+      if (tag) {
+        quotes.push(buildQuote(sourceFile, node, tag, nextQuoteId));
         nextQuoteId++;
       }
     }
@@ -80,7 +96,7 @@ function findTypeStageQNames(sourceFile: ts.SourceFile): Set<string> {
   return names;
 }
 
-function quoteKind(tag: ts.LeftHandSideExpression, qNames: Set<string>) {
+function quoteTag(tag: ts.LeftHandSideExpression, qNames: Set<string>) {
   if (!ts.isPropertyAccessExpression(tag)) {
     return undefined;
   }
@@ -93,15 +109,13 @@ function quoteKind(tag: ts.LeftHandSideExpression, qNames: Set<string>) {
     return undefined;
   }
 
-  const kind = tag.name.text;
-
-  return fragmentKinds.has(kind as FragmentKind) ? (kind as FragmentKind) : undefined;
+  return quoteTags.get(tag.name.text);
 }
 
 function buildQuote(
   sourceFile: ts.SourceFile,
   node: ts.TaggedTemplateExpression,
-  kind: FragmentKind,
+  tag: QuoteTag,
   id: number,
 ): QuoteForm {
   const template = node.template;
@@ -134,7 +148,8 @@ function buildQuote(
 
   return {
     id,
-    kind,
+    cardinality: tag.cardinality,
+    kind: tag.kind,
     node,
     template,
     origin: originForRange(sourceFile.fileName, start, node.getEnd()),

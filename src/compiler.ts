@@ -1,6 +1,6 @@
 import {writeFileSync} from "node:fs";
 import * as ts from "typescript";
-import {printNodes} from "./ast-print.ts";
+import {printExpressionList, printNode, printNodes} from "./ast-print.ts";
 import {
   buildCodeBindings,
   summarizeBindings,
@@ -148,7 +148,7 @@ function moduleStatementsForValue(value: CodeValue): ts.Statement[] {
     return nodes.filter(ts.isStatement);
   }
 
-  if (value.kind === "expr" && value.quote.bindingName) {
+  if (value.kind === "expr" && value.cardinality === "one" && value.quote.bindingName) {
     const expression = nodes[0];
 
     if (!expression || !ts.isExpression(expression)) {
@@ -178,15 +178,74 @@ function moduleStatementsForValue(value: CodeValue): ts.Statement[] {
 
 function printCodeValue(value: CodeValue): string {
   const nodes = value.expandedNodes ?? value.parsed.nodes;
+  const syntaxNodes = syntaxSequenceNodes(value.kind, value.cardinality, nodes);
 
-  if (value.kind === "expr") {
-    const expression = nodes[0];
-
-    if (expression && ts.isExpression(expression)) {
-      const statement = ts.factory.createExpressionStatement(expression);
-      return printNodes([statement]).replace(/;\s*$/, "");
-    }
+  if (syntaxNodes) {
+    return syntaxSequenceText(value.kind, syntaxNodes);
   }
 
   return printNodes(nodes.filter(ts.isStatement));
+}
+
+function syntaxSequenceNodes(
+  kind: CodeValue["kind"],
+  cardinality: CodeValue["cardinality"],
+  nodes: ts.Node[],
+): ts.Node[] | undefined {
+  const syntaxNodes: ts.Node[] = [];
+
+  for (const node of nodes) {
+    switch (kind) {
+      case "expr":
+        if (!ts.isExpression(node)) {
+          return undefined;
+        }
+
+        syntaxNodes.push(cardinality === "one" ? unwrapExpressionListElement(node) : node);
+        break;
+
+      case "type":
+        if (!ts.isTypeNode(node)) {
+          return undefined;
+        }
+
+        syntaxNodes.push(node);
+        break;
+
+      case "pattern":
+        if (!isBindingName(node)) {
+          return undefined;
+        }
+
+        syntaxNodes.push(node);
+        break;
+
+      case "stmt":
+      case "block":
+      case "decl":
+        return undefined;
+    }
+  }
+
+  return syntaxNodes;
+}
+
+function syntaxSequenceText(kind: CodeValue["kind"], nodes: ts.Node[]): string {
+  return kind === "expr" && nodes.every(ts.isExpression)
+    ? printExpressionList(nodes)
+    : nodes.map(printNode).join(", ");
+}
+
+function unwrapExpressionListElement(expression: ts.Expression): ts.Expression {
+  return ts.isParenthesizedExpression(expression)
+    ? expression.expression
+    : expression;
+}
+
+function isBindingName(node: ts.Node): node is ts.BindingName {
+  return (
+    ts.isIdentifier(node) ||
+    ts.isObjectBindingPattern(node) ||
+    ts.isArrayBindingPattern(node)
+  );
 }

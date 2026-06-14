@@ -85,17 +85,17 @@
     {
       "quoteId": 0,
       "kind": "expr",
-      "text": "((a + 2) + 1)"
+      "text": "(a + 2) + 1"
     },
     {
       "quoteId": 1,
       "kind": "expr",
-      "text": "((b + 1) + 2)"
+      "text": "(b + 1) + 2"
     },
     {
       "quoteId": 2,
       "kind": "expr",
-      "text": "((b + 1))"
+      "text": "(b + 1)"
     }
   ],
   "diagnostics": [

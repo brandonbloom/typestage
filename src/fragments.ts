@@ -1,6 +1,12 @@
 import * as ts from "typescript";
 import {quoteSource} from "./quote-extractor.ts";
-import type {Diagnostic, FragmentKind, ParsedFragment, QuoteForm} from "./types.ts";
+import type {
+  Diagnostic,
+  FragmentKind,
+  ParsedFragment,
+  QuoteCardinality,
+  QuoteForm,
+} from "./types.ts";
 
 type WrappedFragment = {
   source: string;
@@ -31,7 +37,7 @@ export function parseFragment(quote: QuoteForm): {
   fragment: ParsedFragment;
 } {
   const source = quoteSource(quote);
-  const wrapped = wrapFragment(quote.kind, source.source);
+  const wrapped = wrapFragment(quote.kind, quote.cardinality, source.source);
   const virtualFileName = `${quote.origin.sourceFile}.${quote.id}.${quote.kind}.virtual.ts`;
   const sourceFile = ts.createSourceFile(
     virtualFileName,
@@ -56,7 +62,7 @@ export function parseFragment(quote: QuoteForm): {
       virtualFileName,
       fragmentStart,
       sourceFile,
-      nodes: fragmentNodes(quote.kind, sourceFile),
+      nodes: fragmentNodes(quote.kind, quote.cardinality, sourceFile),
     },
   };
 }
@@ -69,11 +75,43 @@ function getParseDiagnostics(sourceFile: ts.SourceFile): ts.DiagnosticWithLocati
   return candidate.parseDiagnostics ?? [];
 }
 
-function wrapFragment(kind: FragmentKind, source: string): WrappedFragment {
+function wrapFragment(
+  kind: FragmentKind,
+  cardinality: QuoteCardinality,
+  source: string,
+): WrappedFragment {
   switch (kind) {
     case "expr": {
+      if (cardinality === "many") {
+        const prefix = "const __typestage_fragment = [";
+        const suffix = "];\n";
+
+        return {source: `${prefix}${source}${suffix}`, prefix};
+      }
+
       const prefix = "const __typestage_fragment = (";
       const suffix = ");\n";
+
+      return {source: `${prefix}${source}${suffix}`, prefix};
+    }
+
+    case "type": {
+      if (cardinality === "many") {
+        const prefix = "type __typestage_fragment = [";
+        const suffix = "];\n";
+
+        return {source: `${prefix}${source}${suffix}`, prefix};
+      }
+
+      const prefix = "type __typestage_fragment = ";
+      const suffix = ";\n";
+
+      return {source: `${prefix}${source}${suffix}`, prefix};
+    }
+
+    case "pattern": {
+      const prefix = "function __typestage_fragment(";
+      const suffix = ") {}\n";
 
       return {source: `${prefix}${source}${suffix}`, prefix};
     }
@@ -97,7 +135,11 @@ function wrapFragment(kind: FragmentKind, source: string): WrappedFragment {
   }
 }
 
-function fragmentNodes(kind: FragmentKind, sourceFile: ts.SourceFile): ts.Node[] {
+function fragmentNodes(
+  kind: FragmentKind,
+  cardinality: QuoteCardinality,
+  sourceFile: ts.SourceFile,
+): ts.Node[] {
   switch (kind) {
     case "expr": {
       const statement = sourceFile.statements[0];
@@ -107,8 +149,37 @@ function fragmentNodes(kind: FragmentKind, sourceFile: ts.SourceFile): ts.Node[]
       }
 
       const declaration = statement.declarationList.declarations[0];
+      const initializer = declaration?.initializer;
 
-      return declaration?.initializer ? [declaration.initializer] : [];
+      if (!initializer) {
+        return [];
+      }
+
+      return cardinality === "many" && ts.isArrayLiteralExpression(initializer)
+        ? Array.from(initializer.elements)
+        : [initializer];
+    }
+
+    case "type": {
+      const statement = sourceFile.statements[0];
+
+      if (!statement || !ts.isTypeAliasDeclaration(statement)) {
+        return [];
+      }
+
+      return cardinality === "many" && ts.isTupleTypeNode(statement.type)
+        ? Array.from(statement.type.elements)
+        : [statement.type];
+    }
+
+    case "pattern": {
+      const statement = sourceFile.statements[0];
+
+      if (!statement || !ts.isFunctionDeclaration(statement)) {
+        return [];
+      }
+
+      return statement.parameters.map((parameter) => parameter.name);
     }
 
     case "stmt":

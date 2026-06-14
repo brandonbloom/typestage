@@ -1,1 +1,0 @@
-tests/fixtures/expected-fail/expression-list-splice/input.ts:6:8 TSG1001: explicit splice 'args' does not resolve to a TypeStage code value

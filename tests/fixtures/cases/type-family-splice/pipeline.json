@@ -1,0 +1,148 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "type",
+      "bindingName": "Element",
+      "exported": false,
+      "source": "string",
+      "holes": []
+    },
+    {
+      "id": 1,
+      "kind": "type",
+      "bindingName": "Params",
+      "exported": false,
+      "source": "number, boolean",
+      "holes": []
+    },
+    {
+      "id": 2,
+      "kind": "type",
+      "bindingName": "Result",
+      "exported": false,
+      "source": "Date",
+      "holes": []
+    },
+    {
+      "id": 3,
+      "kind": "decl",
+      "bindingName": "decl",
+      "exported": true,
+      "source": "\n  export type Box = Array<__typestage_hole_3_0>;\n  export type Tuple = [__typestage_hole_3_1];\n  export type Handler = Fn<__typestage_hole_3_2, Result>;\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_3_0",
+          "expression": "Element"
+        },
+        {
+          "placeholder": "__typestage_hole_3_1",
+          "expression": "Params"
+        },
+        {
+          "placeholder": "__typestage_hole_3_2",
+          "expression": "Params"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "type __typestage_fragment = string;\n",
+      "nodes": [
+        "string"
+      ]
+    },
+    {
+      "quoteId": 1,
+      "virtualSource": "type __typestage_fragment = [number, boolean];\n",
+      "nodes": [
+        "number",
+        "boolean"
+      ]
+    },
+    {
+      "quoteId": 2,
+      "virtualSource": "type __typestage_fragment = Date;\n",
+      "nodes": [
+        "Date"
+      ]
+    },
+    {
+      "quoteId": 3,
+      "virtualSource": "\n  export type Box = Array<__typestage_hole_3_0>;\n  export type Tuple = [__typestage_hole_3_1];\n  export type Handler = Fn<__typestage_hole_3_2, Result>;\n\n",
+      "nodes": [
+        "export type Box = Array<__typestage_hole_3_0>;",
+        "export type Tuple = [__typestage_hole_3_1];",
+        "export type Handler = Fn<__typestage_hole_3_2, Result>;"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "decl",
+        "kind": "decl",
+        "quoteId": 3
+      },
+      {
+        "name": "Element",
+        "kind": "type",
+        "quoteId": 0
+      },
+      {
+        "name": "Params",
+        "kind": "type",
+        "quoteId": 1
+      },
+      {
+        "name": "Result",
+        "kind": "type",
+        "quoteId": 2
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      },
+      {
+        "quoteId": 1,
+        "names": []
+      },
+      {
+        "quoteId": 2,
+        "names": []
+      },
+      {
+        "quoteId": 3,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "type",
+      "text": "string"
+    },
+    {
+      "quoteId": 1,
+      "kind": "type",
+      "text": "number, boolean"
+    },
+    {
+      "quoteId": 2,
+      "kind": "type",
+      "text": "Date"
+    },
+    {
+      "quoteId": 3,
+      "kind": "decl",
+      "text": "export type Box = Array<string>;\nexport type Tuple = [\n    number,\n    boolean\n];\nexport type Handler = Fn<number, boolean, Date>;"
+    }
+  ],
+  "diagnostics": [],
+  "outputText": "export type Box = Array<string>;\nexport type Tuple = [\n    number,\n    boolean\n];\nexport type Handler = Fn<number, boolean, Date>;"
+}

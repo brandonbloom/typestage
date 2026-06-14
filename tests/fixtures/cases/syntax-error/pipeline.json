@@ -37,7 +37,7 @@
     {
       "quoteId": 0,
       "kind": "expr",
-      "text": "(x + )"
+      "text": "x + "
     }
   ],
   "diagnostics": [

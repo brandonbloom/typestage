@@ -1,0 +1,206 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "expr",
+      "bindingName": "args",
+      "exported": false,
+      "source": "a, b",
+      "holes": []
+    },
+    {
+      "id": 1,
+      "kind": "expr",
+      "bindingName": "suffix",
+      "exported": false,
+      "source": "c",
+      "holes": []
+    },
+    {
+      "id": 2,
+      "kind": "expr",
+      "bindingName": "implicitArgs",
+      "exported": false,
+      "source": "d, e",
+      "holes": []
+    },
+    {
+      "id": 3,
+      "kind": "expr",
+      "bindingName": "implicitSuffix",
+      "exported": false,
+      "source": "f",
+      "holes": []
+    },
+    {
+      "id": 4,
+      "kind": "expr",
+      "bindingName": "callExpr",
+      "exported": true,
+      "source": "\n  fn(0, __typestage_hole_4_0, __typestage_hole_4_1, implicitArgs, implicitSuffix, 3)\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_4_0",
+          "expression": "args"
+        },
+        {
+          "placeholder": "__typestage_hole_4_1",
+          "expression": "suffix"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "expr",
+      "bindingName": "newExpr",
+      "exported": true,
+      "source": "\n  new Box(__typestage_hole_5_0)\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_5_0",
+          "expression": "args"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "const __typestage_fragment = [a, b];\n",
+      "nodes": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "quoteId": 1,
+      "virtualSource": "const __typestage_fragment = (c);\n",
+      "nodes": [
+        "(c)"
+      ]
+    },
+    {
+      "quoteId": 2,
+      "virtualSource": "const __typestage_fragment = [d, e];\n",
+      "nodes": [
+        "d",
+        "e"
+      ]
+    },
+    {
+      "quoteId": 3,
+      "virtualSource": "const __typestage_fragment = (f);\n",
+      "nodes": [
+        "(f)"
+      ]
+    },
+    {
+      "quoteId": 4,
+      "virtualSource": "const __typestage_fragment = (\n  fn(0, __typestage_hole_4_0, __typestage_hole_4_1, implicitArgs, implicitSuffix, 3)\n);\n",
+      "nodes": [
+        "(\n  fn(0, __typestage_hole_4_0, __typestage_hole_4_1, implicitArgs, implicitSuffix, 3)\n)"
+      ]
+    },
+    {
+      "quoteId": 5,
+      "virtualSource": "const __typestage_fragment = (\n  new Box(__typestage_hole_5_0)\n);\n",
+      "nodes": [
+        "(\n  new Box(__typestage_hole_5_0)\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "args",
+        "kind": "expr",
+        "quoteId": 0
+      },
+      {
+        "name": "callExpr",
+        "kind": "expr",
+        "quoteId": 4
+      },
+      {
+        "name": "implicitArgs",
+        "kind": "expr",
+        "quoteId": 2
+      },
+      {
+        "name": "implicitSuffix",
+        "kind": "expr",
+        "quoteId": 3
+      },
+      {
+        "name": "newExpr",
+        "kind": "expr",
+        "quoteId": 5
+      },
+      {
+        "name": "suffix",
+        "kind": "expr",
+        "quoteId": 1
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      },
+      {
+        "quoteId": 1,
+        "names": []
+      },
+      {
+        "quoteId": 2,
+        "names": []
+      },
+      {
+        "quoteId": 3,
+        "names": []
+      },
+      {
+        "quoteId": 4,
+        "names": []
+      },
+      {
+        "quoteId": 5,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "expr",
+      "text": "a, b"
+    },
+    {
+      "quoteId": 1,
+      "kind": "expr",
+      "text": "c"
+    },
+    {
+      "quoteId": 2,
+      "kind": "expr",
+      "text": "d, e"
+    },
+    {
+      "quoteId": 3,
+      "kind": "expr",
+      "text": "f"
+    },
+    {
+      "quoteId": 4,
+      "kind": "expr",
+      "text": "fn(0, a, b, c, d, e, f, 3)"
+    },
+    {
+      "quoteId": 5,
+      "kind": "expr",
+      "text": "new Box(a, b)"
+    }
+  ],
+  "diagnostics": [],
+  "outputText": "export const callExpr = (fn(0, a, b, c, d, e, f, 3));\nexport const newExpr = (new Box(a, b));"
+}

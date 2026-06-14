@@ -1,11 +1,13 @@
 import * as ts from "typescript";
 import {collectLocalBindings} from "./binder.ts";
-import {printExpression, printNode} from "./ast-print.ts";
+import {printExpressionList, printNode} from "./ast-print.ts";
 import type {
   CodeValue,
   Diagnostic,
   FragmentKind,
+  Origin,
   ParsedFragment,
+  QuoteCardinality,
   SpliceHole,
 } from "./types.ts";
 
@@ -30,6 +32,7 @@ export function expandFragments(
 
   for (const fragment of fragments) {
     values.set(fragment.quote.id, {
+      cardinality: fragment.quote.cardinality,
       kind: fragment.quote.kind,
       quote: fragment.quote,
       parsed: fragment,
@@ -92,6 +95,7 @@ function expandParsedFragment(
   const expandSpliceExpression = (
     hole: SpliceHole,
     expected: FragmentKind,
+    expectedCardinality: QuoteCardinality = "one",
   ): ts.Node[] | undefined => {
     const value = codeValueForExpression(hole.expression, codeBindings, values);
 
@@ -104,6 +108,15 @@ function expandParsedFragment(
       return undefined;
     }
 
+    return expandCodeValue(value, expected, expectedCardinality, hole.origin);
+  };
+
+  const expandCodeValue = (
+    value: CodeValue,
+    expected: FragmentKind,
+    expectedCardinality: QuoteCardinality,
+    origin: Origin,
+  ): ts.Node[] | undefined => {
     if (isExpanding(value)) {
       expandValue(value);
       return undefined;
@@ -111,6 +124,35 @@ function expandParsedFragment(
 
     const expanded = expandValue(value);
     const expandedNodes = expanded.expandedNodes ?? expanded.parsed.nodes;
+    const expectedFamily = syntaxFamilyForKind(expected);
+    const actualFamily = syntaxFamilyForKind(expanded.kind);
+
+    if (expectedFamily && expectedFamily === actualFamily) {
+      const replacements = syntaxSequenceNodes(
+        expanded.kind,
+        expanded.cardinality,
+        expandedNodes,
+      );
+
+      if (!replacements) {
+        return undefined;
+      }
+
+      if (expectedCardinality === "many") {
+        return replacements;
+      }
+
+      if (replacements.length === 1) {
+        return replacements;
+      }
+
+      diagnostics.push({
+        code: "TSG1002",
+        message: `cannot splice ${replacements.length} ${expanded.kind} nodes into ${expected} position`,
+        origin,
+      });
+      return undefined;
+    }
 
     if (expected === "expr" && expanded.kind === "block") {
       const adapted = adaptBlockToExpression(expandedNodes);
@@ -119,7 +161,7 @@ function expandParsedFragment(
         diagnostics.push({
           code: "TSG1003",
           message: adapted.message,
-          origin: hole.origin,
+          origin,
         });
         return undefined;
       }
@@ -131,7 +173,7 @@ function expandParsedFragment(
       diagnostics.push({
         code: "TSG1002",
         message: `cannot splice ${expanded.kind} code into ${expected} position`,
-        origin: hole.origin,
+        origin,
       });
       return undefined;
     }
@@ -142,6 +184,56 @@ function expandParsedFragment(
   const expandedNodes = fragment.nodes
     .flatMap((node) => {
       const transformed = transformNode(node, (candidate) => {
+        if (ts.isTypeReferenceNode(candidate)) {
+          const name = typeReferenceIdentifier(candidate);
+
+          if (name) {
+            const hole = holes.get(name.text);
+            const expectedCardinality = isTypeListPosition(candidate) ? "many" : "one";
+
+            if (hole) {
+              const replacements = expandSpliceExpression(
+                hole,
+                "type",
+                expectedCardinality,
+              );
+
+              return typeReplacementResult(expectedCardinality, replacements) ??
+                completedReplacement(candidate);
+            }
+
+            const binding = codeBindings.get(name.text);
+
+            if (
+              binding &&
+              binding.quote.id !== fragment.quote.id &&
+              syntaxFamilyForKind(binding.kind) === "type"
+            ) {
+              const replacements = expandCodeValue(
+                binding,
+                "type",
+                expectedCardinality,
+                originForNode(fragment, candidate),
+              );
+
+              return typeReplacementResult(expectedCardinality, replacements) ?? candidate;
+            }
+          }
+        }
+
+        if (ts.isParameter(candidate) && ts.isIdentifier(candidate.name)) {
+          const hole = holes.get(candidate.name.text);
+
+          if (hole) {
+            const replacements = expandSpliceExpression(hole, "pattern", "many");
+            const bindingNames = bindingNameReplacements(replacements);
+
+            return bindingNames
+              ? bindingNames.map((name) => cloneParameterWithName(candidate, name))
+              : completedReplacement(candidate);
+          }
+        }
+
         if (
           ts.isExpressionStatement(candidate) &&
           ts.isIdentifier(candidate.expression)
@@ -157,6 +249,14 @@ function expandParsedFragment(
           const hole = holes.get(candidate.text);
 
           if (hole) {
+            if (isExpressionListPosition(candidate)) {
+              const replacements = expandSpliceExpression(hole, "expr", "many");
+
+              return replacements && replacements.every(ts.isExpression)
+                ? replacements
+                : candidate;
+            }
+
             const replacement = expandSpliceExpression(hole, "expr")?.[0];
 
             return replacement && ts.isExpression(replacement)
@@ -169,17 +269,29 @@ function expandParsedFragment(
           if (
             binding &&
             binding.quote.id !== fragment.quote.id &&
-            binding.kind === "expr" &&
+            syntaxFamilyForKind(binding.kind) === "expr" &&
             !locals.has(candidate.text) &&
             isReferenceIdentifier(candidate)
           ) {
-            if (isExpanding(binding)) {
-              expandValue(binding);
-              return candidate;
+            if (isExpressionListPosition(candidate)) {
+              const replacements = expandCodeValue(
+                binding,
+                "expr",
+                "many",
+                originForNode(fragment, candidate),
+              );
+
+              return replacements && replacements.every(ts.isExpression)
+                ? replacements
+                : candidate;
             }
 
-            const expanded = expandValue(binding);
-            const replacement = expanded.expandedNodes?.[0];
+            const replacement = expandCodeValue(
+              binding,
+              "expr",
+              "one",
+              originForNode(fragment, candidate),
+            )?.[0];
 
             return replacement && ts.isExpression(replacement)
               ? completedReplacement(parenthesizeIfNeeded(replacement))
@@ -223,6 +335,189 @@ function isCompatible(actual: FragmentKind, expected: FragmentKind): boolean {
   }
 
   return expected === "stmt" && (actual === "block" || actual === "decl");
+}
+
+type SyntaxFamily = "expr" | "type" | "pattern";
+
+function syntaxFamilyForKind(kind: FragmentKind): SyntaxFamily | undefined {
+  switch (kind) {
+    case "expr":
+      return "expr";
+
+    case "type":
+      return "type";
+
+    case "pattern":
+      return "pattern";
+
+    case "stmt":
+    case "block":
+    case "decl":
+      return undefined;
+  }
+}
+
+function isExpressionListPosition(node: ts.Identifier): boolean {
+  const parent = node.parent;
+
+  if (ts.isCallExpression(parent)) {
+    return parent.arguments.some((argument) => argument === node);
+  }
+
+  if (ts.isNewExpression(parent)) {
+    return parent.arguments?.some((argument) => argument === node) ?? false;
+  }
+
+  return false;
+}
+
+function syntaxSequenceNodes(
+  kind: FragmentKind,
+  cardinality: QuoteCardinality,
+  nodes: ts.Node[],
+): ts.Node[] | undefined {
+  const family = syntaxFamilyForKind(kind);
+
+  if (!family) {
+    return undefined;
+  }
+
+  const replacements: ts.Node[] = [];
+
+  for (const node of nodes) {
+    switch (family) {
+      case "expr":
+        if (!ts.isExpression(node)) {
+          return undefined;
+        }
+
+        replacements.push(
+          cardinality === "one" ? unwrapExpressionListElement(node) : node,
+        );
+        break;
+
+      case "type":
+        if (!ts.isTypeNode(node)) {
+          return undefined;
+        }
+
+        replacements.push(node);
+        break;
+
+      case "pattern":
+        if (!isBindingName(node)) {
+          return undefined;
+        }
+
+        replacements.push(node);
+        break;
+    }
+  }
+
+  return replacements;
+}
+
+function unwrapExpressionListElement(expression: ts.Expression): ts.Expression {
+  return ts.isParenthesizedExpression(expression)
+    ? expression.expression
+    : expression;
+}
+
+function typeReferenceIdentifier(node: ts.TypeReferenceNode): ts.Identifier | undefined {
+  return ts.isIdentifier(node.typeName) && !node.typeArguments
+    ? node.typeName
+    : undefined;
+}
+
+function isTypeListPosition(node: ts.TypeReferenceNode): boolean {
+  const parent = node.parent;
+
+  if (ts.isTypeReferenceNode(parent)) {
+    return parent.typeArguments?.some((type) => type === node) ?? false;
+  }
+
+  if (ts.isTupleTypeNode(parent)) {
+    return parent.elements.some((element) => element === node);
+  }
+
+  return false;
+}
+
+function typeReplacements(nodes: ts.Node[] | undefined): ts.TypeNode[] | undefined {
+  return nodes?.every(ts.isTypeNode) ? nodes : undefined;
+}
+
+function typeReplacementResult(
+  expectedCardinality: QuoteCardinality,
+  nodes: ts.Node[] | undefined,
+): Replacement | undefined {
+  const replacements = typeReplacements(nodes);
+
+  if (!replacements) {
+    return undefined;
+  }
+
+  if (expectedCardinality === "many") {
+    return replacements;
+  }
+
+  const replacement = replacements[0];
+
+  return replacement ? completedReplacement(replacement) : undefined;
+}
+
+function bindingNameReplacements(
+  nodes: ts.Node[] | undefined,
+): ts.BindingName[] | undefined {
+  return nodes?.every(isBindingName) ? nodes : undefined;
+}
+
+function isBindingName(node: ts.Node): node is ts.BindingName {
+  return (
+    ts.isIdentifier(node) ||
+    ts.isObjectBindingPattern(node) ||
+    ts.isArrayBindingPattern(node)
+  );
+}
+
+function cloneParameterWithName(
+  parameter: ts.ParameterDeclaration,
+  name: ts.BindingName,
+): ts.ParameterDeclaration {
+  return ts.factory.updateParameterDeclaration(
+    parameter,
+    ts.getModifiers(parameter),
+    parameter.dotDotDotToken,
+    name,
+    parameter.questionToken,
+    parameter.type,
+    parameter.initializer,
+  );
+}
+
+function originForNode(fragment: ParsedFragment, node: ts.Node): Origin {
+  const start = Math.max(
+    0,
+    node.getStart(fragment.sourceFile) - fragment.fragmentStart,
+  );
+  const end = Math.max(start + 1, node.getEnd() - fragment.fragmentStart);
+  const last = Math.max(0, fragment.originMap.length - 1);
+  const startOrigin = fragment.originMap[Math.min(start, last)];
+  const endOrigin = fragment.originMap[Math.min(end - 1, last)];
+
+  if (
+    startOrigin &&
+    endOrigin &&
+    startOrigin.sourceFile === endOrigin.sourceFile
+  ) {
+    return {
+      sourceFile: startOrigin.sourceFile,
+      start: startOrigin.start,
+      end: endOrigin.end,
+    };
+  }
+
+  return startOrigin ?? fragment.quote.origin;
 }
 
 function adaptBlockToExpression(nodes: ts.Node[]): {
@@ -352,16 +647,19 @@ function isReferenceIdentifier(node: ts.Identifier): boolean {
 /** Prints the expanded source text for a TypeStage code value. */
 export function codeValueText(value: CodeValue): string {
   const nodes = value.expandedNodes ?? value.parsed.nodes;
+  const syntaxNodes = syntaxSequenceNodes(value.kind, value.cardinality, nodes);
 
-  if (value.kind === "expr") {
-    const expression = nodes[0];
-
-    return expression && ts.isExpression(expression)
-      ? printExpression(expression)
-      : value.parsed.source;
+  if (syntaxNodes) {
+    return syntaxSequenceText(value.kind, syntaxNodes);
   }
 
   return nodes.map(printNode).join("\n");
+}
+
+function syntaxSequenceText(kind: FragmentKind, nodes: ts.Node[]): string {
+  return syntaxFamilyForKind(kind) === "expr" && nodes.every(ts.isExpression)
+    ? printExpressionList(nodes)
+    : nodes.map(printNode).join(", ");
 }
 
 function transformNode(

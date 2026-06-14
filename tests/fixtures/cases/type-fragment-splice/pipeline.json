@@ -2,22 +2,22 @@
   "quotes": [
     {
       "id": 0,
-      "kind": "expr",
-      "bindingName": "lhs",
+      "kind": "type",
+      "bindingName": "Element",
       "exported": false,
-      "source": "x + 1",
+      "source": "string",
       "holes": []
     },
     {
       "id": 1,
-      "kind": "expr",
-      "bindingName": "expr",
+      "kind": "decl",
+      "bindingName": "decl",
       "exported": true,
-      "source": "\n  __typestage_hole_1_0 * scale\n",
+      "source": "\n  export type Box = Array<__typestage_hole_1_0>;\n",
       "holes": [
         {
           "placeholder": "__typestage_hole_1_0",
-          "expression": "lhs"
+          "expression": "Element"
         }
       ]
     }
@@ -25,29 +25,29 @@
   "fragments": [
     {
       "quoteId": 0,
-      "virtualSource": "const __typestage_fragment = (x + 1);\n",
+      "virtualSource": "type __typestage_fragment = string;\n",
       "nodes": [
-        "(x + 1)"
+        "string"
       ]
     },
     {
       "quoteId": 1,
-      "virtualSource": "const __typestage_fragment = (\n  __typestage_hole_1_0 * scale\n);\n",
+      "virtualSource": "\n  export type Box = Array<__typestage_hole_1_0>;\n\n",
       "nodes": [
-        "(\n  __typestage_hole_1_0 * scale\n)"
+        "export type Box = Array<__typestage_hole_1_0>;"
       ]
     }
   ],
   "bindings": {
     "codeBindings": [
       {
-        "name": "expr",
-        "kind": "expr",
+        "name": "decl",
+        "kind": "decl",
         "quoteId": 1
       },
       {
-        "name": "lhs",
-        "kind": "expr",
+        "name": "Element",
+        "kind": "type",
         "quoteId": 0
       }
     ],
@@ -65,15 +65,15 @@
   "expanded": [
     {
       "quoteId": 0,
-      "kind": "expr",
-      "text": "x + 1"
+      "kind": "type",
+      "text": "string"
     },
     {
       "quoteId": 1,
-      "kind": "expr",
-      "text": "(x + 1) * scale"
+      "kind": "decl",
+      "text": "export type Box = Array<string>;"
     }
   ],
   "diagnostics": [],
-  "outputText": "export const expr = ((x + 1) * scale);"
+  "outputText": "export type Box = Array<string>;"
 }
