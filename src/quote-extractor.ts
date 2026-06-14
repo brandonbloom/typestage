@@ -1,3 +1,9 @@
+/**
+ * Host-source scanner for TypeStage quote forms.
+ * It recognizes imports of the runtime `q` namespace, records quote bodies
+ * with placeholder holes, and attaches simple binding/export metadata before
+ * fragment parsing.
+ */
 import * as ts from "typescript";
 import {originForRange, originMapForText} from "./origin.ts";
 import type {

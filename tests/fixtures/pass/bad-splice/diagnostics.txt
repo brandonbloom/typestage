@@ -1,1 +1,1 @@
-tests/fixtures/pass/bad-splice/input.ts:5:30 TSG1002: cannot splice stmt code into expr position
+tests/fixtures/pass/bad-splice/input/main.ts:5:30 TSG1002: cannot splice stmt code into expr position

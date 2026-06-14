@@ -1,76 +1,71 @@
 {
-  "quotes": [
+  "modules": [
     {
-      "id": 0,
-      "kind": "expr",
-      "bindingName": "rhs",
-      "exported": false,
-      "source": "y + 1",
-      "holes": []
-    },
-    {
-      "id": 1,
-      "kind": "expr",
-      "bindingName": "expr",
-      "exported": true,
-      "source": "\n  (() => {\n    const rhs = 1;\n    return rhs;\n  })()\n",
-      "holes": []
-    }
-  ],
-  "fragments": [
-    {
-      "quoteId": 0,
-      "virtualSource": "const __typestage_fragment = (y + 1);\n",
-      "nodes": [
-        "(y + 1)"
-      ]
-    },
-    {
-      "quoteId": 1,
-      "virtualSource": "const __typestage_fragment = (\n  (() => {\n    const rhs = 1;\n    return rhs;\n  })()\n);\n",
-      "nodes": [
-        "(\n  (() => {\n    const rhs = 1;\n    return rhs;\n  })()\n)"
-      ]
-    }
-  ],
-  "bindings": {
-    "codeBindings": [
-      {
-        "name": "expr",
-        "kind": "expr",
-        "quoteId": 1
-      },
-      {
-        "name": "rhs",
-        "kind": "expr",
-        "quoteId": 0
-      }
-    ],
-    "localBindingsByQuote": [
-      {
-        "quoteId": 0,
-        "names": []
-      },
-      {
-        "quoteId": 1,
-        "names": [
-          "rhs"
+      "inputPath": "tests/fixtures/pass/lexical-shadowing/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "rhs",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "expr",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "expr",
+            "kind": "expr",
+            "quoteId": 1
+          },
+          {
+            "name": "rhs",
+            "kind": "expr",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": [
+              "rhs"
+            ]
+          }
         ]
       }
-    ]
-  },
+    }
+  ],
   "expanded": [
     {
       "quoteId": 0,
+      "moduleId": "main.ts",
       "kind": "expr",
       "text": "y + 1"
     },
     {
       "quoteId": 1,
+      "moduleId": "main.ts",
       "kind": "expr",
       "text": "(() => {\n    const rhs = 1;\n    return rhs;\n})()"
     }
   ],
   "diagnostics": [],
-  "outputText": "export const expr = ((() => {\n    const rhs = 1;\n    return rhs;\n})());"
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/lexical-shadowing/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
 }

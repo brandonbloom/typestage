@@ -1,85 +1,74 @@
 {
-  "quotes": [
+  "modules": [
     {
-      "id": 0,
-      "kind": "stmt",
-      "bindingName": "setup",
-      "exported": false,
-      "source": "\n  const tmp = compute();\n  use(tmp);\n",
-      "holes": []
-    },
-    {
-      "id": 1,
-      "kind": "decl",
-      "bindingName": "fn",
-      "exported": true,
-      "source": "\n  export function run() {\n    const tmp = \"outer\";\n    __typestage_hole_1_0\n    return tmp;\n  }\n",
-      "holes": [
+      "inputPath": "tests/fixtures/pass/spliced-local-collision/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
         {
-          "placeholder": "__typestage_hole_1_0",
-          "expression": "setup"
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "stmt",
+          "bindingName": "setup",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "fn",
+          "exported": true
         }
-      ]
-    }
-  ],
-  "fragments": [
-    {
-      "quoteId": 0,
-      "virtualSource": "function __typestage_fragment() {\n\n  const tmp = compute();\n  use(tmp);\n\n}\n",
-      "nodes": [
-        "const tmp = compute();",
-        "use(tmp);"
-      ]
-    },
-    {
-      "quoteId": 1,
-      "virtualSource": "\n  export function run() {\n    const tmp = \"outer\";\n    __typestage_hole_1_0\n    return tmp;\n  }\n\n",
-      "nodes": [
-        "export function run() {\n    const tmp = \"outer\";\n    __typestage_hole_1_0\n    return tmp;\n  }"
-      ]
-    }
-  ],
-  "bindings": {
-    "codeBindings": [
-      {
-        "name": "fn",
-        "kind": "decl",
-        "quoteId": 1
-      },
-      {
-        "name": "setup",
-        "kind": "stmt",
-        "quoteId": 0
-      }
-    ],
-    "localBindingsByQuote": [
-      {
-        "quoteId": 0,
-        "names": [
-          "tmp"
-        ]
-      },
-      {
-        "quoteId": 1,
-        "names": [
-          "run",
-          "tmp"
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "fn",
+            "kind": "decl",
+            "quoteId": 1
+          },
+          {
+            "name": "setup",
+            "kind": "stmt",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": [
+              "tmp"
+            ]
+          },
+          {
+            "quoteId": 1,
+            "names": [
+              "run",
+              "tmp"
+            ]
+          }
         ]
       }
-    ]
-  },
+    }
+  ],
   "expanded": [
     {
       "quoteId": 0,
+      "moduleId": "main.ts",
       "kind": "stmt",
       "text": "const tmp = compute();\nuse(tmp);"
     },
     {
       "quoteId": 1,
+      "moduleId": "main.ts",
       "kind": "decl",
       "text": "export function run() {\n    const tmp = \"outer\";\n    const tmp_1 = compute();\n    use(tmp_1);\n    return tmp;\n}"
     }
   ],
   "diagnostics": [],
-  "outputText": "export function run() {\n    const tmp = \"outer\";\n    const tmp_1 = compute();\n    use(tmp_1);\n    return tmp;\n}"
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/spliced-local-collision/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
 }

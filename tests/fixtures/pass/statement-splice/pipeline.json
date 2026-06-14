@@ -1,84 +1,73 @@
 {
-  "quotes": [
+  "modules": [
     {
-      "id": 0,
-      "kind": "stmt",
-      "bindingName": "body",
-      "exported": false,
-      "source": "\n  const value = compute();\n  return value;\n",
-      "holes": []
-    },
-    {
-      "id": 1,
-      "kind": "decl",
-      "bindingName": "fn",
-      "exported": true,
-      "source": "\n  export function f() {\n    __typestage_hole_1_0\n  }\n",
-      "holes": [
+      "inputPath": "tests/fixtures/pass/statement-splice/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
         {
-          "placeholder": "__typestage_hole_1_0",
-          "expression": "body"
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "stmt",
+          "bindingName": "body",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "fn",
+          "exported": true
         }
-      ]
-    }
-  ],
-  "fragments": [
-    {
-      "quoteId": 0,
-      "virtualSource": "function __typestage_fragment() {\n\n  const value = compute();\n  return value;\n\n}\n",
-      "nodes": [
-        "const value = compute();",
-        "return value;"
-      ]
-    },
-    {
-      "quoteId": 1,
-      "virtualSource": "\n  export function f() {\n    __typestage_hole_1_0\n  }\n\n",
-      "nodes": [
-        "export function f() {\n    __typestage_hole_1_0\n  }"
-      ]
-    }
-  ],
-  "bindings": {
-    "codeBindings": [
-      {
-        "name": "body",
-        "kind": "stmt",
-        "quoteId": 0
-      },
-      {
-        "name": "fn",
-        "kind": "decl",
-        "quoteId": 1
-      }
-    ],
-    "localBindingsByQuote": [
-      {
-        "quoteId": 0,
-        "names": [
-          "value"
-        ]
-      },
-      {
-        "quoteId": 1,
-        "names": [
-          "f"
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "body",
+            "kind": "stmt",
+            "quoteId": 0
+          },
+          {
+            "name": "fn",
+            "kind": "decl",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": [
+              "value"
+            ]
+          },
+          {
+            "quoteId": 1,
+            "names": [
+              "f"
+            ]
+          }
         ]
       }
-    ]
-  },
+    }
+  ],
   "expanded": [
     {
       "quoteId": 0,
+      "moduleId": "main.ts",
       "kind": "stmt",
       "text": "const value = compute();\nreturn value;"
     },
     {
       "quoteId": 1,
+      "moduleId": "main.ts",
       "kind": "decl",
       "text": "export function f() {\n    const value = compute();\n    return value;\n}"
     }
   ],
   "diagnostics": [],
-  "outputText": "export function f() {\n    const value = compute();\n    return value;\n}"
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/statement-splice/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
 }

@@ -1,73 +1,63 @@
 {
-  "quotes": [
+  "modules": [
     {
-      "id": 0,
-      "kind": "expr",
-      "bindingName": "expr",
-      "exported": true,
-      "source": "\n  __typestage_hole_0_0 * 2\n",
-      "holes": [
+      "inputPath": "tests/fixtures/pass/nested-explicit-quote/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
         {
-          "placeholder": "__typestage_hole_0_0",
-          "expression": "q.expr`nested + 1`"
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "expr",
+          "exported": true
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "exported": false
         }
-      ]
-    },
-    {
-      "id": 1,
-      "kind": "expr",
-      "exported": false,
-      "source": "nested + 1",
-      "holes": []
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "expr",
+            "kind": "expr",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": []
+          }
+        ]
+      }
     }
   ],
-  "fragments": [
-    {
-      "quoteId": 0,
-      "virtualSource": "const __typestage_fragment = (\n  __typestage_hole_0_0 * 2\n);\n",
-      "nodes": [
-        "(\n  __typestage_hole_0_0 * 2\n)"
-      ]
-    },
-    {
-      "quoteId": 1,
-      "virtualSource": "const __typestage_fragment = (nested + 1);\n",
-      "nodes": [
-        "(nested + 1)"
-      ]
-    }
-  ],
-  "bindings": {
-    "codeBindings": [
-      {
-        "name": "expr",
-        "kind": "expr",
-        "quoteId": 0
-      }
-    ],
-    "localBindingsByQuote": [
-      {
-        "quoteId": 0,
-        "names": []
-      },
-      {
-        "quoteId": 1,
-        "names": []
-      }
-    ]
-  },
   "expanded": [
     {
       "quoteId": 0,
+      "moduleId": "main.ts",
       "kind": "expr",
       "text": "(nested + 1) * 2"
     },
     {
       "quoteId": 1,
+      "moduleId": "main.ts",
       "kind": "expr",
       "text": "nested + 1"
     }
   ],
   "diagnostics": [],
-  "outputText": "export const expr = ((nested + 1) * 2);"
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/nested-explicit-quote/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
 }

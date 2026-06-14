@@ -1,4 +1,10 @@
-import {mkdtemp, writeFile} from "node:fs/promises";
+/**
+ * Dynamic staging evaluator for TypeStage source.
+ * It rewrites TypeStage imports to the local runtime, wraps quote tags with
+ * stable quote ids, mirrors graph modules into a temp tree, and imports the
+ * entry module to capture actual interpolation values.
+ */
+import {mkdir, mkdtemp, writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {dirname, isAbsolute, join, resolve} from "node:path";
 import {pathToFileURL} from "node:url";
@@ -15,26 +21,77 @@ export type StagingEvaluation = {
   diagnostics: Diagnostic[];
 };
 
+/** Source module prepared for graph-wide staging evaluation. */
+export type StagingGraphModule = {
+  inputPath: string;
+  relativePath: string;
+  sourceFile: ts.SourceFile;
+  quotes: QuoteForm[];
+};
+
+/** Resolves a local source import to its canonical source module path. */
+export type StagingImportResolver = (
+  specifier: string,
+  importerPath: string,
+) => string | undefined;
+
 const printer = ts.createPrinter({
   newLine: ts.NewLineKind.LineFeed,
   removeComments: false,
 });
 
-/** Evaluates a source module with instrumented TypeStage quote tags. */
-export async function evaluateStagingModule(
-  sourceFile: ts.SourceFile,
-  quotes: QuoteForm[],
+/** Evaluates an instrumented TypeStage module graph from its entry module. */
+export async function evaluateStagingGraph(
+  entryPath: string,
+  modules: StagingGraphModule[],
+  resolveImport: StagingImportResolver,
 ): Promise<StagingEvaluation> {
   const runtimeUrl = new URL("./runtime.ts", import.meta.url).href;
-  const sourceText = stagingSource(sourceFile, quotes, runtimeUrl);
   const directory = await mkdtemp(join(tmpdir(), "typestage-"));
-  const modulePath = join(directory, "staging.ts");
+  const tempPaths = new Map<string, string>();
 
-  await writeFile(modulePath, sourceText);
+  for (const module of modules) {
+    const tempPath = join(directory, module.relativePath);
+
+    tempPaths.set(module.inputPath, tempPath);
+    await mkdir(dirname(tempPath), {recursive: true});
+  }
+
+  for (const module of modules) {
+    const tempPath = tempPaths.get(module.inputPath)!;
+    const sourceText = stagingSource(
+      module.sourceFile,
+      module.quotes,
+      runtimeUrl,
+      (specifier) => {
+        const targetPath = resolveImport(specifier, module.inputPath);
+        const targetTempPath = targetPath ? tempPaths.get(targetPath) : undefined;
+
+        return targetTempPath ? pathToFileURL(targetTempPath).href : undefined;
+      },
+    );
+
+    await writeFile(tempPath, sourceText);
+  }
+
+  const entryTempPath = tempPaths.get(entryPath);
+
+  if (!entryTempPath) {
+    return {
+      capturedValues: new Map(),
+      diagnostics: [
+        {
+          code: "TSG1007",
+          message: `entry module '${entryPath}' was not found in the staging graph`,
+        },
+      ],
+    };
+  }
+
   __typestageResetCapturedValues();
 
   try {
-    await import(`${pathToFileURL(modulePath).href}?t=${Date.now()}`);
+    await import(`${pathToFileURL(entryTempPath).href}?t=${Date.now()}`);
   } catch (error) {
     return {
       capturedValues: __typestageCapturedValues(),
@@ -57,6 +114,7 @@ function stagingSource(
   sourceFile: ts.SourceFile,
   quotes: QuoteForm[],
   runtimeUrl: string,
+  resolveImport?: (specifier: string) => string | undefined,
 ): string {
   const quoteIds = new Map(
     quotes.map((quote) => [nodeKey(quote.node), quote.id]),
@@ -92,6 +150,7 @@ function stagingSource(
             node.moduleSpecifier.text,
             runtimeUrl,
             baseDirectory,
+            resolveImport,
           );
 
           if (rewritten !== node.moduleSpecifier.text) {
@@ -153,14 +212,18 @@ function rewriteModuleSpecifier(
   specifier: string,
   runtimeUrl: string,
   baseDirectory: string,
+  resolveImport?: (specifier: string) => string | undefined,
 ): string {
   if (specifier === "typestage") {
     return runtimeUrl;
   }
 
-  return isRelativeSpecifier(specifier)
-    ? pathToFileURL(resolve(baseDirectory, specifier)).href
-    : specifier;
+  if (!isRelativeSpecifier(specifier)) {
+    return specifier;
+  }
+
+  return resolveImport?.(specifier) ??
+    pathToFileURL(resolve(baseDirectory, specifier)).href;
 }
 
 function isRelativeSpecifier(specifier: string): boolean {

@@ -1,87 +1,72 @@
 {
-  "quotes": [
+  "modules": [
     {
-      "id": 0,
-      "kind": "ident",
-      "bindingName": "name",
-      "exported": false,
-      "source": "fresh",
-      "holes": []
-    },
-    {
-      "id": 1,
-      "kind": "decl",
-      "bindingName": "decl",
-      "exported": true,
-      "source": "\n  const __typestage_hole_1_0 = 1;\n  export const value = __typestage_hole_1_1;\n",
-      "holes": [
+      "inputPath": "tests/fixtures/pass/generated-identifier/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
         {
-          "placeholder": "__typestage_hole_1_0",
-          "expression": "name"
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "name",
+          "exported": false
         },
         {
-          "placeholder": "__typestage_hole_1_1",
-          "expression": "name"
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "decl",
+          "exported": true
         }
-      ]
-    }
-  ],
-  "fragments": [
-    {
-      "quoteId": 0,
-      "virtualSource": "const __typestage_fragment = fresh;\n",
-      "nodes": [
-        "fresh"
-      ]
-    },
-    {
-      "quoteId": 1,
-      "virtualSource": "\n  const __typestage_hole_1_0 = 1;\n  export const value = __typestage_hole_1_1;\n\n",
-      "nodes": [
-        "const __typestage_hole_1_0 = 1;",
-        "export const value = __typestage_hole_1_1;"
-      ]
-    }
-  ],
-  "bindings": {
-    "codeBindings": [
-      {
-        "name": "decl",
-        "kind": "decl",
-        "quoteId": 1
-      },
-      {
-        "name": "name",
-        "kind": "ident",
-        "quoteId": 0
-      }
-    ],
-    "localBindingsByQuote": [
-      {
-        "quoteId": 0,
-        "names": []
-      },
-      {
-        "quoteId": 1,
-        "names": [
-          "__typestage_hole_1_0",
-          "value"
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "decl",
+            "kind": "decl",
+            "quoteId": 1
+          },
+          {
+            "name": "name",
+            "kind": "ident",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": [
+              "__typestage_hole_1_0",
+              "value"
+            ]
+          }
         ]
       }
-    ]
-  },
+    }
+  ],
   "expanded": [
     {
       "quoteId": 0,
+      "moduleId": "main.ts",
       "kind": "ident",
       "text": "fresh"
     },
     {
       "quoteId": 1,
+      "moduleId": "main.ts",
       "kind": "decl",
       "text": "const fresh = 1;\nexport const value = fresh;"
     }
   ],
   "diagnostics": [],
-  "outputText": "const fresh = 1;\nexport const value = fresh;"
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/generated-identifier/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
 }

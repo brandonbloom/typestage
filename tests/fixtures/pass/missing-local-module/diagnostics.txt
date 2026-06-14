@@ -1,0 +1,1 @@
+tests/fixtures/pass/missing-local-module/input/main.ts:2:19 TSG1007: local module './missing' could not be resolved from 'tests/fixtures/pass/missing-local-module/input/main.ts'

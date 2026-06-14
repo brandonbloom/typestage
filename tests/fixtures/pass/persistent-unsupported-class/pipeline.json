@@ -1,46 +1,38 @@
 {
-  "quotes": [
+  "modules": [
     {
-      "id": 0,
-      "kind": "expr",
-      "bindingName": "expr",
-      "exported": true,
-      "source": "\n  __typestage_hole_0_0\n",
-      "holes": [
+      "inputPath": "tests/fixtures/pass/persistent-unsupported-class/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
         {
-          "placeholder": "__typestage_hole_0_0",
-          "expression": "runtimeValue"
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "expr",
+          "exported": true
         }
-      ]
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "expr",
+            "kind": "expr",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          }
+        ]
+      }
     }
   ],
-  "fragments": [
-    {
-      "quoteId": 0,
-      "virtualSource": "const __typestage_fragment = (\n  __typestage_hole_0_0\n);\n",
-      "nodes": [
-        "(\n  __typestage_hole_0_0\n)"
-      ]
-    }
-  ],
-  "bindings": {
-    "codeBindings": [
-      {
-        "name": "expr",
-        "kind": "expr",
-        "quoteId": 0
-      }
-    ],
-    "localBindingsByQuote": [
-      {
-        "quoteId": 0,
-        "names": []
-      }
-    ]
-  },
   "expanded": [
     {
       "quoteId": 0,
+      "moduleId": "main.ts",
       "kind": "expr",
       "text": "__typestage_hole_0_0"
     }
@@ -50,11 +42,11 @@
       "code": "TSG1005",
       "message": "persistent splice 'runtimeValue' is unsupported: class instances cannot be persisted",
       "origin": {
-        "sourceFile": "tests/fixtures/pass/persistent-unsupported-class/input.ts",
+        "sourceFile": "tests/fixtures/pass/persistent-unsupported-class/input/main.ts",
         "start": 123,
         "end": 135
       }
     }
   ],
-  "outputText": ""
+  "files": []
 }

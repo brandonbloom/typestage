@@ -1,0 +1,90 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/imported-explicit-code-splice/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "expr",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "expr",
+            "kind": "expr",
+            "quoteId": 0
+          },
+          {
+            "name": "term",
+            "kind": "expr",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          }
+        ]
+      }
+    },
+    {
+      "inputPath": "tests/fixtures/pass/imported-explicit-code-splice/input/parts.ts",
+      "outputPath": "parts.ts",
+      "quotes": [
+        {
+          "id": 1,
+          "moduleId": "parts.ts",
+          "kind": "expr",
+          "bindingName": "term",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "term",
+            "kind": "expr",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 1,
+            "names": []
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "expr",
+      "text": "(x + 1) * 2"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "parts.ts",
+      "kind": "expr",
+      "text": "x + 1"
+    }
+  ],
+  "diagnostics": [],
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/imported-explicit-code-splice/input/main.ts",
+      "outputPath": "main.ts"
+    },
+    {
+      "inputPath": "tests/fixtures/pass/imported-explicit-code-splice/input/parts.ts",
+      "outputPath": "parts.ts"
+    }
+  ]
+}

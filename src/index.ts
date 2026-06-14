@@ -1,8 +1,20 @@
-export {compileSource, emitFile, snapshotPipeline} from "./compiler.ts";
+/**
+ * Public package surface for TypeStage.
+ * Exports graph compilation APIs while keeping the runtime quote namespace
+ * available to user source as `import {q} from "typestage"`.
+ */
+export {
+  compileFileGraph,
+  emitFileGraph,
+  formatGraphDiagnostics,
+  type CompileFileGraphOptions,
+} from "./graph.ts";
 export {q, type RuntimeCode} from "./runtime.ts";
 export type {
   CodeValue,
-  CompileResult,
+  CompileGraphFile,
+  CompileGraphPipeline,
+  CompileGraphResult,
   Diagnostic,
   FragmentKind,
   Origin,

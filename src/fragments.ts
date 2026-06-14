@@ -1,3 +1,9 @@
+/**
+ * Parser bridge from raw quote forms to TypeScript AST fragments.
+ * Each quote body is wrapped with a grammar-specific scaffold so the
+ * TypeScript parser can parse expressions, types, patterns, statements, and
+ * declarations through ordinary syntax entry points.
+ */
 import * as ts from "typescript";
 import {quoteSource} from "./quote-extractor.ts";
 import type {

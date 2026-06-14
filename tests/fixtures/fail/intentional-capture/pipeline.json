@@ -1,48 +1,40 @@
 {
-  "quotes": [
+  "modules": [
     {
-      "id": 0,
-      "kind": "expr",
-      "bindingName": "expr",
-      "exported": true,
-      "source": "\n  (() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n  })()\n",
-      "holes": [
+      "inputPath": "tests/fixtures/fail/intentional-capture/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
         {
-          "placeholder": "__typestage_hole_0_0",
-          "expression": "capture(\"x\")"
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "expr",
+          "exported": true
         }
-      ]
-    }
-  ],
-  "fragments": [
-    {
-      "quoteId": 0,
-      "virtualSource": "const __typestage_fragment = (\n  (() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n  })()\n);\n",
-      "nodes": [
-        "(\n  (() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n  })()\n)"
-      ]
-    }
-  ],
-  "bindings": {
-    "codeBindings": [
-      {
-        "name": "expr",
-        "kind": "expr",
-        "quoteId": 0
-      }
-    ],
-    "localBindingsByQuote": [
-      {
-        "quoteId": 0,
-        "names": [
-          "x"
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "expr",
+            "kind": "expr",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": [
+              "x"
+            ]
+          }
         ]
       }
-    ]
-  },
+    }
+  ],
   "expanded": [
     {
       "quoteId": 0,
+      "moduleId": "main.ts",
       "kind": "expr",
       "text": "(() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n})()"
     }
@@ -52,11 +44,11 @@
       "code": "TSG1005",
       "message": "persistent splice 'capture(\"x\")' is unsupported: function values cannot be persisted",
       "origin": {
-        "sourceFile": "tests/fixtures/fail/intentional-capture/input.ts",
+        "sourceFile": "tests/fixtures/fail/intentional-capture/input/main.ts",
         "start": 109,
         "end": 121
       }
     }
   ],
-  "outputText": ""
+  "files": []
 }

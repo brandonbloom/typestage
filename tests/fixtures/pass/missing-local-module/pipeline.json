@@ -1,0 +1,52 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/missing-local-module/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "expr",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "expr",
+            "kind": "expr",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "expr",
+      "text": "rhs + "
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1007",
+      "message": "local module './missing' could not be resolved from 'tests/fixtures/pass/missing-local-module/input/main.ts'",
+      "origin": {
+        "sourceFile": "tests/fixtures/pass/missing-local-module/input/main.ts",
+        "start": 47,
+        "end": 58
+      }
+    }
+  ],
+  "files": []
+}

@@ -1,15 +1,33 @@
+/**
+ * Local browser playground for trying TypeStage fixtures and ad hoc input.
+ * Examples are read from the fixture tree at request time so the playground
+ * reflects newly added cases while the Bun watcher restarts the server.
+ */
 import {existsSync, readdirSync, readFileSync} from "node:fs";
-import {join, relative} from "node:path";
+import {mkdir, mkdtemp} from "node:fs/promises";
+import {tmpdir} from "node:os";
+import {dirname, join, relative, resolve} from "node:path";
 import {LinesAndColumns} from "lines-and-columns";
-import {compileSource} from "./compiler.ts";
+import {compileFileGraph} from "./graph.ts";
 import type {Diagnostic} from "./types.ts";
 
+type ExampleFile = {
+  fileName: string;
+  source: string;
+};
+
+type OutputFile = {
+  fileName: string;
+  outputText: string;
+};
+
 type Example = {
+  entryFileName: string;
+  files: ExampleFile[];
   id: string;
   group: string;
   name: string;
-  fileName: string;
-  source: string;
+  outputFiles: OutputFile[];
 };
 
 const fixturesRoot = join(process.cwd(), "tests", "fixtures");
@@ -30,17 +48,18 @@ const server = Bun.serve({
     "/api/compile": {
       async POST(request) {
         const body = (await request.json()) as {
-          fileName?: string;
-          source?: string;
+          entryFileName?: string;
+          files?: ExampleFile[];
         };
-        const source = body.source ?? "";
-        const fileName = body.fileName ?? "playground.ts";
-        const result = await compileSource(source, fileName);
+        const files = body.files?.length
+          ? body.files
+          : [{fileName: "main.ts", source: ""}];
+        const result = await compilePlaygroundGraph(
+          files,
+          body.entryFileName ?? files[0]?.fileName ?? "main.ts",
+        );
 
-        return Response.json({
-          diagnostics: formatDiagnostics(source, result.diagnostics),
-          outputText: result.outputText,
-        });
+        return Response.json(result);
       },
     },
   },
@@ -67,31 +86,82 @@ function readExampleGroup(directoryName: string, group: string): Example[] {
 
   return readdirSync(directory, {withFileTypes: true})
     .filter((entry) => entry.isDirectory())
-    .filter((entry) => existsSync(join(directory, entry.name, "input.ts")))
+    .filter((entry) => existsSync(join(directory, entry.name, "input", "main.ts")))
     .map((entry) => {
-      const inputPath = join(directory, entry.name, "input.ts");
-      const fileName = relative(process.cwd(), inputPath);
+      const caseRoot = join(directory, entry.name);
+      const inputRoot = join(caseRoot, "input");
 
       return {
+        entryFileName: "main.ts",
+        files: readFixtureTree(inputRoot).map((file) => ({
+          fileName: file.fileName,
+          source: file.text,
+        })),
         id: `${directoryName}/${entry.name}`,
         group,
         name: entry.name,
-        fileName,
-        source: readFileSync(inputPath, "utf8"),
+        outputFiles: readFixtureTree(join(caseRoot, "output")).map((file) => ({
+          fileName: file.fileName,
+          outputText: file.text,
+        })),
       };
     })
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function formatDiagnostics(
-  sourceText: string,
+function readFixtureTree(root: string, prefix = ""): Array<{
+  fileName: string;
+  text: string;
+}> {
+  if (!existsSync(root)) {
+    return [];
+  }
+
+  return readdirSync(root, {withFileTypes: true})
+    .flatMap((entry) => {
+      const name = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const path = join(root, entry.name);
+
+      return entry.isDirectory()
+        ? readFixtureTree(path, name)
+        : [{fileName: name, text: readFileSync(path, "utf8")}];
+    })
+    .sort((left, right) => left.fileName.localeCompare(right.fileName));
+}
+
+async function compilePlaygroundGraph(files: ExampleFile[], entryFileName: string) {
+  const sourceRoot = await mkdtemp(join(tmpdir(), "typestage-playground-"));
+
+  for (const file of files) {
+    const filePath = join(sourceRoot, file.fileName);
+
+    await mkdir(dirname(filePath), {recursive: true});
+    await Bun.write(filePath, file.source);
+  }
+
+  const result = await compileFileGraph(join(sourceRoot, entryFileName), {
+    sourceRoot,
+  });
+  const sourceByFileName = new Map(files.map((file) => [file.fileName, file.source]));
+
+  return {
+    diagnostics: formatGraphDiagnostics(sourceRoot, sourceByFileName, result.diagnostics),
+    outputFiles: result.files.map((file) => ({
+      fileName: file.outputPath,
+      outputText: file.outputText,
+    })),
+    outputText: result.files.find((file) => file.outputPath === entryFileName)?.outputText ?? "",
+  };
+}
+
+function formatGraphDiagnostics(
+  sourceRoot: string,
+  sourceByFileName: Map<string, string>,
   diagnostics: Diagnostic[],
 ): string {
   if (diagnostics.length === 0) {
     return "No diagnostics.";
   }
-
-  const lines = new LinesAndColumns(sourceText);
 
   return diagnostics
     .map((diagnostic) => {
@@ -99,11 +169,15 @@ function formatDiagnostics(
         return `${diagnostic.code}: ${diagnostic.message}`;
       }
 
+      const absoluteSourceFile = resolve(process.cwd(), diagnostic.origin.sourceFile);
+      const fileName = relative(sourceRoot, absoluteSourceFile);
+      const sourceText = sourceByFileName.get(fileName) ?? "";
+      const lines = new LinesAndColumns(sourceText);
       const location = lines.locationForIndex(diagnostic.origin.start);
       const line = location ? location.line + 1 : 0;
       const column = location ? location.column + 1 : 0;
 
-      return `${diagnostic.origin.sourceFile}:${line}:${column} ${diagnostic.code}: ${diagnostic.message}`;
+      return `${fileName}:${line}:${column} ${diagnostic.code}: ${diagnostic.message}`;
     })
     .join("\n");
 }
@@ -216,6 +290,10 @@ function pageHtml(): string {
       background: var(--panel);
     }
 
+    .source-pane {
+      grid-template-rows: auto auto minmax(0, 1fr);
+    }
+
     .pane-header {
       display: flex;
       align-items: center;
@@ -226,6 +304,34 @@ function pageHtml(): string {
       color: var(--muted);
       font-size: 13px;
       font-weight: 700;
+    }
+
+    .file-tabs {
+      display: flex;
+      min-height: 37px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfd;
+    }
+
+    .file-tab {
+      min-width: 0;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 0;
+      border-right: 1px solid var(--line);
+      border-radius: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .file-tab:hover,
+    .file-tab.is-active {
+      background: #eef3f7;
+      color: var(--ink);
     }
 
     textarea,
@@ -306,17 +412,16 @@ function pageHtml(): string {
       <button id="compile" type="button">Compile</button>
     </header>
     <section class="workspace">
-      <section class="pane">
+      <section class="pane source-pane">
         <div class="pane-header">
           <span>Source</span>
-          <span id="sourceName"></span>
         </div>
+        <div id="sourceTabs" class="file-tabs" role="tablist" aria-label="Source files"></div>
         <textarea id="source" spellcheck="false"></textarea>
       </section>
       <section class="pane">
         <div class="pane-header">
           <span>Compiled Output</span>
-          <span id="compileState"></span>
         </div>
         <pre id="output"></pre>
       </section>
@@ -329,14 +434,15 @@ function pageHtml(): string {
   <script type="module">
     const examplesSelect = document.querySelector("#examples");
     const source = document.querySelector("#source");
+    const sourceTabs = document.querySelector("#sourceTabs");
     const output = document.querySelector("#output");
     const diagnostics = document.querySelector("#diagnostics");
     const diagnosticsText = document.querySelector("#diagnosticsText");
-    const sourceName = document.querySelector("#sourceName");
-    const compileState = document.querySelector("#compileState");
     const compileButton = document.querySelector("#compile");
     let examples = [];
     let selectedExample;
+    let currentFileName = "";
+    let lastCompileResult;
     let debounceTimer;
     let loadingExample = false;
 
@@ -356,6 +462,8 @@ function pageHtml(): string {
       examplesSelect.addEventListener("change", () => loadExample(examplesSelect.value));
       compileButton.addEventListener("click", compileNow);
       source.addEventListener("input", () => {
+        saveCurrentSource();
+
         if (!loadingExample) {
           clearExampleParam();
         }
@@ -406,15 +514,78 @@ function pageHtml(): string {
 
       loadingExample = true;
       examplesSelect.value = selectedExample.id;
-      source.value = selectedExample.source;
+      currentFileName = selectedExample.entryFileName;
+      renderSourceTabs();
+      loadCurrentSource();
+      lastCompileResult = {
+        outputFiles: selectedExample.outputFiles,
+        outputText: selectedExample.outputFiles.find((file) => file.fileName === currentFileName)?.outputText ?? "",
+      };
+      renderOutput();
       loadingExample = false;
-      sourceName.textContent = selectedExample.fileName;
 
       if (options.updateUrl ?? true) {
         setExampleParam(selectedExample.id);
       }
 
       compileNow();
+    }
+
+    function renderSourceTabs() {
+      sourceTabs.textContent = "";
+
+      for (const file of currentFiles()) {
+        const tab = document.createElement("button");
+
+        tab.type = "button";
+        tab.className = "file-tab";
+        tab.textContent = file.fileName;
+        tab.dataset.fileName = file.fileName;
+        tab.setAttribute("role", "tab");
+        tab.setAttribute("aria-selected", String(file.fileName === currentFileName));
+        tab.classList.toggle("is-active", file.fileName === currentFileName);
+        tab.addEventListener("click", () => selectSourceFile(file.fileName));
+        sourceTabs.append(tab);
+      }
+    }
+
+    function selectSourceFile(fileName) {
+      if (fileName === currentFileName) {
+        return;
+      }
+
+      saveCurrentSource();
+      currentFileName = fileName;
+      renderSourceTabs();
+      loadCurrentSource();
+      renderOutput();
+    }
+
+    function currentFiles() {
+      return selectedExample?.files ?? [
+        {
+          fileName: "main.ts",
+          source: source.value,
+        },
+      ];
+    }
+
+    function currentFile() {
+      return currentFiles().find((file) => file.fileName === currentFileName);
+    }
+
+    function loadCurrentSource() {
+      const file = currentFile();
+
+      source.value = file?.source ?? "";
+    }
+
+    function saveCurrentSource() {
+      const file = currentFile();
+
+      if (file) {
+        file.source = source.value;
+      }
     }
 
     function setExampleParam(id) {
@@ -436,28 +607,38 @@ function pageHtml(): string {
     }
 
     async function compileNow() {
-      compileState.textContent = "Compiling...";
+      saveCurrentSource();
 
       try {
-        const result = await fetchJson("/api/compile", {
-          method: "POST",
-          headers: {"content-type": "application/json"},
-          body: JSON.stringify({
-            fileName: selectedExample?.fileName ?? "playground.ts",
-            source: source.value,
-          }),
-        });
+        const result = await fetchJson("/api/compile", compileRequest());
 
-        output.textContent = result.outputText || "";
+        lastCompileResult = result;
+        renderOutput();
         diagnosticsText.textContent = result.diagnostics;
         diagnostics.classList.toggle("has-errors", result.diagnostics !== "No diagnostics.");
-        compileState.textContent = "Ready";
       } catch (error) {
         output.textContent = "";
         diagnosticsText.textContent = error instanceof Error ? error.message : String(error);
         diagnostics.classList.add("has-errors");
-        compileState.textContent = "Error";
       }
+    }
+
+    function compileRequest() {
+      return {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({
+          entryFileName: selectedExample?.entryFileName ?? "main.ts",
+          files: currentFiles(),
+        }),
+      };
+    }
+
+    function renderOutput() {
+      const outputFiles = lastCompileResult?.outputFiles ?? selectedExample?.outputFiles ?? [];
+      const matchingOutput = outputFiles.find((file) => file.fileName === currentFileName);
+
+      output.textContent = matchingOutput?.outputText ?? lastCompileResult?.outputText ?? "";
     }
 
     async function fetchJson(url, options) {

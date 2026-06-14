@@ -1,76 +1,71 @@
 {
-  "quotes": [
+  "modules": [
     {
-      "id": 0,
-      "kind": "expr",
-      "bindingName": "freeX",
-      "exported": false,
-      "source": "x + 1",
-      "holes": []
-    },
-    {
-      "id": 1,
-      "kind": "expr",
-      "bindingName": "expr",
-      "exported": true,
-      "source": "\n  (() => {\n    // TODO: Explicit identifiers should let intentional capture preserve names;\n    // bare free references still require this local binding to move.\n    const x = 10;\n    return freeX;\n  })()\n",
-      "holes": []
-    }
-  ],
-  "fragments": [
-    {
-      "quoteId": 0,
-      "virtualSource": "const __typestage_fragment = (x + 1);\n",
-      "nodes": [
-        "(x + 1)"
-      ]
-    },
-    {
-      "quoteId": 1,
-      "virtualSource": "const __typestage_fragment = (\n  (() => {\n    // TODO: Explicit identifiers should let intentional capture preserve names;\n    // bare free references still require this local binding to move.\n    const x = 10;\n    return freeX;\n  })()\n);\n",
-      "nodes": [
-        "(\n  (() => {\n    // TODO: Explicit identifiers should let intentional capture preserve names;\n    // bare free references still require this local binding to move.\n    const x = 10;\n    return freeX;\n  })()\n)"
-      ]
-    }
-  ],
-  "bindings": {
-    "codeBindings": [
-      {
-        "name": "expr",
-        "kind": "expr",
-        "quoteId": 1
-      },
-      {
-        "name": "freeX",
-        "kind": "expr",
-        "quoteId": 0
-      }
-    ],
-    "localBindingsByQuote": [
-      {
-        "quoteId": 0,
-        "names": []
-      },
-      {
-        "quoteId": 1,
-        "names": [
-          "x"
+      "inputPath": "tests/fixtures/pass/free-reference-capture/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "freeX",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "expr",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "expr",
+            "kind": "expr",
+            "quoteId": 1
+          },
+          {
+            "name": "freeX",
+            "kind": "expr",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": [
+              "x"
+            ]
+          }
         ]
       }
-    ]
-  },
+    }
+  ],
   "expanded": [
     {
       "quoteId": 0,
+      "moduleId": "main.ts",
       "kind": "expr",
       "text": "x + 1"
     },
     {
       "quoteId": 1,
+      "moduleId": "main.ts",
       "kind": "expr",
       "text": "(() => {\n    const x_1 = 10;\n    return (x + 1);\n})()"
     }
   ],
   "diagnostics": [],
-  "outputText": "export const expr = ((() => {\n    const x_1 = 10;\n    return (x + 1);\n})());"
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/free-reference-capture/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
 }

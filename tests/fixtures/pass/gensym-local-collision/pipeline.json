@@ -1,123 +1,96 @@
 {
-  "quotes": [
+  "modules": [
     {
-      "id": 0,
-      "kind": "ident",
-      "bindingName": "tmpName",
-      "exported": false,
-      "source": "tmp",
-      "holes": []
-    },
-    {
-      "id": 1,
-      "kind": "stmt",
-      "bindingName": "setup",
-      "exported": false,
-      "source": "\n  const __typestage_hole_1_0 = compute();\n  use(__typestage_hole_1_1);\n",
-      "holes": [
+      "inputPath": "tests/fixtures/pass/gensym-local-collision/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
         {
-          "placeholder": "__typestage_hole_1_0",
-          "expression": "tmpName"
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "tmpName",
+          "exported": false
         },
         {
-          "placeholder": "__typestage_hole_1_1",
-          "expression": "tmpName"
-        }
-      ]
-    },
-    {
-      "id": 2,
-      "kind": "decl",
-      "bindingName": "fn",
-      "exported": true,
-      "source": "\n  export function run() {\n    const tmp = \"outer\";\n    __typestage_hole_2_0\n    return tmp;\n  }\n",
-      "holes": [
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "stmt",
+          "bindingName": "setup",
+          "exported": false
+        },
         {
-          "placeholder": "__typestage_hole_2_0",
-          "expression": "setup"
+          "id": 2,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "fn",
+          "exported": true
         }
-      ]
-    }
-  ],
-  "fragments": [
-    {
-      "quoteId": 0,
-      "virtualSource": "const __typestage_fragment = tmp;\n",
-      "nodes": [
-        "tmp"
-      ]
-    },
-    {
-      "quoteId": 1,
-      "virtualSource": "function __typestage_fragment() {\n\n  const __typestage_hole_1_0 = compute();\n  use(__typestage_hole_1_1);\n\n}\n",
-      "nodes": [
-        "const __typestage_hole_1_0 = compute();",
-        "use(__typestage_hole_1_1);"
-      ]
-    },
-    {
-      "quoteId": 2,
-      "virtualSource": "\n  export function run() {\n    const tmp = \"outer\";\n    __typestage_hole_2_0\n    return tmp;\n  }\n\n",
-      "nodes": [
-        "export function run() {\n    const tmp = \"outer\";\n    __typestage_hole_2_0\n    return tmp;\n  }"
-      ]
-    }
-  ],
-  "bindings": {
-    "codeBindings": [
-      {
-        "name": "fn",
-        "kind": "decl",
-        "quoteId": 2
-      },
-      {
-        "name": "setup",
-        "kind": "stmt",
-        "quoteId": 1
-      },
-      {
-        "name": "tmpName",
-        "kind": "ident",
-        "quoteId": 0
-      }
-    ],
-    "localBindingsByQuote": [
-      {
-        "quoteId": 0,
-        "names": []
-      },
-      {
-        "quoteId": 1,
-        "names": [
-          "__typestage_hole_1_0"
-        ]
-      },
-      {
-        "quoteId": 2,
-        "names": [
-          "run",
-          "tmp"
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "fn",
+            "kind": "decl",
+            "quoteId": 2
+          },
+          {
+            "name": "setup",
+            "kind": "stmt",
+            "quoteId": 1
+          },
+          {
+            "name": "tmpName",
+            "kind": "ident",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": [
+              "__typestage_hole_1_0"
+            ]
+          },
+          {
+            "quoteId": 2,
+            "names": [
+              "run",
+              "tmp"
+            ]
+          }
         ]
       }
-    ]
-  },
+    }
+  ],
   "expanded": [
     {
       "quoteId": 0,
+      "moduleId": "main.ts",
       "kind": "ident",
       "text": "tmp"
     },
     {
       "quoteId": 1,
+      "moduleId": "main.ts",
       "kind": "stmt",
       "text": "const tmp = compute();\nuse(tmp);"
     },
     {
       "quoteId": 2,
+      "moduleId": "main.ts",
       "kind": "decl",
       "text": "export function run() {\n    const tmp = \"outer\";\n    const tmp_1 = compute();\n    use(tmp_1);\n    return tmp;\n}"
     }
   ],
   "diagnostics": [],
-  "outputText": "export function run() {\n    const tmp = \"outer\";\n    const tmp_1 = compute();\n    use(tmp_1);\n    return tmp;\n}"
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/gensym-local-collision/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
 }

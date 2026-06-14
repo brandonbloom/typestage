@@ -1,3 +1,9 @@
+/**
+ * Syntactic binding summaries for parsed residual fragments.
+ * The expander uses this to distinguish quoted-local names from host
+ * code-valued bindings; it is intentionally syntactic, not a TypeScript
+ * typechecker or full JavaScript scope model.
+ */
 import * as ts from "typescript";
 import type {CodeValue, ParsedFragment} from "./types.ts";
 

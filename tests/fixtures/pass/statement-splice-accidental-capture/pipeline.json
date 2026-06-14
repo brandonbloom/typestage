@@ -1,82 +1,72 @@
 {
-  "quotes": [
+  "modules": [
     {
-      "id": 0,
-      "kind": "stmt",
-      "bindingName": "body",
-      "exported": false,
-      "source": "\n  return x;\n",
-      "holes": []
-    },
-    {
-      "id": 1,
-      "kind": "decl",
-      "bindingName": "fn",
-      "exported": true,
-      "source": "\n  // TODO: With explicit identifiers, prefer preserving this user-written\n  // parameter name when the splice intentionally refers to it.\n  export function f(x: number) {\n    __typestage_hole_1_0\n  }\n",
-      "holes": [
+      "inputPath": "tests/fixtures/pass/statement-splice-accidental-capture/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
         {
-          "placeholder": "__typestage_hole_1_0",
-          "expression": "body"
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "stmt",
+          "bindingName": "body",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "fn",
+          "exported": true
         }
-      ]
-    }
-  ],
-  "fragments": [
-    {
-      "quoteId": 0,
-      "virtualSource": "function __typestage_fragment() {\n\n  return x;\n\n}\n",
-      "nodes": [
-        "return x;"
-      ]
-    },
-    {
-      "quoteId": 1,
-      "virtualSource": "\n  // TODO: With explicit identifiers, prefer preserving this user-written\n  // parameter name when the splice intentionally refers to it.\n  export function f(x: number) {\n    __typestage_hole_1_0\n  }\n\n",
-      "nodes": [
-        "export function f(x: number) {\n    __typestage_hole_1_0\n  }"
-      ]
-    }
-  ],
-  "bindings": {
-    "codeBindings": [
-      {
-        "name": "body",
-        "kind": "stmt",
-        "quoteId": 0
-      },
-      {
-        "name": "fn",
-        "kind": "decl",
-        "quoteId": 1
-      }
-    ],
-    "localBindingsByQuote": [
-      {
-        "quoteId": 0,
-        "names": []
-      },
-      {
-        "quoteId": 1,
-        "names": [
-          "f",
-          "x"
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "body",
+            "kind": "stmt",
+            "quoteId": 0
+          },
+          {
+            "name": "fn",
+            "kind": "decl",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": [
+              "f",
+              "x"
+            ]
+          }
         ]
       }
-    ]
-  },
+    }
+  ],
   "expanded": [
     {
       "quoteId": 0,
+      "moduleId": "main.ts",
       "kind": "stmt",
       "text": "return x;"
     },
     {
       "quoteId": 1,
+      "moduleId": "main.ts",
       "kind": "decl",
       "text": "export function f(x_1: number) {\n    return x;\n}"
     }
   ],
   "diagnostics": [],
-  "outputText": "export function f(x_1: number) {\n    return x;\n}"
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/statement-splice-accidental-capture/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
 }

@@ -1,79 +1,69 @@
 {
-  "quotes": [
+  "modules": [
     {
-      "id": 0,
-      "kind": "type",
-      "bindingName": "Element",
-      "exported": false,
-      "source": "string",
-      "holes": []
-    },
-    {
-      "id": 1,
-      "kind": "decl",
-      "bindingName": "decl",
-      "exported": true,
-      "source": "\n  export type Box = Array<__typestage_hole_1_0>;\n",
-      "holes": [
+      "inputPath": "tests/fixtures/pass/type-fragment-splice/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
         {
-          "placeholder": "__typestage_hole_1_0",
-          "expression": "Element"
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "type",
+          "bindingName": "Element",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "decl",
+          "exported": true
         }
-      ]
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "decl",
+            "kind": "decl",
+            "quoteId": 1
+          },
+          {
+            "name": "Element",
+            "kind": "type",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": []
+          }
+        ]
+      }
     }
   ],
-  "fragments": [
-    {
-      "quoteId": 0,
-      "virtualSource": "type __typestage_fragment = string;\n",
-      "nodes": [
-        "string"
-      ]
-    },
-    {
-      "quoteId": 1,
-      "virtualSource": "\n  export type Box = Array<__typestage_hole_1_0>;\n\n",
-      "nodes": [
-        "export type Box = Array<__typestage_hole_1_0>;"
-      ]
-    }
-  ],
-  "bindings": {
-    "codeBindings": [
-      {
-        "name": "decl",
-        "kind": "decl",
-        "quoteId": 1
-      },
-      {
-        "name": "Element",
-        "kind": "type",
-        "quoteId": 0
-      }
-    ],
-    "localBindingsByQuote": [
-      {
-        "quoteId": 0,
-        "names": []
-      },
-      {
-        "quoteId": 1,
-        "names": []
-      }
-    ]
-  },
   "expanded": [
     {
       "quoteId": 0,
+      "moduleId": "main.ts",
       "kind": "type",
       "text": "string"
     },
     {
       "quoteId": 1,
+      "moduleId": "main.ts",
       "kind": "decl",
       "text": "export type Box = Array<string>;"
     }
   ],
   "diagnostics": [],
-  "outputText": "export type Box = Array<string>;"
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/type-fragment-splice/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
 }

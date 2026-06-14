@@ -1,0 +1,95 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/cross-module-hygiene-collision/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "fn",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "fn",
+            "kind": "decl",
+            "quoteId": 0
+          },
+          {
+            "name": "setup",
+            "kind": "stmt",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": [
+              "run",
+              "tmp"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "inputPath": "tests/fixtures/pass/cross-module-hygiene-collision/input/parts.ts",
+      "outputPath": "parts.ts",
+      "quotes": [
+        {
+          "id": 1,
+          "moduleId": "parts.ts",
+          "kind": "stmt",
+          "bindingName": "setup",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "setup",
+            "kind": "stmt",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 1,
+            "names": [
+              "tmp"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "decl",
+      "text": "export function run() {\n    const tmp = \"outer\";\n    const tmp_1 = compute();\n    use(tmp_1);\n    return tmp;\n}"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "parts.ts",
+      "kind": "stmt",
+      "text": "const tmp = compute();\nuse(tmp);"
+    }
+  ],
+  "diagnostics": [],
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/cross-module-hygiene-collision/input/main.ts",
+      "outputPath": "main.ts"
+    },
+    {
+      "inputPath": "tests/fixtures/pass/cross-module-hygiene-collision/input/parts.ts",
+      "outputPath": "parts.ts"
+    }
+  ]
+}

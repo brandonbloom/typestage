@@ -1,0 +1,118 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/cross-module-recursive-code-binding/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "a",
+          "exported": true
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "expr",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "a",
+            "kind": "expr",
+            "quoteId": 0
+          },
+          {
+            "name": "b",
+            "kind": "expr",
+            "quoteId": 2
+          },
+          {
+            "name": "expr",
+            "kind": "expr",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": []
+          }
+        ]
+      }
+    },
+    {
+      "inputPath": "tests/fixtures/pass/cross-module-recursive-code-binding/input/parts.ts",
+      "outputPath": "parts.ts",
+      "quotes": [
+        {
+          "id": 2,
+          "moduleId": "parts.ts",
+          "kind": "expr",
+          "bindingName": "b",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "a",
+            "kind": "expr",
+            "quoteId": 0
+          },
+          {
+            "name": "b",
+            "kind": "expr",
+            "quoteId": 2
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 2,
+            "names": []
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "expr",
+      "text": "(a + 1) + 1"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
+      "kind": "expr",
+      "text": "(b + 1) + 1"
+    },
+    {
+      "quoteId": 2,
+      "moduleId": "parts.ts",
+      "kind": "expr",
+      "text": "(b + 1) + 1"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1004",
+      "message": "recursive code binding 'a' cannot be implicitly unquoted",
+      "origin": {
+        "sourceFile": "tests/fixtures/pass/cross-module-recursive-code-binding/input/main.ts",
+        "start": 74,
+        "end": 87
+      }
+    }
+  ],
+  "files": []
+}

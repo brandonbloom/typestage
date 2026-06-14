@@ -1,3 +1,9 @@
+/**
+ * Runtime facade used by both user source and staging evaluation.
+ * Quote tags return lightweight marker objects at runtime; the compiler
+ * instruments those tags during staging so raw interpolation values can be
+ * captured without exposing compiler internals as public API.
+ */
 import type {FragmentKind, QuoteCardinality} from "./types.ts";
 
 /** Runtime placeholder returned by quote tags before compile-time expansion. */

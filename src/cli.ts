@@ -1,28 +1,24 @@
 #!/usr/bin/env bun
-import {emitFile} from "./compiler.ts";
-import {formatOrigin} from "./origin.ts";
+/**
+ * Command-line entrypoint for TypeStage compilation.
+ * The CLI compiles a local module graph and writes one residual file per
+ * source module under the requested output directory.
+ */
+import {emitFileGraph, formatGraphDiagnostics} from "./graph.ts";
 
-const [, , inputPath, outputPath] = Bun.argv;
+const [, , inputPath, outDir] = Bun.argv;
 
-if (!inputPath) {
-  console.error("usage: typestage <input.ts> [output.ts]");
+if (!inputPath || !outDir) {
+  console.error("usage: typestage <entry.ts> <outdir>");
   process.exit(2);
 }
 
-const sourceText = await Bun.file(inputPath).text();
-const result = await emitFile(inputPath, outputPath);
+const result = await emitFileGraph(inputPath, outDir);
 
 if (result.diagnostics.length > 0) {
-  for (const diagnostic of result.diagnostics) {
-    const origin = diagnostic.origin
-      ? `${formatOrigin(sourceText, diagnostic.origin)} - `
-      : "";
-    console.error(`${origin}${diagnostic.code}: ${diagnostic.message}`);
+  for (const line of formatGraphDiagnostics(result.diagnostics)) {
+    console.error(line);
   }
 
   process.exit(1);
-}
-
-if (!outputPath) {
-  console.log(result.outputText);
 }

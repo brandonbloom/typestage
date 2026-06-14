@@ -1,0 +1,1 @@
+tests/fixtures/pass/generated-declaration-import/input/main.ts:2:9 TSG1008: local module 'helper.ts' does not export 'makeValue'

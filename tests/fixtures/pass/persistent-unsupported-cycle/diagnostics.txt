@@ -1,1 +1,1 @@
-tests/fixtures/pass/persistent-unsupported-cycle/input.ts:9:5 TSG1005: persistent splice 'runtimeValue' is unsupported: cyclic or shared object identity cannot be persisted
+tests/fixtures/pass/persistent-unsupported-cycle/input/main.ts:9:5 TSG1005: persistent splice 'runtimeValue' is unsupported: cyclic or shared object identity cannot be persisted

@@ -1,3 +1,9 @@
+/**
+ * Quote expansion and hygiene engine.
+ * It resolves explicit splices, implicit code-valued references, persistent
+ * runtime values, and local-name collision avoidance after quote bodies have
+ * been parsed into TypeScript AST fragments.
+ */
 import * as ts from "typescript";
 import {collectLocalBindings} from "./binder.ts";
 import {printExpressionList, printNode} from "./ast-print.ts";
@@ -19,6 +25,8 @@ export type ExpansionResult = {
   values: Map<number, CodeValue>;
 };
 
+type CodeBindingResolver = (fragment: ParsedFragment) => Map<string, CodeValue>;
+
 type Replacement = ts.VisitResult<ts.Node> | {
   node: ts.Node;
   skipChildren: true;
@@ -27,11 +35,13 @@ type Replacement = ts.VisitResult<ts.Node> | {
 /** Expands parsed fragments using the known host code-valued bindings. */
 export function expandFragments(
   fragments: ParsedFragment[],
-  codeBindings: Map<string, CodeValue>,
+  codeBindings: Map<string, CodeValue> | CodeBindingResolver,
   capturedValues: Map<number, unknown[]> = new Map(),
 ): ExpansionResult {
   const values = new Map<number, CodeValue>();
   const diagnostics: Diagnostic[] = [];
+  const bindingResolver =
+    codeBindings instanceof Map ? () => codeBindings : codeBindings;
 
   for (const fragment of fragments) {
     values.set(fragment.quote.id, {
@@ -62,7 +72,7 @@ export function expandFragments(
     expanding.add(value.quote.id);
     const expanded = expandParsedFragment(
       value.parsed,
-      codeBindings,
+      bindingResolver(value.parsed),
       capturedValues,
       values,
       expandValue,

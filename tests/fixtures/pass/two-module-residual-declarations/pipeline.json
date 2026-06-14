@@ -1,0 +1,89 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/two-module-residual-declarations/input/extra.ts",
+      "outputPath": "extra.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "extra.ts",
+          "kind": "decl",
+          "bindingName": "extraDecl",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "extraDecl",
+            "kind": "decl",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": [
+              "extraValue"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "inputPath": "tests/fixtures/pass/two-module-residual-declarations/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "mainDecl",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "mainDecl",
+            "kind": "decl",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 1,
+            "names": [
+              "mainValue"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "extra.ts",
+      "kind": "decl",
+      "text": "export const extraValue = 2;"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
+      "kind": "decl",
+      "text": "export const mainValue = 1;"
+    }
+  ],
+  "diagnostics": [],
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/two-module-residual-declarations/input/extra.ts",
+      "outputPath": "extra.ts"
+    },
+    {
+      "inputPath": "tests/fixtures/pass/two-module-residual-declarations/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
+}

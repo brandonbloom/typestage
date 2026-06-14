@@ -1,0 +1,1 @@
+tests/fixtures/pass/cross-module-recursive-code-binding/input/main.ts:4:18 TSG1004: recursive code binding 'a' cannot be implicitly unquoted

@@ -1,0 +1,1 @@
+tests/fixtures/pass/imported-non-code-explicit-splice/input/main.ts:5:5 TSG1005: persistent splice 'runtimeValue' is unsupported: function values cannot be persisted

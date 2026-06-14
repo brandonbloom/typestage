@@ -1,3 +1,8 @@
+/**
+ * Source-origin metadata helpers for diagnostics and snapshots.
+ * Generated and virtual syntax carries half-open ranges back to original
+ * source files so parse and expansion errors point at user-authored code.
+ */
 import {LinesAndColumns} from "lines-and-columns";
 import type {Origin, OriginMap} from "./types.ts";
 

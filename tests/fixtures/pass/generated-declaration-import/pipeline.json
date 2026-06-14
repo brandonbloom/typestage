@@ -1,0 +1,88 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/generated-declaration-import/input/helper.ts",
+      "outputPath": "helper.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "helper.ts",
+          "kind": "decl",
+          "bindingName": "helperDecl",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "helperDecl",
+            "kind": "decl",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": [
+              "makeValue"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "inputPath": "tests/fixtures/pass/generated-declaration-import/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "expr",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "expr",
+            "kind": "expr",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 1,
+            "names": []
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "helper.ts",
+      "kind": "decl",
+      "text": "export function makeValue() {\n    return ;\n}"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
+      "kind": "expr",
+      "text": "makeValue()"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1008",
+      "message": "local module 'helper.ts' does not export 'makeValue'",
+      "origin": {
+        "sourceFile": "tests/fixtures/pass/generated-declaration-import/input/main.ts",
+        "start": 37,
+        "end": 46
+      }
+    }
+  ],
+  "files": []
+}

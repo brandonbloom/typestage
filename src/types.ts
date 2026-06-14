@@ -1,3 +1,8 @@
+/**
+ * Shared TypeStage compiler data model.
+ * These types describe quote syntax, source origins, parsed fragments, code
+ * values, diagnostics, and public compile results used across the pipeline.
+ */
 import type * as ts from "typescript";
 
 /** Supported TypeScript grammar entry points for TypeStage fragments. */
@@ -47,6 +52,7 @@ export type SpliceHole = {
 /** A recognized TypeStage tagged-template quote in host source. */
 export type QuoteForm = {
   id: number;
+  moduleId?: string;
   kind: FragmentKind;
   cardinality: QuoteCardinality;
   node: ts.TaggedTemplateExpression;
@@ -79,9 +85,53 @@ export type CodeValue = {
   expandedNodes?: ts.Node[];
 };
 
-/** Public result returned by a TypeStage compile operation. */
-export type CompileResult = {
-  diagnostics: Diagnostic[];
+/** One residual TypeScript module emitted by graph compilation. */
+export type CompileGraphFile = {
+  inputPath: string;
+  outputPath: string;
   outputText: string;
-  quotes: QuoteForm[];
+};
+
+/** Serializable phase snapshot for a TypeStage file graph compile operation. */
+export type CompileGraphPipeline = {
+  modules: Array<{
+    inputPath: string;
+    outputPath: string;
+    quotes: Array<{
+      id: number;
+      moduleId?: string;
+      kind: FragmentKind;
+      bindingName?: string;
+      exported: boolean;
+    }>;
+    bindings: {
+      codeBindings: Array<{
+        name: string;
+        kind: FragmentKind;
+        quoteId: number;
+      }>;
+      localBindingsByQuote: Array<{
+        quoteId: number;
+        names: string[];
+      }>;
+    };
+  }>;
+  expanded: Array<{
+    quoteId: number;
+    moduleId?: string;
+    kind: FragmentKind;
+    text: string;
+  }>;
+  diagnostics: Diagnostic[];
+  files: Array<{
+    inputPath: string;
+    outputPath: string;
+  }>;
+};
+
+/** Public result returned by a TypeStage file graph compile operation. */
+export type CompileGraphResult = {
+  diagnostics: Diagnostic[];
+  files: CompileGraphFile[];
+  pipeline: CompileGraphPipeline;
 };

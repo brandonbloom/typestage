@@ -1,3 +1,8 @@
+/**
+ * Shared TypeScript AST printing helpers for residual output and snapshots.
+ * This module centralizes printer settings so generated source stays stable
+ * across compiler, graph, and fixture diagnostics.
+ */
 import * as ts from "typescript";
 
 const printer = ts.createPrinter({

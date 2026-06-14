@@ -1,3 +1,9 @@
+/**
+ * Multi-stage persistence serializer.
+ * Converts supported staging-time runtime values into residual TypeScript
+ * expressions and rejects values whose identity, behavior, or object shape
+ * cannot be represented by the minimal persistence model.
+ */
 import * as ts from "typescript";
 
 /** Result of converting a runtime value into residual TypeScript syntax. */
