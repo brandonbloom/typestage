@@ -5,10 +5,10 @@ import {LinesAndColumns} from "lines-and-columns";
 import {compileSource, snapshotPipeline} from "../src/index.ts";
 import type {Diagnostic} from "../src/index.ts";
 
-const fixturesRoot = join(import.meta.dir, "fixtures", "cases");
-const expectedFailuresRoot = join(import.meta.dir, "fixtures", "expected-fail");
+const fixturesRoot = join(import.meta.dir, "fixtures", "pass");
+const expectedFailuresRoot = join(import.meta.dir, "fixtures", "fail");
 
-describe("TypeStage fixture cases", () => {
+describe("TypeStage pass fixtures", () => {
   for (const caseName of fixtureCaseNames()) {
     test(caseName, async () => {
       await assertFixture(caseName);
@@ -16,7 +16,7 @@ describe("TypeStage fixture cases", () => {
   }
 });
 
-describe("TypeStage expected-failure fixtures", () => {
+describe("TypeStage fail fixtures", () => {
   for (const caseName of expectedFailureCaseNames()) {
     test(caseName, async () => {
       await assertExpectedFailureFixture(caseName);

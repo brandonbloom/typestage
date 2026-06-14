@@ -1,1 +1,0 @@
-tests/fixtures/expected-fail/intentional-capture/input.ts:6:14 TSG1005: persistent splice 'capture("x")' is unsupported: function values cannot be persisted

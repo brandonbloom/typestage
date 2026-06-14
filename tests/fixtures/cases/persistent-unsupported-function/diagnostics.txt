@@ -1,1 +1,0 @@
-tests/fixtures/cases/persistent-unsupported-function/input.ts:6:5 TSG1005: persistent splice 'runtimeValue' is unsupported: function values cannot be persisted

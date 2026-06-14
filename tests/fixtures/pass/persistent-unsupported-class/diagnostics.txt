@@ -1,0 +1,1 @@
+tests/fixtures/pass/persistent-unsupported-class/input.ts:10:5 TSG1005: persistent splice 'runtimeValue' is unsupported: class instances cannot be persisted

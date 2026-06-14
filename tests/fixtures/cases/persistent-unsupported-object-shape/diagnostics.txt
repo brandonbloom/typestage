@@ -1,1 +1,0 @@
-tests/fixtures/cases/persistent-unsupported-object-shape/input.ts:11:5 TSG1005: persistent splice 'runtimeValue' is unsupported: objects with accessors cannot be persisted

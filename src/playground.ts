@@ -53,8 +53,8 @@ console.log(`TypeStage playground: http://localhost:${server.port}`);
 
 function readExamples(): Example[] {
   return [
-    ...readExampleGroup("cases", "Fixtures"),
-    ...readExampleGroup("expected-fail", "Expected Failures"),
+    ...readExampleGroup("pass", "Pass"),
+    ...readExampleGroup("fail", "Fail"),
   ];
 }
 

@@ -1,0 +1,85 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "expr",
+      "bindingName": "args",
+      "exported": false,
+      "source": "a, b",
+      "holes": []
+    },
+    {
+      "id": 1,
+      "kind": "expr",
+      "bindingName": "expr",
+      "exported": true,
+      "source": "\n  // Lists do not implicitly adapt to comma expressions.\n  args + 1\n",
+      "holes": []
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "const __typestage_fragment = [a, b];\n",
+      "nodes": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "quoteId": 1,
+      "virtualSource": "const __typestage_fragment = (\n  // Lists do not implicitly adapt to comma expressions.\n  args + 1\n);\n",
+      "nodes": [
+        "(\n  // Lists do not implicitly adapt to comma expressions.\n  args + 1\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "args",
+        "kind": "expr",
+        "quoteId": 0
+      },
+      {
+        "name": "expr",
+        "kind": "expr",
+        "quoteId": 1
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      },
+      {
+        "quoteId": 1,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "expr",
+      "text": "a, b"
+    },
+    {
+      "quoteId": 1,
+      "kind": "expr",
+      "text": "args + 1"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1002",
+      "message": "cannot splice 2 expr nodes into expr position",
+      "origin": {
+        "sourceFile": "tests/fixtures/pass/expression-list-in-expression-position/input.ts",
+        "start": 146,
+        "end": 150
+      }
+    }
+  ],
+  "outputText": ""
+}

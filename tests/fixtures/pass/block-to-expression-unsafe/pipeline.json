@@ -1,0 +1,89 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "block",
+      "bindingName": "body",
+      "exported": false,
+      "source": "\n  {\n    await refresh();\n    return value;\n  }\n",
+      "holes": []
+    },
+    {
+      "id": 1,
+      "kind": "expr",
+      "bindingName": "expr",
+      "exported": true,
+      "source": "\n  __typestage_hole_1_0\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_1_0",
+          "expression": "body"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "function __typestage_fragment() {\n\n  {\n    await refresh();\n    return value;\n  }\n\n}\n",
+      "nodes": [
+        "{\n    await refresh();\n    return value;\n  }"
+      ]
+    },
+    {
+      "quoteId": 1,
+      "virtualSource": "const __typestage_fragment = (\n  __typestage_hole_1_0\n);\n",
+      "nodes": [
+        "(\n  __typestage_hole_1_0\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "body",
+        "kind": "block",
+        "quoteId": 0
+      },
+      {
+        "name": "expr",
+        "kind": "expr",
+        "quoteId": 1
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      },
+      {
+        "quoteId": 1,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "block",
+      "text": "{\n    await refresh();\n    return value;\n}"
+    },
+    {
+      "quoteId": 1,
+      "kind": "expr",
+      "text": "__typestage_hole_1_0"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1003",
+      "message": "cannot adapt block containing break, continue, yield, or await into expression position",
+      "origin": {
+        "sourceFile": "tests/fixtures/pass/block-to-expression-unsafe/input.ts",
+        "start": 135,
+        "end": 139
+      }
+    }
+  ],
+  "outputText": ""
+}

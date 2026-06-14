@@ -1,0 +1,1 @@
+tests/fixtures/pass/persistent-unsupported-symbol-key/input.ts:8:5 TSG1005: persistent splice 'runtimeValue' is unsupported: objects with symbol keys cannot be persisted

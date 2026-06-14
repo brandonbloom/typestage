@@ -1,0 +1,113 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "expr",
+      "bindingName": "a",
+      "exported": false,
+      "source": "b + 1",
+      "holes": []
+    },
+    {
+      "id": 1,
+      "kind": "expr",
+      "bindingName": "b",
+      "exported": false,
+      "source": "a + 2",
+      "holes": []
+    },
+    {
+      "id": 2,
+      "kind": "expr",
+      "bindingName": "expr",
+      "exported": true,
+      "source": "\n  a\n",
+      "holes": []
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "const __typestage_fragment = (b + 1);\n",
+      "nodes": [
+        "(b + 1)"
+      ]
+    },
+    {
+      "quoteId": 1,
+      "virtualSource": "const __typestage_fragment = (a + 2);\n",
+      "nodes": [
+        "(a + 2)"
+      ]
+    },
+    {
+      "quoteId": 2,
+      "virtualSource": "const __typestage_fragment = (\n  a\n);\n",
+      "nodes": [
+        "(\n  a\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "a",
+        "kind": "expr",
+        "quoteId": 0
+      },
+      {
+        "name": "b",
+        "kind": "expr",
+        "quoteId": 1
+      },
+      {
+        "name": "expr",
+        "kind": "expr",
+        "quoteId": 2
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      },
+      {
+        "quoteId": 1,
+        "names": []
+      },
+      {
+        "quoteId": 2,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "expr",
+      "text": "(a + 2) + 1"
+    },
+    {
+      "quoteId": 1,
+      "kind": "expr",
+      "text": "(b + 1) + 2"
+    },
+    {
+      "quoteId": 2,
+      "kind": "expr",
+      "text": "(b + 1)"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1004",
+      "message": "recursive code binding 'a' cannot be implicitly unquoted",
+      "origin": {
+        "sourceFile": "tests/fixtures/pass/recursive-implicit-unquote/input.ts",
+        "start": 40,
+        "end": 53
+      }
+    }
+  ],
+  "outputText": ""
+}

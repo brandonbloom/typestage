@@ -1,1 +1,0 @@
-tests/fixtures/cases/syntax-error/input.ts:4:6 TS1109: Expression expected.

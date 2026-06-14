@@ -1,0 +1,60 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "expr",
+      "bindingName": "expr",
+      "exported": true,
+      "source": "\n  __typestage_hole_0_0\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_0_0",
+          "expression": "runtimeValue"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "const __typestage_fragment = (\n  __typestage_hole_0_0\n);\n",
+      "nodes": [
+        "(\n  __typestage_hole_0_0\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "expr",
+        "kind": "expr",
+        "quoteId": 0
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "expr",
+      "text": "__typestage_hole_0_0"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1005",
+      "message": "persistent splice 'runtimeValue' is unsupported: objects with accessors cannot be persisted",
+      "origin": {
+        "sourceFile": "tests/fixtures/pass/persistent-unsupported-object-shape/input.ts",
+        "start": 144,
+        "end": 156
+      }
+    }
+  ],
+  "outputText": ""
+}

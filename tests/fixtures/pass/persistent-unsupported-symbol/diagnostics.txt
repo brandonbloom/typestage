@@ -1,0 +1,1 @@
+tests/fixtures/pass/persistent-unsupported-symbol/input.ts:6:5 TSG1005: persistent splice 'runtimeValue' is unsupported: local symbol values cannot be persisted
