@@ -5,7 +5,7 @@
  * re-exports, then emits one residual file per source module.
  */
 import {existsSync, mkdirSync, readFileSync, statSync, writeFileSync} from "node:fs";
-import {basename, dirname, extname, join, relative, resolve, sep} from "node:path";
+import {basename, dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:path";
 import * as ts from "typescript";
 import {buildCodeBindings, summarizeBindings} from "./binder.ts";
 import {
@@ -584,6 +584,7 @@ function emitGraphFiles(
       module.outputPath,
       blocks,
       (sourceFile) => sourceTextForFile(sourceFile, modules),
+      {sourceFileName: sourceMapSourceFileName},
     );
     const sourceMapPath = `${module.outputPath}.map`;
     const outputText = options.sourceMaps
@@ -604,6 +605,18 @@ function sourceTextForFile(sourceFile: string, modules: GraphModule[]): string {
   const module = modules.find((candidate) => candidate.sourceFile.fileName === sourceFile);
 
   return module?.sourceText ?? (existsSync(sourceFile) ? readFileSync(sourceFile, "utf8") : "");
+}
+
+function sourceMapSourceFileName(sourceFile: string): string {
+  if (!isAbsolute(sourceFile)) {
+    return normalizePath(sourceFile);
+  }
+
+  const relativePath = relative(process.cwd(), sourceFile);
+
+  return relativePath.startsWith("..") || relativePath === ""
+    ? normalizePath(sourceFile)
+    : normalizePath(relativePath);
 }
 
 function collectResidualSourceDemands(

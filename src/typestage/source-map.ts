@@ -25,6 +25,10 @@ export type SourceMappedOutput = {
   sourceMapText: string;
 };
 
+export type SourceMapOptions = {
+  sourceFileName?: (sourceFile: string) => string;
+};
+
 type GeneratedToken = {
   column: number;
   kind: ts.SyntaxKind;
@@ -61,10 +65,28 @@ export function createSourceMappedOutput(
   outputPath: string,
   blocks: SourceMapBlock[],
   sourceTextForFile: (sourceFile: string) => string,
+  options: SourceMapOptions = {},
 ): SourceMappedOutput {
   const outputText = combineBlocks(blocks.map((block) => block.text));
   const mappings = blockMappings(blocks, sourceTextForFile);
-  const sourceFiles = Array.from(new Set(mappings.map((mapping) => mapping.sourceFile)));
+  const sourceFileName = options.sourceFileName ?? ((sourceFile: string) => sourceFile);
+  const displaySourceText = new Map<string, string>();
+  const displayMappings = mappings.map((mapping) => {
+    const displaySourceFile = sourceFileName(mapping.sourceFile);
+
+    if (!displaySourceText.has(displaySourceFile)) {
+      displaySourceText.set(
+        displaySourceFile,
+        sourceTextForFile(mapping.sourceFile),
+      );
+    }
+
+    return {
+      ...mapping,
+      sourceFile: displaySourceFile,
+    };
+  });
+  const sourceFiles = Array.from(displaySourceText.keys());
 
   return {
     outputText,
@@ -72,9 +94,11 @@ export function createSourceMappedOutput(
       version: 3,
       file: basename(outputPath),
       sources: sourceFiles,
-      sourcesContent: sourceFiles.map(sourceTextForFile),
+      sourcesContent: sourceFiles.map((sourceFile) =>
+        displaySourceText.get(sourceFile) ?? ""
+      ),
       names: [],
-      mappings: encodeMappings(mappings, sourceFiles),
+      mappings: encodeMappings(displayMappings, sourceFiles),
     }, null, 2)}\n`,
   };
 }
