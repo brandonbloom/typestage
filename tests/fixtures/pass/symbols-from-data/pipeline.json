@@ -69,7 +69,7 @@
       "quoteId": 2,
       "moduleId": "main.ts",
       "kind": "decl",
-      "text": "export function packFields(id: string, name: string, email: string) {\n    return pack(id.trim(), name.trim(), email.trim());\n}"
+      "text": "export function packFields(id: string, name: string, email: string) {\n    return Array.of(id.trim(), name.trim(), email.trim());\n}"
     }
   ],
   "diagnostics": [],

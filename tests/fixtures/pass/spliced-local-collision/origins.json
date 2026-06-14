@@ -3,11 +3,11 @@
     "name": "hygiene-renamed identifier maps to original spelling",
     "generated": {
       "file": "main.ts",
-      "text": "tmp_1 = compute"
+      "text": "tmp_1 = \"inner\""
     },
     "source": {
       "file": "main.ts",
-      "text": "tmp = compute"
+      "text": "tmp = \"inner\""
     }
   }
 ]

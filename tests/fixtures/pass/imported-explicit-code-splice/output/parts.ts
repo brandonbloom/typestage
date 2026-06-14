@@ -1,1 +1,1 @@
-export const term = (x + 1);
+export const term = (1 + 1);

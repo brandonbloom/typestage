@@ -109,8 +109,8 @@
       "message": "recursive code binding 'a' cannot be implicitly unquoted",
       "origin": {
         "sourceFile": "tests/fixtures/pass/cross-module-recursive-code-binding/input/main.ts",
-        "start": 74,
-        "end": 87
+        "start": 179,
+        "end": 192
       }
     }
   ],

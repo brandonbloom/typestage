@@ -71,7 +71,9 @@
           },
           {
             "quoteId": 3,
-            "names": []
+            "names": [
+              "args"
+            ]
           }
         ]
       }
@@ -100,7 +102,7 @@
       "quoteId": 3,
       "moduleId": "main.ts",
       "kind": "decl",
-      "text": "export type Box = Array<string>;\nexport type Tuple = [\n    number,\n    boolean\n];\nexport type Handler = Fn<number, boolean, Date>;"
+      "text": "export type Box = Array<string>;\nexport type Tuple = [\n    number,\n    boolean\n];\nexport type Handler = (...args: [\n    number,\n    boolean\n]) => Date;"
     }
   ],
   "diagnostics": [],

@@ -88,6 +88,8 @@ export type CodeValue = {
   expandedNodes?: ts.Node[];
   /** Interpolation values captured by a particular runtime quote invocation. */
   runtimeValues?: unknown[];
+  /** Host values captured by a particular runtime quote invocation. */
+  runtimeHostValues?: Record<string, unknown>;
 };
 
 /** One residual TypeScript module emitted by graph compilation. */

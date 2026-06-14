@@ -16,6 +16,13 @@
         {
           "id": 0,
           "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "makeValueRef",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
           "kind": "expr",
           "bindingName": "expr",
           "exported": true
@@ -26,12 +33,21 @@
           {
             "name": "expr",
             "kind": "expr",
+            "quoteId": 1
+          },
+          {
+            "name": "makeValueRef",
+            "kind": "ident",
             "quoteId": 0
           }
         ],
         "localBindingsByQuote": [
           {
             "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
             "names": []
           }
         ]
@@ -41,6 +57,12 @@
   "expanded": [
     {
       "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "ident",
+      "text": "makeValue"
+    },
+    {
+      "quoteId": 1,
       "moduleId": "main.ts",
       "kind": "expr",
       "text": "makeValue()"

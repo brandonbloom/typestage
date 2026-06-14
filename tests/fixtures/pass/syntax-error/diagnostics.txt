@@ -1,1 +1,1 @@
-tests/fixtures/pass/syntax-error/input/main.ts:4:6 TS1109: Expression expected.
+tests/fixtures/pass/syntax-error/input/main.ts:5:6 TS1109: Expression expected.

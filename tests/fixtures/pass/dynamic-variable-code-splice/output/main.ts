@@ -1,1 +1,1 @@
-export const expr = (x + 1);
+export const expr = (1 + 1);

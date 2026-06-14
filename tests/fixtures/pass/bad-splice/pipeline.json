@@ -50,7 +50,7 @@
       "quoteId": 0,
       "moduleId": "main.ts",
       "kind": "stmt",
-      "text": "return x;"
+      "text": "return \"literal\";"
     },
     {
       "quoteId": 1,
@@ -65,8 +65,8 @@
       "message": "cannot splice stmt code into expr position",
       "origin": {
         "sourceFile": "tests/fixtures/pass/bad-splice/input/main.ts",
-        "start": 92,
-        "end": 96
+        "start": 188,
+        "end": 192
       }
     }
   ],

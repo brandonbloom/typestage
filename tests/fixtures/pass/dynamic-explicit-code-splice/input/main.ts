@@ -1,7 +1,7 @@
 import {q} from "typestage";
 
 function makeExpr() {
-  return q.expr`x + 1`;
+  return q.expr`1 + 1`;
 }
 
 const runtimeExpr = makeExpr();

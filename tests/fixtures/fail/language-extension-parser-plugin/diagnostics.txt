@@ -3,5 +3,4 @@ TSG1006: staging evaluation failed: q.language is not a function. (In 'q.languag
     return __typestageTag(0, q.expr)`query(${source})`;
   }
 })', 'q.language' is undefined)
-tests/fixtures/fail/language-extension-parser-plugin/input/main.ts:8:27 TSG1001: explicit splice 'source' does not resolve to a TypeStage code value
 tests/fixtures/fail/language-extension-parser-plugin/input/main.ts:13:25 TSG1001: explicit splice 'sql.expr`select * from users where active = true`' does not resolve to a TypeStage code value

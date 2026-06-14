@@ -21,6 +21,27 @@
         {
           "id": 2,
           "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "first",
+          "exported": false
+        },
+        {
+          "id": 3,
+          "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "second",
+          "exported": false
+        },
+        {
+          "id": 4,
+          "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "third",
+          "exported": false
+        },
+        {
+          "id": 5,
+          "moduleId": "main.ts",
           "kind": "decl",
           "bindingName": "decl",
           "exported": true
@@ -31,6 +52,11 @@
           {
             "name": "decl",
             "kind": "decl",
+            "quoteId": 5
+          },
+          {
+            "name": "first",
+            "kind": "ident",
             "quoteId": 2
           },
           {
@@ -42,6 +68,16 @@
             "name": "Rest",
             "kind": "pattern",
             "quoteId": 1
+          },
+          {
+            "name": "second",
+            "kind": "ident",
+            "quoteId": 3
+          },
+          {
+            "name": "third",
+            "kind": "ident",
+            "quoteId": 4
           }
         ],
         "localBindingsByQuote": [
@@ -55,10 +91,25 @@
           },
           {
             "quoteId": 2,
+            "names": []
+          },
+          {
+            "quoteId": 3,
+            "names": []
+          },
+          {
+            "quoteId": 4,
+            "names": []
+          },
+          {
+            "quoteId": 5,
             "names": [
-              "__typestage_hole_2_0",
-              "__typestage_hole_2_1",
-              "collect"
+              "__typestage_hole_5_0",
+              "__typestage_hole_5_1",
+              "collect",
+              "first",
+              "record",
+              "second"
             ]
           }
         ]
@@ -81,8 +132,26 @@
     {
       "quoteId": 2,
       "moduleId": "main.ts",
+      "kind": "ident",
+      "text": "first"
+    },
+    {
+      "quoteId": 3,
+      "moduleId": "main.ts",
+      "kind": "ident",
+      "text": "second"
+    },
+    {
+      "quoteId": 4,
+      "moduleId": "main.ts",
+      "kind": "ident",
+      "text": "third"
+    },
+    {
+      "quoteId": 5,
+      "moduleId": "main.ts",
       "kind": "decl",
-      "text": "export function collect(first, second, { third }) {\n    return [first, second, third];\n}"
+      "text": "export const collect: (first: number, second: number, record: {\n    third: number;\n}) => number[] = function (first, second, { third }) {\n    return [first, second, third];\n};"
     }
   ],
   "diagnostics": [],

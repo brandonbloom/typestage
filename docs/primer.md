@@ -198,9 +198,10 @@ const settings = {
   ]),
   launchedAt: new Date("2026-06-13T00:00:00.000Z"),
 };
+const configure = q.ident`configure`;
 
 export const expr = q.expr`
-  configure(${settings})
+  configure(settings)
 `;
 ```
 
@@ -489,6 +490,7 @@ a fresh residual name for the introduced local.
 ```ts
 import {q} from "typestage";
 
+const x = q.ident`x`;
 const freeX = q.expr`x + 1`;
 
 export const expr = q.expr`

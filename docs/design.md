@@ -117,6 +117,8 @@ Conceptually:
 TypeStage supports implicit unquoting of code-valued bindings:
 
 ```ts
+const x = q.ident`x`;
+const y = q.ident`y`;
 const rhs = q.expr`y + 1`;
 
 const expr = q.expr`
@@ -124,7 +126,7 @@ const expr = q.expr`
 `;
 ```
 
-If `rhs` resolves to a host binding known to contain expression code, then `rhs` is implicitly spliced into the quote.
+If `x`, `y`, or `rhs` resolve to host bindings known to contain code, then they are implicitly spliced into the quote.
 
 Implicit unquoting follows ordinary lexical shadowing rules:
 
@@ -145,7 +147,15 @@ Resolution order inside quotes:
 2. Resolve against enclosing quoted bindings.
 3. If unresolved in the residual environment, check enclosing host bindings.
 4. If a matching host binding is code-valued and compatible with the current syntactic position, implicitly unquote it.
-5. Otherwise treat the name as a residual reference or report an error, depending on mode.
+5. If a matching host binding is value-valued, persist its staging-time value.
+6. If TypeScript resolves the name as an ambient value or type from the configured `lib`, `types`, or `.d.ts` environment, leave it as a residual reference.
+7. Otherwise report an unresolved residual reference.
+
+Imported values are ordinary host bindings for this lookup. If an import is
+persisted, TypeStage emits a staging-time snapshot of that value; it does not
+preserve ECMAScript live-binding behavior across phases. If residual code
+should keep calling an imported function by name, generate that name explicitly
+with an identifier fragment and splice it into the quote.
 
 ## Binding Analysis
 

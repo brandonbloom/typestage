@@ -1,10 +1,9 @@
 import {q} from "typestage";
 
 const tmpName = q.ident`tmp`;
-
 const setup = q.stmt`
-  const ${tmpName} = compute();
-  use(${tmpName});
+  const ${tmpName} = "inner";
+  String(${tmpName});
 `;
 
 export const fn = q.decl`

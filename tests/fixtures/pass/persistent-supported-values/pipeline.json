@@ -34,7 +34,7 @@
       "quoteId": 0,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "configure({\n    values: [undefined, NaN, Infinity, -Infinity, -0, 1n],\n    nested: {\n        ok: true\n    },\n    set: new Set([\n        \"a\",\n        \"b\"\n    ]),\n    pattern: /ab+/gi\n})"
+      "text": "({\n    values: [undefined, NaN, Infinity, -Infinity, -0, 1n],\n    nested: {\n        ok: true\n    },\n    set: new Set([\n        \"a\",\n        \"b\"\n    ]),\n    pattern: /ab+/gi\n})"
     }
   ],
   "diagnostics": [],

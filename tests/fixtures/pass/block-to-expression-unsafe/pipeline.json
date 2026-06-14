@@ -50,7 +50,7 @@
       "quoteId": 0,
       "moduleId": "main.ts",
       "kind": "block",
-      "text": "{\n    await refresh();\n    return value;\n}"
+      "text": "{\n    await Promise.resolve();\n    return 1;\n}"
     },
     {
       "quoteId": 1,
@@ -65,8 +65,8 @@
       "message": "cannot adapt block containing break, continue, yield, or await into expression position",
       "origin": {
         "sourceFile": "tests/fixtures/pass/block-to-expression-unsafe/input/main.ts",
-        "start": 135,
-        "end": 139
+        "start": 230,
+        "end": 234
       }
     }
   ],

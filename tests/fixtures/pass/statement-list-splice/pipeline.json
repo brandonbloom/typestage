@@ -1,0 +1,151 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/statement-list-splice/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "x",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "y",
+          "exported": false
+        },
+        {
+          "id": 2,
+          "moduleId": "main.ts",
+          "kind": "stmt",
+          "exported": false
+        },
+        {
+          "id": 3,
+          "moduleId": "main.ts",
+          "kind": "stmt",
+          "exported": false
+        },
+        {
+          "id": 4,
+          "moduleId": "main.ts",
+          "kind": "stmt",
+          "bindingName": "body",
+          "exported": false
+        },
+        {
+          "id": 5,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "fn",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "body",
+            "kind": "stmt",
+            "quoteId": 4
+          },
+          {
+            "name": "fn",
+            "kind": "decl",
+            "quoteId": 5
+          },
+          {
+            "name": "x",
+            "kind": "ident",
+            "quoteId": 0
+          },
+          {
+            "name": "y",
+            "kind": "ident",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": []
+          },
+          {
+            "quoteId": 2,
+            "names": [
+              "__typestage_hole_2_0"
+            ]
+          },
+          {
+            "quoteId": 3,
+            "names": [
+              "__typestage_hole_3_0"
+            ]
+          },
+          {
+            "quoteId": 4,
+            "names": []
+          },
+          {
+            "quoteId": 5,
+            "names": [
+              "sum"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "ident",
+      "text": "x"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
+      "kind": "ident",
+      "text": "y"
+    },
+    {
+      "quoteId": 2,
+      "moduleId": "main.ts",
+      "kind": "stmt",
+      "text": "const x = 1;"
+    },
+    {
+      "quoteId": 3,
+      "moduleId": "main.ts",
+      "kind": "stmt",
+      "text": "const y = 2;"
+    },
+    {
+      "quoteId": 4,
+      "moduleId": "main.ts",
+      "kind": "stmt",
+      "text": "const x = 1;\nconst y = 2;\nreturn x + y;"
+    },
+    {
+      "quoteId": 5,
+      "moduleId": "main.ts",
+      "kind": "decl",
+      "text": "export function sum() {\n    const x = 1;\n    const y = 2;\n    return x + y;\n}"
+    }
+  ],
+  "diagnostics": [],
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/statement-list-splice/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
+}

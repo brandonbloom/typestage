@@ -54,13 +54,13 @@
       "quoteId": 0,
       "moduleId": "main.ts",
       "kind": "stmt",
-      "text": "const value = compute();\nreturn value;"
+      "text": "const value = 1;\nreturn value;"
     },
     {
       "quoteId": 1,
       "moduleId": "main.ts",
       "kind": "decl",
-      "text": "export function f() {\n    const value = compute();\n    return value;\n}"
+      "text": "export function f() {\n    const value = 1;\n    return value;\n}"
     }
   ],
   "diagnostics": [],

@@ -34,7 +34,7 @@
       "quoteId": 0,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "configure({\n    enabled: true,\n    thresholds: new Map([\n        [\"low\", 2],\n        [\"high\", 10]\n    ]),\n    launchedAt: new Date(\"2026-06-13T00:00:00.000Z\")\n})"
+      "text": "({\n    enabled: true,\n    thresholds: new Map([\n        [\"low\", 2],\n        [\"high\", 10]\n    ]),\n    launchedAt: new Date(\"2026-06-13T00:00:00.000Z\")\n})"
     }
   ],
   "diagnostics": [],

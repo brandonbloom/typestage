@@ -1,1 +1,1 @@
-tests/fixtures/pass/expression-list-in-expression-position/input/main.ts:7:3 TSG1002: cannot splice 2 expr nodes into expr position
+tests/fixtures/pass/expression-list-in-expression-position/input/main.ts:10:3 TSG1002: cannot splice 2 expr nodes into expr position

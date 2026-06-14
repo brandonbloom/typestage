@@ -18,6 +18,7 @@ const fields = ["id", "name", "email"].map((name) =>
 );
 
 const trimCalls = fields.map((field) => q.expr`${field}.trim()`);
+const packValues = q.ident`packValues`;
 
 export const generated = q.decls`
   export type Row = Record<string, string>;

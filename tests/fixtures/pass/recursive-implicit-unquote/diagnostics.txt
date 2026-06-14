@@ -1,1 +1,1 @@
-tests/fixtures/pass/recursive-implicit-unquote/input/main.ts:3:11 TSG1004: recursive code binding 'a' cannot be implicitly unquoted
+tests/fixtures/pass/recursive-implicit-unquote/input/main.ts:4:11 TSG1004: recursive code binding 'a' cannot be implicitly unquoted

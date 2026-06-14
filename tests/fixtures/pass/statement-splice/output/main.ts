@@ -1,4 +1,4 @@
 export function f() {
-    const value = compute();
+    const value = 1;
     return value;
 }

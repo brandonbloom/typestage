@@ -1,1 +1,1 @@
-export const expr = (fn(first, second));
+export const expr = ((Math.max)(1, 2));

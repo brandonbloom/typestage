@@ -7,12 +7,26 @@
         {
           "id": 0,
           "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "a",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "b",
+          "exported": false
+        },
+        {
+          "id": 2,
+          "moduleId": "main.ts",
           "kind": "expr",
           "bindingName": "args",
           "exported": false
         },
         {
-          "id": 1,
+          "id": 3,
           "moduleId": "main.ts",
           "kind": "expr",
           "bindingName": "expr",
@@ -22,14 +36,24 @@
       "bindings": {
         "codeBindings": [
           {
+            "name": "a",
+            "kind": "ident",
+            "quoteId": 0
+          },
+          {
             "name": "args",
             "kind": "expr",
-            "quoteId": 0
+            "quoteId": 2
+          },
+          {
+            "name": "b",
+            "kind": "ident",
+            "quoteId": 1
           },
           {
             "name": "expr",
             "kind": "expr",
-            "quoteId": 1
+            "quoteId": 3
           }
         ],
         "localBindingsByQuote": [
@@ -40,6 +64,14 @@
           {
             "quoteId": 1,
             "names": []
+          },
+          {
+            "quoteId": 2,
+            "names": []
+          },
+          {
+            "quoteId": 3,
+            "names": []
           }
         ]
       }
@@ -49,11 +81,23 @@
     {
       "quoteId": 0,
       "moduleId": "main.ts",
+      "kind": "ident",
+      "text": "a"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
+      "kind": "ident",
+      "text": "b"
+    },
+    {
+      "quoteId": 2,
+      "moduleId": "main.ts",
       "kind": "expr",
       "text": "a, b"
     },
     {
-      "quoteId": 1,
+      "quoteId": 3,
       "moduleId": "main.ts",
       "kind": "expr",
       "text": "args + 1"
@@ -65,8 +109,8 @@
       "message": "cannot splice 2 expr nodes into expr position",
       "origin": {
         "sourceFile": "tests/fixtures/pass/expression-list-in-expression-position/input/main.ts",
-        "start": 146,
-        "end": 150
+        "start": 257,
+        "end": 261
       }
     }
   ],

@@ -114,37 +114,37 @@
       "quoteId": 0,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "a, b"
+      "text": "1, 2"
     },
     {
       "quoteId": 1,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "c"
+      "text": "3"
     },
     {
       "quoteId": 2,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "d, e"
+      "text": "4, 5"
     },
     {
       "quoteId": 3,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "f"
+      "text": "6"
     },
     {
       "quoteId": 4,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "fn(0, a, b, c, d, e, f, 3)"
+      "text": "Math.max(0, 1, 2, 3, 4, 5, 6, 3)"
     },
     {
       "quoteId": 5,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "new Box(a, b)"
+      "text": "new Array(1, 2)"
     }
   ],
   "diagnostics": [],

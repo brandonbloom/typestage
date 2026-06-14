@@ -52,14 +52,31 @@
           "id": 2,
           "moduleId": "parts.ts",
           "kind": "expr",
+          "bindingName": "fn",
+          "exported": false
+        },
+        {
+          "id": 3,
+          "moduleId": "parts.ts",
+          "kind": "expr",
           "exported": false
         }
       ],
       "bindings": {
-        "codeBindings": [],
+        "codeBindings": [
+          {
+            "name": "fn",
+            "kind": "expr",
+            "quoteId": 2
+          }
+        ],
         "localBindingsByQuote": [
           {
             "quoteId": 2,
+            "names": []
+          },
+          {
+            "quoteId": 3,
             "names": []
           }
         ]
@@ -71,19 +88,25 @@
       "quoteId": 0,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "first, second"
+      "text": "1, 2"
     },
     {
       "quoteId": 1,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "fn(first, second)"
+      "text": "(Math.max)(1, 2)"
     },
     {
       "quoteId": 2,
       "moduleId": "parts.ts",
       "kind": "expr",
-      "text": "fn(first, second)"
+      "text": "Math.max"
+    },
+    {
+      "quoteId": 3,
+      "moduleId": "parts.ts",
+      "kind": "expr",
+      "text": "(Math.max)(1, 2)"
     }
   ],
   "diagnostics": [],

@@ -1,1 +1,1 @@
-export const expr = ((input + 1) * 2);
+export const expr = ((1 + 1) * 2);

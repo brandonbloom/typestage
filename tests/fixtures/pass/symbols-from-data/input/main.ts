@@ -6,6 +6,6 @@ const trimmedFields = fields.map((field) => q.expr`${field}.trim()`);
 
 export const decl = q.decl`
   export function packFields(${fields}) {
-    return pack(${trimmedFields});
+    return Array.of(${trimmedFields});
   }
 `;

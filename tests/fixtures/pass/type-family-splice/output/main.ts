@@ -3,4 +3,7 @@ export type Tuple = [
     number,
     boolean
 ];
-export type Handler = Fn<number, boolean, Date>;
+export type Handler = (...args: [
+    number,
+    boolean
+]) => Date;

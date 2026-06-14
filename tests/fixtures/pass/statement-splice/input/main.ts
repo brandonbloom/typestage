@@ -1,7 +1,7 @@
 import {q} from "typestage";
 
 const body = q.stmt`
-  const value = compute();
+  const value = 1;
   return value;
 `;
 

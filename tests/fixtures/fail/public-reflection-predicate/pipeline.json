@@ -67,6 +67,15 @@
       "message": "staging evaluation failed: q.isCode is not a function. (In 'q.isCode(value)', 'q.isCode' is undefined)"
     },
     {
+      "code": "TSG1009",
+      "message": "residual reference 'user' does not resolve to a local binding, staging binding, or ambient global",
+      "origin": {
+        "sourceFile": "tests/fixtures/fail/public-reflection-predicate/input/main.ts",
+        "start": 293,
+        "end": 297
+      }
+    },
+    {
       "code": "TSG1001",
       "message": "explicit splice 'q.isCode(value)' does not resolve to a TypeStage code value",
       "origin": {

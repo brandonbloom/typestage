@@ -87,8 +87,8 @@
       "message": "recursive code binding 'a' cannot be implicitly unquoted",
       "origin": {
         "sourceFile": "tests/fixtures/pass/recursive-implicit-unquote/input/main.ts",
-        "start": 40,
-        "end": 53
+        "start": 121,
+        "end": 134
       }
     }
   ],

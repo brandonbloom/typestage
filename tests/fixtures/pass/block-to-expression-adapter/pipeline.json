@@ -52,13 +52,13 @@
       "quoteId": 0,
       "moduleId": "main.ts",
       "kind": "block",
-      "text": "{\n    const value = compute();\n    return value + 1;\n}"
+      "text": "{\n    const value = 1;\n    return value + 1;\n}"
     },
     {
       "quoteId": 1,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "(() => {\n    const value = compute();\n    return value + 1;\n})() * 2"
+      "text": "(() => {\n    const value = 1;\n    return value + 1;\n})() * 2"
     }
   ],
   "diagnostics": [],

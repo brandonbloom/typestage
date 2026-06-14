@@ -43,8 +43,8 @@
       "message": "persistent splice 'runtimeValue' is unsupported: class instances cannot be persisted",
       "origin": {
         "sourceFile": "tests/fixtures/pass/persistent-unsupported-class/input/main.ts",
-        "start": 123,
-        "end": 135
+        "start": 187,
+        "end": 199
       }
     }
   ],

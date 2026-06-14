@@ -10,5 +10,5 @@ const settings = {
 };
 
 export const expr = q.expr`
-  configure(${settings})
+  settings
 `;

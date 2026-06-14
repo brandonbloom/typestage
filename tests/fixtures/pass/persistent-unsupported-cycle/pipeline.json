@@ -43,8 +43,8 @@
       "message": "persistent splice 'runtimeValue' is unsupported: cyclic or shared object identity cannot be persisted",
       "origin": {
         "sourceFile": "tests/fixtures/pass/persistent-unsupported-cycle/input/main.ts",
-        "start": 291,
-        "end": 303
+        "start": 360,
+        "end": 372
       }
     }
   ],

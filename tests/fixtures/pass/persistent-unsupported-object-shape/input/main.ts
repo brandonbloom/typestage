@@ -7,6 +7,7 @@ const runtimeValue = {
   [Symbol("x")]: 2,
 };
 
+// Intentional diagnostic: accessor properties cannot be persisted.
 export const expr = q.expr`
   ${runtimeValue}
 `;

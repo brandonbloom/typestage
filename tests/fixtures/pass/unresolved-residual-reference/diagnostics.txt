@@ -1,0 +1,1 @@
+tests/fixtures/pass/unresolved-residual-reference/input/main.ts:5:3 TSG1009: residual reference 'cosnole' does not resolve to a local binding, staging binding, or ambient global

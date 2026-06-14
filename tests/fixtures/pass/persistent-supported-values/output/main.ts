@@ -1,4 +1,4 @@
-export const expr = (configure({
+export const expr = (({
     values: [undefined, NaN, Infinity, -Infinity, -0, 1n],
     nested: {
         ok: true

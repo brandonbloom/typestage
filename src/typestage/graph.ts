@@ -13,10 +13,11 @@ import {
   localModuleNotResolved,
 } from "./diagnostics/index.ts";
 import {moduleStatementsForValue, printCodeValue} from "./emitter.ts";
-import {expandFragments} from "./expander.ts";
+import {collectHostCaptureNames, expandFragments} from "./expander.ts";
 import {parseFragments} from "./fragments.ts";
 import {formatOrigin} from "./origin.ts";
 import {extractQuotes, parseHostSource} from "./quote-extractor.ts";
+import {createSemanticContext, type SemanticContext} from "./semantic.ts";
 import {createSourceMappedOutput, type SourceMapBlock} from "./source-map.ts";
 import {evaluateStagingGraph} from "./staging.ts";
 import type {
@@ -79,7 +80,15 @@ export async function compileFileGraph(
   const sourceRoot = resolve(options.sourceRoot ?? dirname(resolve(entryPath)));
   const builder = new GraphBuilder(sourceRoot);
   const entryAbsolutePath = resolve(entryPath);
-  const modules = builder.load(entryAbsolutePath);
+  let modules = builder.load(entryAbsolutePath);
+  const semantic = createSemanticContext(
+    entryAbsolutePath,
+    modules.map((module) => module.inputPath),
+    sourceRoot,
+  );
+
+  modules = builder.rebindSourceFiles(semantic);
+
   const graphDiagnostics = builder.diagnostics;
 
   assignGraphQuoteIds(modules);
@@ -97,10 +106,19 @@ export async function compileFileGraph(
 
   const exportedBindings = buildExportBindings(modules);
   const visibleBindingsByModule = buildVisibleBindings(modules, exportedBindings);
+  const parseDiagnostics = modules.flatMap((module) => module.parseDiagnostics);
+  const hostCaptures = parseDiagnostics.length === 0
+    ? collectHostCaptureNames(
+        fragments,
+        (fragment) => visibleBindingsByModule.get(fragment.quote.moduleId ?? "") ?? new Map(),
+        semantic,
+      )
+    : {diagnostics: [], hostCaptureNames: new Map<number, Set<string>>()};
   const earlyDiagnostics = [
     ...graphDiagnostics,
     ...validateLocalImports(modules),
-    ...modules.flatMap((module) => module.parseDiagnostics),
+    ...parseDiagnostics,
+    ...hostCaptures.diagnostics,
   ];
 
   if (earlyDiagnostics.length > 0) {
@@ -126,15 +144,18 @@ export async function compileFileGraph(
       quotes: module.quotes,
     })),
     (specifier, importerPath) => builder.resolveLocalSpecifier(specifier, importerPath),
+    hostCaptures.hostCaptureNames,
   );
   const expanded = expandFragments(
     fragments,
     (fragment) => visibleBindingsByModule.get(fragment.quote.moduleId ?? "") ?? new Map(),
     staging.capturedValues,
+    staging.capturedHostValues,
+    semantic,
   );
   const diagnostics = [
     ...graphDiagnostics,
-    ...modules.flatMap((module) => module.parseDiagnostics),
+    ...parseDiagnostics,
     ...staging.diagnostics,
     ...expanded.diagnostics,
   ];
@@ -195,6 +216,30 @@ class GraphBuilder {
 
   load(entryPath: string): GraphModule[] {
     this.loadModule(entryPath);
+
+    return Array.from(this.modules.values())
+      .sort((left, right) => left.outputPath.localeCompare(right.outputPath));
+  }
+
+  rebindSourceFiles(semantic: SemanticContext): GraphModule[] {
+    for (const module of this.modules.values()) {
+      const sourceFile = semantic.sourceFilesByPath.get(module.inputPath);
+
+      if (!sourceFile) {
+        continue;
+      }
+
+      const quotes = extractQuotes(sourceFile);
+
+      normalizeQuoteOrigins(quotes, relative(process.cwd(), module.inputPath));
+      const parsed = parseFragments(quotes);
+      module.sourceText = sourceFile.getFullText();
+      module.sourceFile = sourceFile;
+      module.quotes = quotes;
+      module.fragments = parsed.fragments;
+      module.parseDiagnostics = parsed.diagnostics;
+      module.localCodeBindings = new Map();
+    }
 
     return Array.from(this.modules.values())
       .sort((left, right) => left.outputPath.localeCompare(right.outputPath));
@@ -285,6 +330,32 @@ class GraphBuilder {
       }
     } else if (ts.isExportDeclaration(statement)) {
       module.reexports.push(...namedReexports(statement));
+    }
+  }
+}
+
+function normalizeQuoteOrigins(
+  quotes: ReturnType<typeof extractQuotes>,
+  sourceFileName: string,
+) {
+  for (const quote of quotes) {
+    quote.origin = {...quote.origin, sourceFile: sourceFileName};
+
+    if (quote.bindingNameOrigin) {
+      quote.bindingNameOrigin = {
+        ...quote.bindingNameOrigin,
+        sourceFile: sourceFileName,
+      };
+    }
+
+    for (const part of quote.parts) {
+      part.originMap = part.originMap.map((origin) =>
+        origin ? {...origin, sourceFile: sourceFileName} : origin
+      );
+    }
+
+    for (const hole of quote.holes) {
+      hole.origin = {...hole.origin, sourceFile: sourceFileName};
     }
   }
 }

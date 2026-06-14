@@ -72,13 +72,13 @@
       "quoteId": 0,
       "moduleId": "main.ts",
       "kind": "decl",
-      "text": "export function run() {\n    const tmp = \"outer\";\n    const tmp_1 = compute();\n    use(tmp_1);\n    return tmp;\n}"
+      "text": "export function run() {\n    const tmp = \"outer\";\n    const tmp_1 = \"inner\";\n    return tmp;\n}"
     },
     {
       "quoteId": 1,
       "moduleId": "parts.ts",
       "kind": "stmt",
-      "text": "const tmp = compute();\nuse(tmp);"
+      "text": "const tmp = \"inner\";"
     }
   ],
   "diagnostics": [],

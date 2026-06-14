@@ -1,3 +1,3 @@
-export function f(x_1: number) {
+export function f(x: number) {
     return x;
 }

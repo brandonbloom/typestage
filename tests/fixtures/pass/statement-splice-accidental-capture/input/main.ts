@@ -1,7 +1,9 @@
 import {q} from "typestage";
 
+const x = q.ident`x`;
+
 const body = q.stmt`
-  return x;
+  return ${x};
 `;
 
 export const fn = q.decl`

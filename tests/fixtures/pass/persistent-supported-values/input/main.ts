@@ -8,5 +8,5 @@ const runtimeValue = {
 };
 
 export const expr = q.expr`
-  configure(${runtimeValue})
+  runtimeValue
 `;

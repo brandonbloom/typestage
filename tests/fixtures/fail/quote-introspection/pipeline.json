@@ -67,6 +67,15 @@
       "message": "staging evaluation failed: q.isLValue is not a function. (In 'q.isLValue(expr)', 'q.isLValue' is undefined)"
     },
     {
+      "code": "TSG1009",
+      "message": "residual reference 'value' does not resolve to a local binding, staging binding, or ambient global",
+      "origin": {
+        "sourceFile": "tests/fixtures/fail/quote-introspection/input/main.ts",
+        "start": 274,
+        "end": 279
+      }
+    },
+    {
       "code": "TSG1001",
       "message": "explicit splice 'isAssignable' does not resolve to a TypeStage code value",
       "origin": {

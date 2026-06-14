@@ -1,1 +1,1 @@
-export const expr = (x + (y + 1));
+export const expr = (Number(1) + 1);

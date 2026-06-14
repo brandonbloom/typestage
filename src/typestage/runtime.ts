@@ -14,9 +14,11 @@ export type RuntimeCode = {
   quoteId?: number;
   text: string;
   values: unknown[];
+  hostValues?: Record<string, unknown>;
 };
 
 const capturedValues = new Map<number, unknown[]>();
+const capturedHostValues = new Map<number, Record<string, unknown>>();
 
 function code(
   kind: FragmentKind,
@@ -53,12 +55,18 @@ export function isRuntimeCode(value: unknown): value is RuntimeCode {
 export function __typestageTag(
   quoteId: number,
   tag: (strings: TemplateStringsArray, ...values: unknown[]) => RuntimeCode,
+  captureHostValues?: () => Record<string, unknown>,
 ) {
   return (strings: TemplateStringsArray, ...values: unknown[]) => {
     const value = tag(strings, ...values);
+    const hostValues = captureHostValues?.();
 
     value.quoteId = quoteId;
+    value.hostValues = hostValues;
     capturedValues.set(quoteId, values);
+    if (hostValues) {
+      capturedHostValues.set(quoteId, hostValues);
+    }
 
     return value;
   };
@@ -67,11 +75,17 @@ export function __typestageTag(
 /** Clears interpolation values captured during staging evaluation. */
 export function __typestageResetCapturedValues() {
   capturedValues.clear();
+  capturedHostValues.clear();
 }
 
 /** Returns captured staging interpolation values keyed by static quote id. */
 export function __typestageCapturedValues(): Map<number, unknown[]> {
   return new Map(capturedValues);
+}
+
+/** Returns captured staging host values keyed by static quote id. */
+export function __typestageCapturedHostValues(): Map<number, Record<string, unknown>> {
+  return new Map(capturedHostValues);
 }
 
 /** Placeholder for the future intentional-capture API. */
@@ -97,6 +111,8 @@ export const q = {
     code("pattern", "many", strings, ...values),
   stmt: (strings: TemplateStringsArray, ...values: unknown[]) =>
     code("stmt", "one", strings, ...values),
+  stmts: (strings: TemplateStringsArray, ...values: unknown[]) =>
+    code("stmt", "many", strings, ...values),
   block: (strings: TemplateStringsArray, ...values: unknown[]) =>
     code("block", "one", strings, ...values),
   decl: (strings: TemplateStringsArray, ...values: unknown[]) =>

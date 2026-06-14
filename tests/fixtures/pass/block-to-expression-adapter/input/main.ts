@@ -2,7 +2,7 @@ import {q} from "typestage";
 
 const body = q.block`
   {
-    const value = compute();
+    const value = 1;
     return value + 1;
   }
 `;

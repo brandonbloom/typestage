@@ -1,7 +1,8 @@
 import {q} from "typestage";
 
-const rhs = q.expr`y + 1`;
+const numberRef = q.ident`Number`;
+const rhs = q.expr`numberRef(1)`;
 
 export const expr = q.expr`
-  x + rhs
+  rhs + 1
 `;

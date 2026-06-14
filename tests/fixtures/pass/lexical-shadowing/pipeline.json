@@ -7,12 +7,19 @@
         {
           "id": 0,
           "moduleId": "main.ts",
+          "kind": "ident",
+          "bindingName": "y",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
           "kind": "expr",
           "bindingName": "rhs",
           "exported": false
         },
         {
-          "id": 1,
+          "id": 2,
           "moduleId": "main.ts",
           "kind": "expr",
           "bindingName": "expr",
@@ -24,11 +31,16 @@
           {
             "name": "expr",
             "kind": "expr",
-            "quoteId": 1
+            "quoteId": 2
           },
           {
             "name": "rhs",
             "kind": "expr",
+            "quoteId": 1
+          },
+          {
+            "name": "y",
+            "kind": "ident",
             "quoteId": 0
           }
         ],
@@ -39,6 +51,10 @@
           },
           {
             "quoteId": 1,
+            "names": []
+          },
+          {
+            "quoteId": 2,
             "names": [
               "rhs"
             ]
@@ -51,11 +67,17 @@
     {
       "quoteId": 0,
       "moduleId": "main.ts",
+      "kind": "ident",
+      "text": "y"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
       "kind": "expr",
       "text": "y + 1"
     },
     {
-      "quoteId": 1,
+      "quoteId": 2,
       "moduleId": "main.ts",
       "kind": "expr",
       "text": "(() => {\n    const rhs = 1;\n    return rhs;\n})()"

@@ -68,31 +68,13 @@
       "quoteId": 2,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "21"
+      "text": ""
     }
   ],
   "diagnostics": [
     {
       "code": "TSG1006",
       "message": "staging evaluation failed: q.macro is not a function. (In 'q.macro((input) => __typestageTag(0, q.expr)`${input} + ${input}`)', 'q.macro' is undefined)"
-    },
-    {
-      "code": "TSG1001",
-      "message": "explicit splice 'input' does not resolve to a TypeStage code value",
-      "origin": {
-        "sourceFile": "tests/fixtures/fail/compile-time-macro/input/main.ts",
-        "start": 305,
-        "end": 310
-      }
-    },
-    {
-      "code": "TSG1001",
-      "message": "explicit splice 'input' does not resolve to a TypeStage code value",
-      "origin": {
-        "sourceFile": "tests/fixtures/fail/compile-time-macro/input/main.ts",
-        "start": 316,
-        "end": 321
-      }
     },
     {
       "code": "TSG1001",

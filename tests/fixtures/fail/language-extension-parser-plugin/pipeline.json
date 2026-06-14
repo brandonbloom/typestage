@@ -62,15 +62,6 @@
     },
     {
       "code": "TSG1001",
-      "message": "explicit splice 'source' does not resolve to a TypeStage code value",
-      "origin": {
-        "sourceFile": "tests/fixtures/fail/language-extension-parser-plugin/input/main.ts",
-        "start": 354,
-        "end": 360
-      }
-    },
-    {
-      "code": "TSG1001",
       "message": "explicit splice 'sql.expr`select * from users where active = true`' does not resolve to a TypeStage code value",
       "origin": {
         "sourceFile": "tests/fixtures/fail/language-extension-parser-plugin/input/main.ts",

@@ -50,13 +50,13 @@
       "quoteId": 0,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "input + 1"
+      "text": "1 + 1"
     },
     {
       "quoteId": 1,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "(input + 1) * 2"
+      "text": "(1 + 1) * 2"
     }
   ],
   "diagnostics": [],

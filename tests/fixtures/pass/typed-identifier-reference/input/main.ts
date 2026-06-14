@@ -4,6 +4,6 @@ const input = q.ident`input: number`;
 
 export const decl = q.decl`
   export function double(${input}) {
-    return ${input} * 2;
+    return input * 2;
   }
 `;

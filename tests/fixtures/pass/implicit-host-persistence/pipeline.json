@@ -1,0 +1,60 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/implicit-host-persistence/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "expr",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "expr",
+            "kind": "expr",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          }
+        ]
+      }
+    },
+    {
+      "inputPath": "tests/fixtures/pass/implicit-host-persistence/input/settings.ts",
+      "outputPath": "settings.ts",
+      "quotes": [],
+      "bindings": {
+        "codeBindings": [],
+        "localBindingsByQuote": []
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "expr",
+      "text": "[3, ({\n        enabled: true\n    })]"
+    }
+  ],
+  "diagnostics": [],
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/implicit-host-persistence/input/main.ts",
+      "outputPath": "main.ts"
+    },
+    {
+      "inputPath": "tests/fixtures/pass/implicit-host-persistence/input/settings.ts",
+      "outputPath": "settings.ts"
+    }
+  ]
+}

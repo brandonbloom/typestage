@@ -5,8 +5,8 @@
     "tests/fixtures/typecheck/preserved-source-export-error/input/main.ts"
   ],
   "sourcesContent": [
-    "import {q} from \"typestage\";\nimport {value} from \"./helper\";\n\nexport const decl = q.decl`\n  export const result = value();\n`;\n"
+    "import {q} from \"typestage\";\nimport {value} from \"./helper\";\n\nconst valueRef = q.ident`value`;\n\nexport const decl = q.decl`\n  export const result = valueRef();\n`;\n"
   ],
   "names": [],
-  "mappings": ";AAGoB,AAClB,OAAO,MAAM,SAAS"
+  "mappings": ";AAKoB,AAClB,aAAa,SAHU"
 }

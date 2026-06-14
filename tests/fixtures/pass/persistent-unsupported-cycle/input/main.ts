@@ -5,6 +5,7 @@ import {q} from "typestage";
 const runtimeValue: {self?: unknown} = {};
 runtimeValue.self = runtimeValue;
 
+// Intentional diagnostic: cyclic object graphs cannot be persisted.
 export const expr = q.expr`
   ${runtimeValue}
 `;

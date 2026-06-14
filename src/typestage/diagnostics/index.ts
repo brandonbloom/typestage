@@ -15,4 +15,5 @@ export {
   stagingEvaluationFailed,
   type DiagnosticInfo,
   unresolvedExplicitSplice,
+  unresolvedResidualReference,
 } from "./catalog.ts";

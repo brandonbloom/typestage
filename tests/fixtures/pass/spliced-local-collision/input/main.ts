@@ -1,8 +1,8 @@
 import {q} from "typestage";
 
 const setup = q.stmt`
-  const tmp = compute();
-  use(tmp);
+  const tmp = "inner";
+  String(tmp);
 `;
 
 export const fn = q.decl`

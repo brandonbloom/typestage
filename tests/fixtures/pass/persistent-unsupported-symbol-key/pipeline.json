@@ -43,8 +43,8 @@
       "message": "persistent splice 'runtimeValue' is unsupported: objects with symbol keys cannot be persisted",
       "origin": {
         "sourceFile": "tests/fixtures/pass/persistent-unsupported-symbol-key/input/main.ts",
-        "start": 109,
-        "end": 121
+        "start": 182,
+        "end": 194
       }
     }
   ],

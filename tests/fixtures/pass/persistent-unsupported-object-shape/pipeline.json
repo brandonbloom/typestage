@@ -43,8 +43,8 @@
       "message": "persistent splice 'runtimeValue' is unsupported: objects with accessors cannot be persisted",
       "origin": {
         "sourceFile": "tests/fixtures/pass/persistent-unsupported-object-shape/input/main.ts",
-        "start": 144,
-        "end": 156
+        "start": 212,
+        "end": 224
       }
     }
   ],

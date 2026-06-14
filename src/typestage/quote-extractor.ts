@@ -29,6 +29,7 @@ const quoteTags = new Map<string, QuoteTag>([
   ["pattern", {cardinality: "one", kind: "pattern"}],
   ["patterns", {cardinality: "many", kind: "pattern"}],
   ["stmt", {cardinality: "one", kind: "stmt"}],
+  ["stmts", {cardinality: "many", kind: "stmt"}],
   ["block", {cardinality: "one", kind: "block"}],
   ["decl", {cardinality: "one", kind: "decl"}],
   ["decls", {cardinality: "many", kind: "decl"}],

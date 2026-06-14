@@ -1,4 +1,4 @@
-export const expr = (configure({
+export const expr = (({
     enabled: true,
     thresholds: new Map([
         ["low", 2],

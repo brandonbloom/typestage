@@ -43,7 +43,7 @@
       "quoteId": 0,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "configure({\n    enabled: true,\n    retries: 3\n})"
+      "text": "({\n    enabled: true,\n    retries: 3\n})"
     }
   ],
   "diagnostics": [],

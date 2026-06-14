@@ -58,6 +58,12 @@ export const localExportMissing = {
   summary: "Local module does not export an imported name.",
 } as const satisfies DiagnosticInfo;
 
+/** Residual reference does not resolve in any allowed scope. */
+export const unresolvedResidualReference = {
+  code: "TSG1009",
+  summary: "Residual reference does not resolve in any allowed scope.",
+} as const satisfies DiagnosticInfo;
+
 /** Canonical catalog of TypeStage diagnostic metadata by code. */
 export const diagnosticCatalog = {
   [unresolvedExplicitSplice.code]: unresolvedExplicitSplice,
@@ -68,4 +74,5 @@ export const diagnosticCatalog = {
   [stagingEvaluationFailed.code]: stagingEvaluationFailed,
   [localModuleNotResolved.code]: localModuleNotResolved,
   [localExportMissing.code]: localExportMissing,
+  [unresolvedResidualReference.code]: unresolvedResidualReference,
 } as const satisfies Record<string, DiagnosticInfo>;

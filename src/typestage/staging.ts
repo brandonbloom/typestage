@@ -14,6 +14,7 @@ import {
   stagingEvaluationFailed,
 } from "./diagnostics/index.ts";
 import {
+  __typestageCapturedHostValues,
   __typestageCapturedValues,
   __typestageResetCapturedValues,
 } from "./runtime.ts";
@@ -22,6 +23,7 @@ import type {Diagnostic, QuoteForm} from "./types.ts";
 /** Values captured while evaluating a TypeStage source module. */
 export type StagingEvaluation = {
   capturedValues: Map<number, unknown[]>;
+  capturedHostValues: Map<number, Record<string, unknown>>;
   diagnostics: Diagnostic[];
 };
 
@@ -49,6 +51,7 @@ export async function evaluateStagingGraph(
   entryPath: string,
   modules: StagingGraphModule[],
   resolveImport: StagingImportResolver,
+  hostCaptureNames: Map<number, Set<string>> = new Map(),
 ): Promise<StagingEvaluation> {
   const runtimeUrl = new URL("./runtime.ts", import.meta.url).href;
   const directory = await mkdtemp(join(tmpdir(), "typestage-"));
@@ -67,6 +70,7 @@ export async function evaluateStagingGraph(
       module.sourceFile,
       module.quotes,
       runtimeUrl,
+      hostCaptureNames,
       (specifier) => {
         const targetPath = resolveImport(specifier, module.inputPath);
         const targetTempPath = targetPath ? tempPaths.get(targetPath) : undefined;
@@ -83,6 +87,7 @@ export async function evaluateStagingGraph(
   if (!entryTempPath) {
     return {
       capturedValues: new Map(),
+      capturedHostValues: new Map(),
       diagnostics: [
         {
           code: localModuleNotResolved.code,
@@ -99,6 +104,7 @@ export async function evaluateStagingGraph(
   } catch (error) {
     return {
       capturedValues: __typestageCapturedValues(),
+      capturedHostValues: __typestageCapturedHostValues(),
       diagnostics: [
         {
           code: stagingEvaluationFailed.code,
@@ -110,6 +116,7 @@ export async function evaluateStagingGraph(
 
   return {
     capturedValues: __typestageCapturedValues(),
+    capturedHostValues: __typestageCapturedHostValues(),
     diagnostics: [],
   };
 }
@@ -118,6 +125,7 @@ function stagingSource(
   sourceFile: ts.SourceFile,
   quotes: QuoteForm[],
   runtimeUrl: string,
+  hostCaptureNames: Map<number, Set<string>>,
   resolveImport?: (specifier: string) => string | undefined,
 ): string {
   const quoteIds = new Map(
@@ -139,7 +147,11 @@ function stagingSource(
               ts.factory.createCallExpression(
                 ts.factory.createIdentifier(helperName),
                 undefined,
-                [ts.factory.createNumericLiteral(quoteId), visited.tag],
+                [
+                  ts.factory.createNumericLiteral(quoteId),
+                  visited.tag,
+                  ...hostCaptureArgument(hostCaptureNames.get(quoteId)),
+                ],
               ),
               visited.typeArguments,
               visited.template,
@@ -212,6 +224,34 @@ function stagingSource(
   transformed.dispose();
 
   return text;
+}
+
+function hostCaptureArgument(names: Set<string> | undefined): ts.Expression[] {
+  if (!names || names.size === 0) {
+    return [];
+  }
+
+  return [
+    ts.factory.createArrowFunction(
+      undefined,
+      undefined,
+      [],
+      undefined,
+      ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+      ts.factory.createParenthesizedExpression(
+        ts.factory.createObjectLiteralExpression(
+          Array.from(names)
+            .sort()
+            .map((name) =>
+              ts.factory.createShorthandPropertyAssignment(
+                ts.factory.createIdentifier(name),
+              )
+            ),
+          false,
+        ),
+      ),
+    ),
+  ];
 }
 
 function rewriteModuleSpecifier(

@@ -43,8 +43,8 @@
       "message": "Expression expected.",
       "origin": {
         "sourceFile": "tests/fixtures/pass/syntax-error/input/main.ts",
-        "start": 63,
-        "end": 64
+        "start": 141,
+        "end": 142
       }
     }
   ],

@@ -43,8 +43,8 @@
       "message": "persistent splice 'runtimeValue' is unsupported: function values cannot be persisted",
       "origin": {
         "sourceFile": "tests/fixtures/pass/persistent-unsupported-function/input/main.ts",
-        "start": 93,
-        "end": 105
+        "start": 157,
+        "end": 169
       }
     }
   ],

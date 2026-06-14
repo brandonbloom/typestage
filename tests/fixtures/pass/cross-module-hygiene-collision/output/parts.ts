@@ -1,2 +1,1 @@
-const tmp = compute();
-use(tmp);
+const tmp = "inner";

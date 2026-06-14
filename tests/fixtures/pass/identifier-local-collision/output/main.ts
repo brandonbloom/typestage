@@ -1,6 +1,6 @@
 export function run() {
-    const tmp = "outer";
-    const tmp_1 = compute();
-    use(tmp_1);
-    return tmp;
+    const tmp_1 = "outer";
+    const tmp = "inner";
+    String(tmp);
+    return tmp_1;
 }

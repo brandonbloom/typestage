@@ -1,24 +1,25 @@
 [
   {
-    "name": "explicit splice token keeps spliced code origin",
+    "name": "generated residual identifier maps to containing quote origin",
     "generated": {
       "file": "main.ts",
-      "text": "x + 1"
+      "text": "x",
+      "occurrence": 2
     },
     "source": {
       "file": "main.ts",
-      "text": "x + 1"
+      "text": "expr = q.expr"
     }
   },
   {
-    "name": "token around explicit splice keeps containing quote origin",
+    "name": "operator around explicit splice maps to spliced expression origin",
     "generated": {
       "file": "main.ts",
-      "text": "scale"
+      "text": "*"
     },
     "source": {
       "file": "main.ts",
-      "text": "scale"
+      "text": "1`"
     }
   }
 ]

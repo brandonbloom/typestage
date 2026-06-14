@@ -6,6 +6,7 @@ class Box {
 
 const runtimeValue = new Box();
 
+// Intentional diagnostic: class instances cannot be persisted.
 export const expr = q.expr`
   ${runtimeValue}
 `;

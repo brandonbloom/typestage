@@ -79,8 +79,8 @@
       "message": "local module 'helper.ts' does not export 'makeValue'",
       "origin": {
         "sourceFile": "tests/fixtures/pass/generated-declaration-import/input/main.ts",
-        "start": 37,
-        "end": 46
+        "start": 113,
+        "end": 122
       }
     }
   ],

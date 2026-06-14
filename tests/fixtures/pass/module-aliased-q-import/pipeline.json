@@ -8,6 +8,13 @@
           "id": 0,
           "moduleId": "main.ts",
           "kind": "expr",
+          "bindingName": "value",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "expr",
           "bindingName": "expr",
           "exported": true
         }
@@ -17,12 +24,21 @@
           {
             "name": "expr",
             "kind": "expr",
+            "quoteId": 1
+          },
+          {
+            "name": "value",
+            "kind": "expr",
             "quoteId": 0
           }
         ],
         "localBindingsByQuote": [
           {
             "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
             "names": []
           }
         ]
@@ -34,7 +50,13 @@
       "quoteId": 0,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "value + 1"
+      "text": "1"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
+      "kind": "expr",
+      "text": "1 + 1"
     }
   ],
   "diagnostics": [],

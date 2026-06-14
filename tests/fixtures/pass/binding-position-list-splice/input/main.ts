@@ -6,6 +6,6 @@ const params = [a, b];
 
 export const decl = q.decl`
   export function sum(${params}) {
-    return ${a} + ${b};
+    return a + b;
   }
 `;

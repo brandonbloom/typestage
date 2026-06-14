@@ -1,0 +1,52 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/unresolved-residual-reference/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "expr",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "expr",
+            "kind": "expr",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "expr",
+      "text": "cosnole.log(\"typo\")"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1009",
+      "message": "residual reference 'cosnole' does not resolve to a local binding, staging binding, or ambient global",
+      "origin": {
+        "sourceFile": "tests/fixtures/pass/unresolved-residual-reference/input/main.ts",
+        "start": 128,
+        "end": 135
+      }
+    }
+  ],
+  "files": []
+}
