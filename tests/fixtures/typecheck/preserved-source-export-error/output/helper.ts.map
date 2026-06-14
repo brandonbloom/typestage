@@ -8,5 +8,5 @@
     "export function value(): string {\n  return 1;\n}\n"
   ],
   "names": [],
-  "mappings": "gBAAgB,SAAS;EACvB,OAAO"
+  "mappings": "AAAA,OAAO,SAAS,SAAS;EACvB,OAAO"
 }

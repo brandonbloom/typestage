@@ -5,6 +5,7 @@
  */
 import * as ts from "typescript";
 import {printExpressionList, printNode, printNodes} from "./ast-print.ts";
+import {setNodeOrigin} from "./origin.ts";
 import type {CodeValue} from "./types.ts";
 
 /** Converts one expanded code value into residual module statements. */
@@ -22,13 +23,19 @@ export function moduleStatementsForValue(value: CodeValue): ts.Statement[] {
       return [];
     }
 
+    const bindingName = ts.factory.createIdentifier(value.quote.bindingName);
+
+    if (value.quote.bindingNameOrigin) {
+      setNodeOrigin(bindingName, value.quote.bindingNameOrigin);
+    }
+
     return [
       ts.factory.createVariableStatement(
         [ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
         ts.factory.createVariableDeclarationList(
           [
             ts.factory.createVariableDeclaration(
-              value.quote.bindingName,
+              bindingName,
               undefined,
               undefined,
               expression,

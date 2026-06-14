@@ -8,5 +8,5 @@
     "import {q} from \"typestage\";\nimport {value} from \"./helper\";\n\nexport const decl = q.decl`\n  export const result = value();\n`;\n"
   ],
   "names": [],
-  "mappings": ";AAGoB,aACL,SAAS"
+  "mappings": ";AAGoB,AAClB,OAAO,MAAM,SAAS"
 }

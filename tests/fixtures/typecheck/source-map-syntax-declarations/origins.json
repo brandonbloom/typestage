@@ -1,0 +1,42 @@
+[
+  {
+    "name": "interface keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "interface"},
+    "source": {"file": "main.ts", "text": "interface"}
+  },
+  {
+    "name": "default keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "default"},
+    "source": {"file": "main.ts", "text": "default"}
+  },
+  {
+    "name": "class keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "class"},
+    "source": {"file": "main.ts", "text": "class"}
+  },
+  {
+    "name": "implements keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "implements"},
+    "source": {"file": "main.ts", "text": "implements"}
+  },
+  {
+    "name": "private keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "private"},
+    "source": {"file": "main.ts", "text": "private"}
+  },
+  {
+    "name": "readonly keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "readonly"},
+    "source": {"file": "main.ts", "text": "readonly"}
+  },
+  {
+    "name": "static keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "static"},
+    "source": {"file": "main.ts", "text": "static"}
+  },
+  {
+    "name": "enum keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "enum"},
+    "source": {"file": "main.ts", "text": "enum"}
+  }
+]

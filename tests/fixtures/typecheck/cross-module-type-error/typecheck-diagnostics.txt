@@ -1,1 +1,1 @@
-tests/fixtures/typecheck/cross-module-type-error/input/parts.ts:4:24 TS1360: Type 'string' does not satisfy the expected type 'number'.
+tests/fixtures/typecheck/cross-module-type-error/input/parts.ts:4:31 TS1360: Type 'string' does not satisfy the expected type 'number'.

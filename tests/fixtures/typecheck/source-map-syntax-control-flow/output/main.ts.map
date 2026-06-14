@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "file": "main.ts",
+  "sources": [
+    "tests/fixtures/typecheck/source-map-syntax-control-flow/input/main.ts"
+  ],
+  "sourcesContent": [
+    "import {q} from \"typestage\";\n\nexport const decl = q.decl`\n  export function control(input: number): number {\n    let total = 0;\n\n    if (input > 0) {\n      total = input;\n    } else {\n      total = -input;\n    }\n\n    for (let index = 0; index < 3; index++) {\n      switch (index) {\n        case 0:\n          total += index;\n          break;\n        default:\n          continue;\n      }\n    }\n\n    try {\n      return total;\n    } catch (error) {\n      throw error;\n    } finally {\n      total;\n    }\n  }\n`;\n"
+  ],
+  "names": [],
+  "mappings": "AAEoB,AAClB,OAAO,SAAS,QAAQ,OAAO,SAAS;IACtC,IAAI,QAAQ;IAEZ,IAAI,QAAQ;QACV,QAAQ;;IACR;QACA,SAAS;;IAGX,KAAK,IAAI,QAAQ,GAAG,QAAQ,GAAG;QAC7B,QAAQ;YACN,KAAK;gBACH,SAAS;gBACT;YACF,SACE;;;IAIN;QACE,OAAO;;IACP,OAAO;QACP,MAAM;;IACN;QACA"
+}

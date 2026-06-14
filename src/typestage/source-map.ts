@@ -27,11 +27,13 @@ export type SourceMappedOutput = {
 
 type GeneratedToken = {
   column: number;
+  kind: ts.SyntaxKind;
   line: number;
   text: string;
 };
 
 type OriginToken = {
+  kind: ts.SyntaxKind;
   origin: Origin;
   text: string;
 };
@@ -46,6 +48,13 @@ type Mapping = {
 
 const base64Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const base64Values = new Map(Array.from(base64Digits, (digit, index) => [digit, index]));
+const emptySourceFile = ts.createSourceFile(
+  "typestage-generated.ts",
+  "",
+  ts.ScriptTarget.Latest,
+  true,
+  ts.ScriptKind.TS,
+);
 
 /** Combines printed blocks and creates a standard v3 source map. */
 export function createSourceMappedOutput(
@@ -211,6 +220,13 @@ function defined<Value>(values: Array<Value | undefined>): Value[] {
   return values.filter((value): value is Value => value !== undefined);
 }
 
+/**
+ * Extracts the printed tokens we use as source-map anchors.
+ * "Interesting" tokens are stable, user-visible syntax with useful diagnostic
+ * ownership: identifiers, literals, and TypeScript keywords. Punctuation and
+ * operators are deliberately excluded because they are often introduced,
+ * removed, or moved by printing and by TypeStage wrappers.
+ */
 function generatedInterestingTokens(text: string): GeneratedToken[] {
   const scanner = ts.createScanner(
     ts.ScriptTarget.Latest,
@@ -234,6 +250,7 @@ function generatedInterestingTokens(text: string): GeneratedToken[] {
     if (location) {
       tokens.push({
         column: location.column,
+        kind: token,
         line: location.line,
         text: scanner.getTokenText(),
       });
@@ -243,6 +260,16 @@ function generatedInterestingTokens(text: string): GeneratedToken[] {
   return tokens;
 }
 
+/**
+ * Builds source-side token anchors for a residual AST subtree.
+ * The fast path scans the node's whole original source range, but only when
+ * that range would print to the same interesting-token sequence as the
+ * generated node. That preserves keywords the AST does not expose as child
+ * nodes, such as `export`, `const`, or `satisfies`. When the token shape does
+ * not match, as with splices, hygiene renames, or synthetic adapters, we fall
+ * back to the node's own origin and recursively map children so generated
+ * tokens keep the more precise origins attached during expansion.
+ */
 function originInterestingTokens(
   root: ts.Node,
   sourceFile: ts.SourceFile | undefined,
@@ -251,27 +278,31 @@ function originInterestingTokens(
   const tokens: OriginToken[] = [];
 
   const visit = (node: ts.Node) => {
-    if (ts.isReturnStatement(node)) {
-      const origin = getNodeOrigin(node) ?? originForSourceNode(node, sourceFile);
+    const origin = getNodeOrigin(node) ?? originForSourceNode(node, sourceFile);
+    const scanOrigin = originForTokenScan(node, sourceFile) ?? origin;
 
-      if (origin) {
-        tokens.push({
-          origin: {
-            sourceFile: origin.sourceFile,
-            start: origin.start,
-            end: origin.start + "return".length,
-          },
-          text: "return",
-        });
+    if (scanOrigin) {
+      const sourceTokens = sourceRangeInterestingTokens(scanOrigin, sourceTextForFile);
+
+      if (
+        canUseCompleteSourceRangeTokens(
+          node,
+          scanOrigin,
+          sourceTokens,
+          sourceFile,
+          sourceTextForFile,
+        )
+      ) {
+        tokens.push(...sourceTokens);
+        return;
       }
-    }
 
-    if (isInterestingTokenKind(node.kind)) {
-      const origin = getNodeOrigin(node) ?? originForSourceNode(node, sourceFile);
+      if (isInterestingTokenKind(node.kind)) {
+        const tokenOrigin = origin ?? scanOrigin;
 
-      if (origin) {
         tokens.push({
-          origin,
+          kind: node.kind,
+          origin: tokenOrigin,
           text: tokenText(node, sourceFile, sourceTextForFile),
         });
       }
@@ -283,6 +314,175 @@ function originInterestingTokens(
   visit(root);
 
   return tokens;
+}
+
+function originForTokenScan(
+  node: ts.Node,
+  sourceFile: ts.SourceFile | undefined,
+): Origin | undefined {
+  const nodeOrigin = getNodeOrigin(node);
+  const sourceOrigin = originForSourceNode(node, sourceFile);
+
+  if (
+    nodeOrigin &&
+    sourceOrigin &&
+    sourceOrigin.sourceFile === nodeOrigin.sourceFile &&
+    sourceOrigin.start <= nodeOrigin.start &&
+    sourceOrigin.end >= nodeOrigin.end
+  ) {
+    return sourceOrigin;
+  }
+
+  return nodeOrigin ?? sourceOrigin;
+}
+
+function sourceRangeInterestingTokens(
+  origin: Origin,
+  sourceTextForFile: (sourceFile: string) => string,
+): OriginToken[] {
+  const sourceText = sourceTextForFile(origin.sourceFile);
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    false,
+    ts.LanguageVariant.Standard,
+    sourceText.slice(origin.start, origin.end),
+  );
+  const tokens: OriginToken[] = [];
+
+  while (scanner.scan() !== ts.SyntaxKind.EndOfFileToken) {
+    const kind = scanner.getToken();
+
+    if (!isInterestingTokenKind(kind)) {
+      continue;
+    }
+
+    const start = origin.start + scanner.getTokenPos();
+
+    tokens.push({
+      kind,
+      origin: {
+        sourceFile: origin.sourceFile,
+        start,
+        end: start + scanner.getTokenText().length,
+      },
+      text: scanner.getTokenText(),
+    });
+  }
+
+  return tokens;
+}
+
+function canUseCompleteSourceRangeTokens(
+  node: ts.Node,
+  origin: Origin,
+  sourceTokens: OriginToken[],
+  sourceFile: ts.SourceFile | undefined,
+  sourceTextForFile: (sourceFile: string) => string,
+): boolean {
+  if (sourceTokens.length === 0) {
+    return false;
+  }
+
+  const sourceText = sourceTextForFile(origin.sourceFile)
+    .slice(origin.start, origin.end);
+
+  return (
+    !sourceText.includes("${") &&
+    !sourceText.includes("__typestage_hole_") &&
+    hasSameInterestingTokenShape(
+      node,
+      sourceTokens,
+      sourceFile,
+    ) &&
+    !hasDescendantTokenMismatch(node, origin, sourceFile, sourceTextForFile)
+  );
+}
+
+function hasSameInterestingTokenShape(
+  node: ts.Node,
+  sourceTokens: OriginToken[],
+  sourceFile: ts.SourceFile | undefined,
+): boolean {
+  const generatedTokens = generatedNodeInterestingTokens(node, sourceFile);
+
+  return generatedTokens.length === sourceTokens.length &&
+    generatedTokens.every((token, index) => {
+      const sourceToken = sourceTokens[index]!;
+
+      return token.kind === sourceToken.kind && token.text === sourceToken.text;
+    });
+}
+
+function generatedNodeInterestingTokens(
+  node: ts.Node,
+  sourceFile: ts.SourceFile | undefined,
+): Array<Pick<GeneratedToken, "kind" | "text">> {
+  const printed = ts.createPrinter({removeComments: true}).printNode(
+    emitHintForNode(node),
+    node,
+    sourceFile ?? emptySourceFile,
+  );
+
+  return generatedInterestingTokens(printed).map((token) => ({
+    kind: token.kind,
+    text: token.text,
+  }));
+}
+
+function emitHintForNode(node: ts.Node): ts.EmitHint {
+  if (ts.isExpression(node)) {
+    return ts.EmitHint.Expression;
+  }
+
+  if (ts.isIdentifier(node)) {
+    return ts.EmitHint.Expression;
+  }
+
+  return ts.EmitHint.Unspecified;
+}
+
+function hasDescendantTokenMismatch(
+  root: ts.Node,
+  origin: Origin,
+  sourceFile: ts.SourceFile | undefined,
+  sourceTextForFile: (sourceFile: string) => string,
+): boolean {
+  let mismatch = false;
+
+  const visit = (node: ts.Node) => {
+    if (mismatch || node === root) {
+      ts.forEachChild(node, visit);
+      return;
+    }
+
+    if (isInterestingTokenKind(node.kind)) {
+      const nodeOrigin = getNodeOrigin(node) ?? originForSourceNode(node, sourceFile);
+
+      if (
+        !nodeOrigin ||
+        nodeOrigin.sourceFile !== origin.sourceFile ||
+        nodeOrigin.start < origin.start ||
+        nodeOrigin.end > origin.end
+      ) {
+        mismatch = true;
+        return;
+      }
+
+      const sourceTokenText = sourceTextForFile(nodeOrigin.sourceFile)
+        .slice(nodeOrigin.start, nodeOrigin.end);
+      const generatedTokenText = tokenText(node, sourceFile, sourceTextForFile);
+
+      if (sourceTokenText !== generatedTokenText) {
+        mismatch = true;
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  visit(root);
+
+  return mismatch;
 }
 
 function originForSourceNode(
@@ -345,9 +545,6 @@ function syntheticTokenText(
 
 function tokenTextForKind(kind: ts.SyntaxKind): string {
   switch (kind) {
-    case ts.SyntaxKind.ReturnKeyword:
-      return "return";
-
     case ts.SyntaxKind.TrueKeyword:
       return "true";
 
@@ -357,20 +554,12 @@ function tokenTextForKind(kind: ts.SyntaxKind): string {
     case ts.SyntaxKind.NullKeyword:
       return "null";
 
-    case ts.SyntaxKind.StringKeyword:
-      return "string";
-
-    case ts.SyntaxKind.NumberKeyword:
-      return "number";
-
-    case ts.SyntaxKind.BooleanKeyword:
-      return "boolean";
-
     default:
-      return "";
+      return ts.tokenToString(kind) ?? "";
   }
 }
 
+/** Returns whether a scanner token is useful enough to anchor a mapping. */
 function isInterestingTokenKind(kind: ts.SyntaxKind): boolean {
   return (
     kind === ts.SyntaxKind.Identifier ||
@@ -378,14 +567,12 @@ function isInterestingTokenKind(kind: ts.SyntaxKind): boolean {
     kind === ts.SyntaxKind.BigIntLiteral ||
     kind === ts.SyntaxKind.StringLiteral ||
     kind === ts.SyntaxKind.RegularExpressionLiteral ||
-    kind === ts.SyntaxKind.TrueKeyword ||
-    kind === ts.SyntaxKind.FalseKeyword ||
-    kind === ts.SyntaxKind.NullKeyword ||
-    kind === ts.SyntaxKind.StringKeyword ||
-    kind === ts.SyntaxKind.NumberKeyword ||
-    kind === ts.SyntaxKind.BooleanKeyword ||
-    kind === ts.SyntaxKind.ReturnKeyword
+    isKeywordTokenKind(kind)
   );
+}
+
+function isKeywordTokenKind(kind: ts.SyntaxKind): boolean {
+  return kind >= ts.SyntaxKind.FirstKeyword && kind <= ts.SyntaxKind.LastKeyword;
 }
 
 function encodeMappings(mappings: Mapping[], sourceFiles: string[]): string {

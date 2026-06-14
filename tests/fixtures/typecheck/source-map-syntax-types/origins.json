@@ -1,0 +1,37 @@
+[
+  {
+    "name": "extends keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "extends"},
+    "source": {"file": "main.ts", "text": "extends"}
+  },
+  {
+    "name": "object keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "object"},
+    "source": {"file": "main.ts", "text": "object"}
+  },
+  {
+    "name": "keyof keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "keyof"},
+    "source": {"file": "main.ts", "text": "keyof"}
+  },
+  {
+    "name": "unknown keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "unknown"},
+    "source": {"file": "main.ts", "text": "unknown"}
+  },
+  {
+    "name": "infer keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "infer"},
+    "source": {"file": "main.ts", "text": "infer"}
+  },
+  {
+    "name": "readonly keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "readonly"},
+    "source": {"file": "main.ts", "text": "readonly"}
+  },
+  {
+    "name": "typeof keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "typeof"},
+    "source": {"file": "main.ts", "text": "typeof"}
+  }
+]

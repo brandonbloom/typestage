@@ -61,6 +61,7 @@ export type QuoteForm = {
   parts: TemplatePart[];
   holes: SpliceHole[];
   bindingName?: string;
+  bindingNameOrigin?: Origin;
   exported: boolean;
 };
 

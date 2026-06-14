@@ -627,10 +627,12 @@ function pageHtml(): string {
 
     .details-panel {
       position: relative;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
       min-height: 92px;
       max-height: 28vh;
-      overflow: auto;
-      padding: 10px 44px 14px 14px;
+      overflow: hidden;
+      padding: 10px 14px 14px;
       border-top: 1px solid var(--line);
     }
 
@@ -649,7 +651,7 @@ function pageHtml(): string {
     }
 
     .details-title {
-      margin: 0 0 6px;
+      margin: 0 34px 6px 0;
       color: var(--muted);
       font-size: 13px;
       font-weight: 700;
@@ -697,6 +699,7 @@ function pageHtml(): string {
       color: var(--ink);
       background: transparent;
       padding: 0;
+      overflow: auto;
       white-space: pre-wrap;
     }
 

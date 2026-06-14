@@ -1,0 +1,42 @@
+[
+  {
+    "name": "async keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "async"},
+    "source": {"file": "main.ts", "text": "async"}
+  },
+  {
+    "name": "as keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "as"},
+    "source": {"file": "main.ts", "text": "as"}
+  },
+  {
+    "name": "new keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "new"},
+    "source": {"file": "main.ts", "text": "new"}
+  },
+  {
+    "name": "await keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "await"},
+    "source": {"file": "main.ts", "text": "await"}
+  },
+  {
+    "name": "in keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "in"},
+    "source": {"file": "main.ts", "text": "in"}
+  },
+  {
+    "name": "instanceof keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "instanceof"},
+    "source": {"file": "main.ts", "text": "instanceof"}
+  },
+  {
+    "name": "true keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "true"},
+    "source": {"file": "main.ts", "text": "true"}
+  },
+  {
+    "name": "yield keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "yield"},
+    "source": {"file": "main.ts", "text": "yield"}
+  }
+]

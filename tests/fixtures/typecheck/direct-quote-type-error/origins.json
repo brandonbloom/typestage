@@ -1,0 +1,13 @@
+[
+  {
+    "name": "satisfies keyword maps to source keyword",
+    "generated": {
+      "file": "main.ts",
+      "text": "satisfies"
+    },
+    "source": {
+      "file": "main.ts",
+      "text": "satisfies"
+    }
+  }
+]

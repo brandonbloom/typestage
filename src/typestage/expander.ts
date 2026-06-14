@@ -1121,7 +1121,7 @@ function transformNode(
           return replaced;
         }
 
-        return ts.visitEachChild(replaced, visit, context);
+        return copyNodeOrigin(ts.visitEachChild(replaced, visit, context), replaced);
       };
 
       return (root) => ts.visitNode(root, visit) ?? root;
@@ -1191,9 +1191,60 @@ function annotateFragmentNodeOrigins(fragment: ParsedFragment) {
     }
 
     ts.forEachChild(node, visit);
+
+    if (!getNodeOrigin(node)) {
+      const childOrigin = originForChildren(node);
+
+      if (childOrigin) {
+        setNodeOrigin(node, childOrigin);
+      }
+    }
   };
 
   for (const node of fragment.nodes) {
     visit(node);
   }
+}
+
+function originForChildren(node: ts.Node): Origin | undefined {
+  let first: Origin | undefined;
+  let incompatible = false;
+  let previousStart = -1;
+
+  ts.forEachChild(node, (child) => {
+    if (incompatible) {
+      return;
+    }
+
+    const origin = getNodeOrigin(child);
+
+    if (!origin) {
+      return;
+    }
+
+    if (
+      (first && first.sourceFile !== origin.sourceFile) ||
+      origin.start < previousStart
+    ) {
+      incompatible = true;
+      return;
+    }
+
+    previousStart = origin.start;
+    first = first
+      ? {
+          sourceFile: first.sourceFile,
+          start: Math.min(first.start, origin.start),
+          end: Math.max(first.end, origin.end),
+        }
+      : origin;
+  });
+
+  return first && !incompatible
+    ? {
+        sourceFile: first.sourceFile,
+        start: first.start,
+        end: first.end,
+      }
+    : undefined;
 }

@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "file": "main.ts",
+  "sources": [
+    "tests/fixtures/typecheck/source-map-syntax-expressions/input/main.ts"
+  ],
+  "sourcesContent": [
+    "import {q} from \"typestage\";\n\nexport const decl = q.decl`\n  export async function expressions(value: unknown) {\n    const list = [1, 2, 3] as number[];\n    const boxed = new Number(await Promise.resolve(1));\n    const present = \"length\" in list;\n    const yes = Boolean(true);\n    const no = Boolean(false);\n\n    if (boxed instanceof Number && present && yes !== no && null === null) {\n      return list[0] satisfies number;\n    }\n\n    return value as number;\n  }\n\n  export function* generate() {\n    yield 1;\n  }\n`;\n"
+  ],
+  "names": [],
+  "mappings": "AAEoB,AAClB,OAAO,MAAM,SAAS,YAAY,OAAO;IACvC,MAAM,QAAQ,GAAG,GAAG,GAAG,GAAG;IAC1B,MAAM,QAAQ,IAAI,OAAO,MAAM,QAAQ,QAAQ;IAC/C,MAAM,UAAU,SAAS,GAAG;IAC5B,MAAM,MAAM,QAAQ;IACpB,MAAM,KAAK,QAAQ;IAEnB,IAAI,MAAM,WAAW,UAAU,WAAW,QAAQ,MAAM,SAAS;QAC/D,OAAO,KAAK,GAAG,UAAU;;IAG3B,OAAO,MAAM,GAAG;;AAGlB,OAAO,UAAU;IACf,MAAM"
+}

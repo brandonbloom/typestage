@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "file": "main.ts",
+  "sources": [
+    "tests/fixtures/typecheck/source-map-syntax-declarations/input/main.ts"
+  ],
+  "sourcesContent": [
+    "import {q} from \"typestage\";\n\nexport const decl = q.decl`\n  export interface Named {\n    name(): string;\n  }\n\n  export default class Box implements Named {\n    private readonly value: string;\n\n    public constructor(value: string) {\n      this.value = value;\n    }\n\n    public static create(value: string): Box {\n      return new Box(value);\n    }\n\n    public name(): string {\n      return this.value;\n    }\n  }\n\n  export type Alias = string;\n\n  export enum Kind {\n    One = \"one\",\n  }\n`;\n"
+  ],
+  "names": [],
+  "mappings": "AAEoB,AAClB,OAAO,UAAU;IACf,QAAQ;;AAGV,OAAO,QAAQ,MAAM,IAAI,WAAW;IAClC,QAAQ,SAAS,OAAO;IAExB,OAAO,YAAY,OAAO;QACxB,KAAK,QAAQ;;IAGf,OAAO,OAAO,OAAO,OAAO,SAAS;QACnC,OAAO,IAAI,IAAI;;IAGjB,OAAO,QAAQ;QACb,OAAO,KAAK;;;AAIhB,OAAO,KAAK,QAAQ;AAEpB,OAAO,KAAK;IACV,MAAM"
+}

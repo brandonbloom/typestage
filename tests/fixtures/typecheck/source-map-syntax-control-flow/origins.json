@@ -1,0 +1,52 @@
+[
+  {
+    "name": "if keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "if"},
+    "source": {"file": "main.ts", "text": "if"}
+  },
+  {
+    "name": "else keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "else"},
+    "source": {"file": "main.ts", "text": "else"}
+  },
+  {
+    "name": "for keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "for"},
+    "source": {"file": "main.ts", "text": "for"}
+  },
+  {
+    "name": "switch keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "switch"},
+    "source": {"file": "main.ts", "text": "switch"}
+  },
+  {
+    "name": "case keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "case"},
+    "source": {"file": "main.ts", "text": "case"}
+  },
+  {
+    "name": "default keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "default"},
+    "source": {"file": "main.ts", "text": "default"}
+  },
+  {
+    "name": "try keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "try"},
+    "source": {"file": "main.ts", "text": "try"}
+  },
+  {
+    "name": "catch keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "catch"},
+    "source": {"file": "main.ts", "text": "catch"}
+  },
+  {
+    "name": "throw keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "throw"},
+    "source": {"file": "main.ts", "text": "throw"}
+  },
+  {
+    "name": "finally keyword maps to source keyword",
+    "generated": {"file": "main.ts", "text": "finally"},
+    "source": {"file": "main.ts", "text": "finally"}
+  }
+]

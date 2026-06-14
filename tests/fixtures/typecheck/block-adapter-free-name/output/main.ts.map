@@ -8,5 +8,5 @@
     "import {q} from \"typestage\";\n\nconst body = q.block`\n  {\n    const value = compute();\n    return value + 1;\n  }\n`;\n\nexport const expr = q.expr`\n  ${body} * 2\n`;\n"
   ],
   "names": [],
-  "mappings": "AASoB;UALV,QAAQ;WACP,QAAQ;OAKP"
+  "mappings": "AASoB,aAAP;UALH,QAAQ;WACP,QAAQ;OAKP"
 }

@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "file": "main.ts",
+  "sources": [
+    "tests/fixtures/typecheck/source-map-syntax-types/input/main.ts"
+  ],
+  "sourcesContent": [
+    "import {q} from \"typestage\";\n\nexport const decl = q.decl`\n  const fallback = 1;\n\n  export type Keys<T extends object> = keyof T;\n  export type Values<T extends Record<string, unknown>> = T[keyof T];\n  export type Conditional<T> = T extends Array<infer Item>\n    ? readonly Item[]\n    : typeof fallback;\n`;\n"
+  ],
+  "names": [],
+  "mappings": "AAEoB,MACZ,WAAW;AAEjB,OAAO,KAAK,KAAK,EAAE,QAAQ,UAAU,MAAM;AAC3C,OAAO,KAAK,OAAO,EAAE,QAAQ,OAAO,QAAQ,YAAY,EAAE,MAAM;AAChE,OAAO,KAAK,YAAY,KAAK,EAAE,QAAQ,MAAM,MAAM,QAC/C,SAAS,SACT,OAAO"
+}

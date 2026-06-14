@@ -200,6 +200,11 @@ function attachBindingNames(sourceFile: ts.SourceFile, quotes: QuoteForm[]) {
 
       if (quote && ts.isIdentifier(node.name)) {
         quote.bindingName = node.name.text;
+        quote.bindingNameOrigin = originForRange(
+          sourceFile.fileName,
+          node.name.getStart(sourceFile),
+          node.name.getEnd(),
+        );
         quote.exported = isExportedVariableDeclaration(node);
       }
     }

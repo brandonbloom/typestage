@@ -11,5 +11,16 @@
       "text": "quote.expr",
       "occurrence": 2
     }
+  },
+  {
+    "name": "generated declaration binding maps to source binding",
+    "generated": {
+      "file": "main.ts",
+      "text": "expr ="
+    },
+    "source": {
+      "file": "main.ts",
+      "text": "expr = quote.expr"
+    }
   }
 ]
