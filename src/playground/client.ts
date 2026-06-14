@@ -16,7 +16,7 @@ import {
 import {json} from "@codemirror/lang-json";
 import {javascript} from "@codemirror/lang-javascript";
 import {type Diagnostic as CodeMirrorDiagnostic, lintGutter, lintKeymap, setDiagnostics} from "@codemirror/lint";
-import {Compartment, EditorState} from "@codemirror/state";
+import {Compartment, EditorSelection, EditorState} from "@codemirror/state";
 import {
   crosshairCursor,
   drawSelection,
@@ -87,6 +87,8 @@ const outputTabs = query<HTMLElement>("#outputTabs");
 const outputElement = query<HTMLElement>("#output");
 const diagnostics = query<HTMLElement>("#diagnostics");
 const diagnosticsText = query<HTMLElement>("#diagnosticsText");
+const outputSelectionText = query<HTMLElement>("#outputSelectionText");
+const copyButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-copy-target]"));
 const sourceLanguage = new Compartment();
 const outputLanguage = new Compartment();
 const base64Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -138,6 +140,11 @@ const outputView = new EditorView({
       EditorState.readOnly.of(true),
       EditorView.editable.of(false),
       outputSourceMapClickHandler(),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged || update.selectionSet) {
+          updateOutputSelectionInfo();
+        }
+      }),
     ],
   }),
 });
@@ -153,10 +160,15 @@ async function boot() {
     loadExample(selectedExample.id, {updateUrl: false});
   } else {
     diagnosticsText.textContent = "No fixtures found.";
+    outputSelectionText.textContent = "No output selected.";
   }
 
   examplesSelect.addEventListener("change", () => loadExample(examplesSelect.value));
   document.addEventListener("keydown", handleExampleHotkey);
+
+  for (const button of copyButtons) {
+    button.addEventListener("click", () => void copyPanelText(button));
+  }
 }
 
 function query<ElementType extends Element>(selector: string): ElementType {
@@ -268,6 +280,7 @@ function outputSourceMapClickHandler() {
         });
 
         if (position === null) {
+          clearSourceHighlight();
           return false;
         }
 
@@ -528,6 +541,7 @@ async function compileNow() {
     sourceView.dispatch(setDiagnostics(sourceView.state, []));
     diagnosticsText.textContent = error instanceof Error ? error.message : String(error);
     diagnostics.classList.add("has-errors");
+    updateOutputSelectionInfo();
   }
 }
 
@@ -549,10 +563,222 @@ function renderOutput() {
     effects: outputLanguage.reconfigure(languageForOutputFile(currentOutputFileName)),
   });
   replaceDocument(outputView, outputFile?.outputText ?? lastCompileResult?.outputText ?? "");
+  updateOutputSelectionInfo();
+}
+
+function updateOutputSelectionInfo() {
+  outputSelectionText.textContent = formatOutputSelectionInfo();
+}
+
+function formatOutputSelectionInfo(): string {
+  const selection = outputView.state.selection.main;
+  const head = clampPosition(selection.head, outputView.state.doc.length);
+  const from = Math.min(selection.from, selection.to);
+  const to = Math.max(selection.from, selection.to);
+  const outputLocation = locationForPosition(outputView.state, head);
+  const selectedText = outputView.state.sliceDoc(from, to);
+  const lines = [
+    `Output: ${formatLocation(currentOutputFileName || "(none)", outputLocation, head)}`,
+    selection.empty
+      ? "Selection: cursor"
+      : `Selection: ${formatRange(outputView.state, currentOutputFileName, from, to)}`,
+    `Cursor token: ${JSON.stringify(tokenTextAround(outputView.state.doc.toString(), head))}`,
+  ];
+
+  if (!selection.empty) {
+    lines.push("Selected text:", indentText(summarizeText(selectedText)));
+  }
+
+  lines.push(
+    "Output line:",
+    outputLocation.lineText,
+    caretLine(outputLocation.column, selection.empty ? 1 : Math.max(1, to - from)),
+    "",
+    ...sourceMapInfoLines(outputLocation.line, outputLocation.column),
+  );
+
+  return lines.join("\n");
+}
+
+function sourceMapInfoLines(generatedLine: number, generatedColumn: number): string[] {
+  if (!currentOutputFileName) {
+    return ["Source map: no output file selected."];
+  }
+
+  if (currentOutputFileName.endsWith(".map")) {
+    return ["Source map: source map output files do not map back to source."];
+  }
+
+  const sourceMapFileName = `${currentOutputFileName}.map`;
+  const sourceMapText = sourceMapTextForOutput(currentOutputFileName);
+
+  if (!sourceMapText) {
+    return [`Source map: no ${sourceMapFileName} output file is available.`];
+  }
+
+  let original: ReturnType<typeof originalPositionForGeneratedLocation>;
+
+  try {
+    original = originalPositionForGeneratedLocation(sourceMapText, generatedLine, generatedColumn);
+  } catch (error) {
+    return [`Source map: could not read ${sourceMapFileName}: ${errorMessage(error)}`];
+  }
+
+  if (!original) {
+    return [`Source map: no mapping at ${currentOutputFileName}:${generatedLine}:${generatedColumn}.`];
+  }
+
+  const sourceTabName = sourceFileNameForTab(original.sourceFile);
+  const sourceFile = currentFiles().find((file) => file.fileName === sourceTabName);
+  const sourceTextForFile = sourceFile?.source ?? "";
+  const sourceLineText = lineTextAt(sourceTextForFile, original.line);
+  const sourceOffset = sourceOffsetForLineAndColumn(
+    sourceTextForFile,
+    original.line,
+    original.column,
+  );
+
+  return [
+    `Source map: ${sourceMapFileName}`,
+    `Original: ${original.sourceFile}:${original.line}:${original.column}`,
+    `Source tab: ${sourceTabName}${sourceFile ? "" : " (not loaded)"}`,
+    `Source offset: ${sourceOffset}`,
+    `Source token: ${JSON.stringify(tokenTextAround(sourceTextForFile, sourceOffset))}`,
+    "Source line:",
+    sourceLineText,
+    caretLine(original.column, 1),
+  ];
+}
+
+function locationForPosition(state: EditorState, position: number): {
+  column: number;
+  line: number;
+  lineText: string;
+} {
+  const line = state.doc.lineAt(clampPosition(position, state.doc.length));
+
+  return {
+    column: position - line.from + 1,
+    line: line.number,
+    lineText: line.text,
+  };
+}
+
+function formatLocation(fileName: string, location: {column: number; line: number}, offset: number) {
+  return `${fileName}:${location.line}:${location.column} (offset ${offset})`;
+}
+
+function formatRange(state: EditorState, fileName: string, from: number, to: number) {
+  const start = locationForPosition(state, from);
+  const end = locationForPosition(state, to);
+
+  return [
+    formatLocation(fileName, start, from),
+    "to",
+    formatLocation(fileName, end, to),
+  ].join(" ");
+}
+
+function tokenTextAround(text: string, position: number) {
+  const range = tokenRangeAroundText(text, position);
+
+  return text.slice(range.from, range.to);
+}
+
+function tokenRangeAroundText(text: string, position: number): {
+  from: number;
+  to: number;
+} {
+  let from = clampPosition(position, text.length);
+  let to = from;
+
+  while (from > 0 && isTokenCharacter(text[from - 1]!)) {
+    from--;
+  }
+
+  while (to < text.length && isTokenCharacter(text[to]!)) {
+    to++;
+  }
+
+  if (from === to) {
+    to = Math.min(text.length, from + 1);
+  }
+
+  return {from, to};
+}
+
+function summarizeText(text: string) {
+  if (text.length <= 400) {
+    return text || "(empty)";
+  }
+
+  return `${text.slice(0, 400)}\n... (${text.length - 400} more characters)`;
+}
+
+function indentText(text: string) {
+  return text.split("\n").map((line) => `  ${line}`).join("\n");
+}
+
+function lineTextAt(text: string, lineNumber: number) {
+  const start = lineStartOffset(text, lineNumber);
+  const end = text.indexOf("\n", start);
+
+  return text.slice(start, end === -1 ? text.length : end).replace(/\r$/u, "");
+}
+
+function sourceOffsetForLineAndColumn(text: string, lineNumber: number, columnNumber: number) {
+  const start = lineStartOffset(text, lineNumber);
+  const end = text.indexOf("\n", start);
+  const lineEnd = end === -1 ? text.length : end;
+
+  return clampPosition(start + Math.max(0, columnNumber - 1), lineEnd);
+}
+
+function lineStartOffset(text: string, lineNumber: number) {
+  let start = 0;
+
+  for (let line = 1; line < lineNumber; line++) {
+    const next = text.indexOf("\n", start);
+
+    if (next === -1) {
+      return text.length;
+    }
+
+    start = next + 1;
+  }
+
+  return start;
+}
+
+function caretLine(columnNumber: number, length: number) {
+  return `${" ".repeat(Math.max(0, columnNumber - 1))}${"^".repeat(Math.min(Math.max(1, length), 80))}`;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function copyPanelText(button: HTMLButtonElement) {
+  const targetId = button.dataset.copyTarget;
+  const target = targetId ? document.getElementById(targetId) : undefined;
+  const text = target?.textContent ?? "";
+  const originalTitle = button.title;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    button.title = "Copied";
+  } catch {
+    button.title = "Copy failed";
+  }
+
+  setTimeout(() => {
+    button.title = originalTitle;
+  }, 900);
 }
 
 function navigateToSourceMapLocation(generatedLine: number, generatedColumn: number) {
   if (currentOutputFileName.endsWith(".map")) {
+    clearSourceHighlight();
     return false;
   }
 
@@ -562,12 +788,14 @@ function navigateToSourceMapLocation(generatedLine: number, generatedColumn: num
     : undefined;
 
   if (!original) {
+    clearSourceHighlight();
     return false;
   }
 
   const fileName = sourceFileNameForTab(original.sourceFile);
 
   if (!currentFiles().some((file) => file.fileName === fileName)) {
+    clearSourceHighlight();
     return false;
   }
 
@@ -594,6 +822,12 @@ function navigateToSourceMapLocation(generatedLine: number, generatedColumn: num
   sourceView.focus();
 
   return true;
+}
+
+function clearSourceHighlight() {
+  sourceView.dispatch({
+    selection: EditorSelection.cursor(sourceView.state.selection.main.head),
+  });
 }
 
 function sourceMapTextForOutput(fileName: string): string | undefined {
@@ -630,23 +864,7 @@ function tokenSelectionAround(
   from: number;
   to: number;
 } {
-  const text = state.doc.toString();
-  let from = clampPosition(position, text.length);
-  let to = from;
-
-  while (from > 0 && isTokenCharacter(text[from - 1]!)) {
-    from--;
-  }
-
-  while (to < text.length && isTokenCharacter(text[to]!)) {
-    to++;
-  }
-
-  if (from === to) {
-    to = Math.min(text.length, from + 1);
-  }
-
-  return {from, to};
+  return tokenRangeAroundText(state.doc.toString(), position);
 }
 
 function isTokenCharacter(character: string): boolean {

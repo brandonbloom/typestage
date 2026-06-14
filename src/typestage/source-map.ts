@@ -13,6 +13,7 @@ import type {Origin} from "./types.ts";
 
 /** A printed output block with the AST statements that produced it. */
 export type SourceMapBlock = {
+  origin?: Origin;
   sourceFile?: ts.SourceFile;
   statements: readonly ts.Statement[];
   text: string;
@@ -129,6 +130,7 @@ function blockMappings(
       blockText,
       block.statements,
       block.sourceFile,
+      block.origin,
       sourceTextForFile,
       lineOffset,
     ));
@@ -142,6 +144,7 @@ function tokenMappingsForBlock(
   text: string,
   statements: readonly ts.Statement[],
   sourceFile: ts.SourceFile | undefined,
+  origin: Origin | undefined,
   sourceTextForFile: (sourceFile: string) => string,
   lineOffset: number,
 ): Mapping[] {
@@ -149,7 +152,9 @@ function tokenMappingsForBlock(
   const originTokens = statements.flatMap((statement) =>
     originInterestingTokens(statement, sourceFile, sourceTextForFile)
   );
-  const mappings: Mapping[] = [];
+  const mappings: Mapping[] = origin
+    ? defined([mappingForOrigin(origin, 0, lineOffset, sourceTextForFile)])
+    : [];
   let generatedIndex = 0;
 
   for (const originToken of originTokens) {
@@ -180,6 +185,30 @@ function tokenMappingsForBlock(
   }
 
   return mappings;
+}
+
+function mappingForOrigin(
+  origin: Origin,
+  generatedColumn: number,
+  generatedLine: number,
+  sourceTextForFile: (sourceFile: string) => string,
+): Mapping | undefined {
+  const sourceText = sourceTextForFile(origin.sourceFile);
+  const sourceLocation = new LinesAndColumns(sourceText).locationForIndex(origin.start);
+
+  return sourceLocation
+    ? {
+        generatedColumn,
+        generatedLine,
+        sourceColumn: sourceLocation.column,
+        sourceFile: origin.sourceFile,
+        sourceLine: sourceLocation.line,
+      }
+    : undefined;
+}
+
+function defined<Value>(values: Array<Value | undefined>): Value[] {
+  return values.filter((value): value is Value => value !== undefined);
 }
 
 function generatedInterestingTokens(text: string): GeneratedToken[] {

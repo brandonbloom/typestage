@@ -57,6 +57,11 @@ type LocalReexport = {
   local?: string;
 };
 
+type GeneratedStatementGroup = {
+  origin: CodeValue["quote"]["origin"];
+  statements: ts.Statement[];
+};
+
 const printer = ts.createPrinter({
   newLine: ts.NewLineKind.LineFeed,
   removeComments: false,
@@ -393,15 +398,22 @@ function emitGraphFiles(
   exportedBindings: Map<string, Map<string, CodeValue>>,
   options: CompileFileGraphOptions,
 ): CompileGraphFile[] {
+  const generatedGroupsByPath = new Map<string, GeneratedStatementGroup[]>();
   const generatedStatementsByPath = new Map<string, ts.Statement[]>();
 
   for (const module of modules) {
     const exportedValues = new Set(exportedBindings.get(module.inputPath)?.values() ?? []);
-    const generatedStatements = Array.from(exportedValues)
+    const generatedGroups = Array.from(exportedValues)
       .filter((value) => value.quote.moduleId === module.outputPath)
       .map((value) => values.get(value.quote.id) ?? value)
-      .flatMap((value) => moduleStatementsForValue(value));
+      .map((value) => ({
+        origin: value.quote.origin,
+        statements: moduleStatementsForValue(value),
+      }))
+      .filter((group) => group.statements.length > 0);
+    const generatedStatements = generatedGroups.flatMap((group) => group.statements);
 
+    generatedGroupsByPath.set(module.inputPath, generatedGroups);
     generatedStatementsByPath.set(module.inputPath, generatedStatements);
   }
 
@@ -411,6 +423,7 @@ function emitGraphFiles(
   );
 
   return modules.map((module) => {
+    const generatedGroups = generatedGroupsByPath.get(module.inputPath) ?? [];
     const generatedStatements = generatedStatementsByPath.get(module.inputPath) ?? [];
     const sourceStatements = residualSourceStatements(
       module,
@@ -445,10 +458,11 @@ function emitGraphFiles(
           ? printOriginalSourceStatements(sourceStatements, module.sourceFile)
           : printSourceStatements(sourceStatements, module.sourceFile),
       },
-      {
-        statements: generatedStatements,
-        text: printStatements(generatedStatements),
-      },
+      ...generatedGroups.map((group) => ({
+        origin: group.origin,
+        statements: group.statements,
+        text: printStatements(group.statements),
+      })),
     ];
     const sourceMapped = createSourceMappedOutput(
       module.outputPath,

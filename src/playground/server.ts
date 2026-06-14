@@ -485,7 +485,7 @@ function pageHtml(): string {
 
     .shell {
       display: grid;
-      grid-template-rows: auto minmax(0, 1fr) auto;
+      grid-template-rows: auto minmax(0, 1fr);
       min-height: 100vh;
     }
 
@@ -556,7 +556,7 @@ function pageHtml(): string {
 
     .source-pane,
     .output-pane {
-      grid-template-rows: auto auto minmax(0, 1fr);
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
     }
 
     .pane-header {
@@ -625,12 +625,16 @@ function pageHtml(): string {
       background: var(--code-bg);
     }
 
-    .diagnostics {
+    .details-panel {
+      position: relative;
       min-height: 92px;
       max-height: 28vh;
       overflow: auto;
-      padding: 10px 14px 14px;
+      padding: 10px 44px 14px 14px;
       border-top: 1px solid var(--line);
+    }
+
+    .diagnostics {
       background: var(--ok-bg);
       border-color: var(--ok-border);
     }
@@ -640,14 +644,55 @@ function pageHtml(): string {
       border-color: var(--bad-border);
     }
 
-    .diagnostics-title {
+    .mapping-info {
+      background: #f8fafc;
+    }
+
+    .details-title {
       margin: 0 0 6px;
       color: var(--muted);
       font-size: 13px;
       font-weight: 700;
     }
 
-    #diagnosticsText {
+    .copy-button {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      min-height: 0;
+      padding: 0;
+      opacity: 0;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--muted);
+      cursor: pointer;
+      transition: opacity 120ms ease, color 120ms ease, border-color 120ms ease;
+    }
+
+    .details-panel:hover .copy-button,
+    .details-panel:focus-within .copy-button {
+      opacity: 1;
+    }
+
+    .copy-button:hover,
+    .copy-button:focus-visible {
+      border-color: var(--accent);
+      color: var(--accent);
+      outline: none;
+    }
+
+    .copy-button svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    #diagnosticsText,
+    #outputSelectionText {
       margin: 0;
       color: var(--ink);
       background: transparent;
@@ -690,6 +735,16 @@ function pageHtml(): string {
         </div>
         <div id="sourceTabs" class="file-tabs" role="tablist" aria-label="Source files"></div>
         <div id="source" class="editor-host"></div>
+        <footer id="diagnostics" class="details-panel diagnostics">
+          <p class="details-title">Diagnostics</p>
+          <button class="copy-button" type="button" data-copy-target="diagnosticsText" aria-label="Copy diagnostics" title="Copy diagnostics">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+              <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
+            </svg>
+          </button>
+          <pre id="diagnosticsText">Loading examples...</pre>
+        </footer>
       </section>
       <section class="pane output-pane">
         <div class="pane-header">
@@ -697,12 +752,18 @@ function pageHtml(): string {
         </div>
         <div id="outputTabs" class="file-tabs" role="tablist" aria-label="Output files"></div>
         <div id="output" class="editor-host"></div>
+        <footer id="outputSelection" class="details-panel mapping-info">
+          <p class="details-title">Output Selection</p>
+          <button class="copy-button" type="button" data-copy-target="outputSelectionText" aria-label="Copy output selection" title="Copy output selection">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="8" y="8" width="12" height="12" rx="2"></rect>
+              <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
+            </svg>
+          </button>
+          <pre id="outputSelectionText">No output selected.</pre>
+        </footer>
       </section>
     </section>
-    <footer id="diagnostics" class="diagnostics">
-      <p class="diagnostics-title">Diagnostics</p>
-      <pre id="diagnosticsText">Loading examples...</pre>
-    </footer>
   </main>
   <script type="module" src="/playground-client.js"></script>
 </body>

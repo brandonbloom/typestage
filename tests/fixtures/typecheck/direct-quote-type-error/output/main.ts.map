@@ -8,5 +8,5 @@
     "import {q} from \"typestage\";\n\nexport const decl = q.decl`\n  export const value = 1 satisfies string;\n`;\n"
   ],
   "names": [],
-  "mappings": "aAGe,QAAQ,YAAY"
+  "mappings": "AAEoB,aACL,QAAQ,YAAY"
 }
