@@ -89,7 +89,20 @@ function expandParsedFragment(
   nodes: ts.Node[];
 } {
   const diagnostics: Diagnostic[] = [];
-  const locals = collectLocalBindings(fragment);
+  const initialLocals = collectLocalBindings(fragment);
+  const captureRenames = captureAvoidanceRenames(
+    fragment,
+    initialLocals,
+    codeBindings,
+    values,
+  );
+  const sourceNodes =
+    captureRenames.size > 0
+      ? renameIdentifiers(fragment.nodes, captureRenames)
+      : fragment.nodes;
+  const renamedFragment =
+    sourceNodes === fragment.nodes ? fragment : {...fragment, nodes: sourceNodes};
+  const locals = collectLocalBindings(renamedFragment);
   const holes = new Map(fragment.quote.holes.map((hole) => [hole.placeholder, hole]));
 
   const expandSpliceExpression = (
@@ -181,7 +194,7 @@ function expandParsedFragment(
     return expandedNodes;
   };
 
-  const expandedNodes = fragment.nodes
+  const expandedNodes = sourceNodes
     .flatMap((node) => {
       const transformed = transformNode(node, (candidate) => {
         if (ts.isTypeReferenceNode(candidate)) {
@@ -329,6 +342,240 @@ function codeValueForExpression(
   return undefined;
 }
 
+function captureAvoidanceRenames(
+  fragment: ParsedFragment,
+  locals: Set<string>,
+  codeBindings: Map<string, CodeValue>,
+  values: Map<number, CodeValue>,
+): Map<string, string> {
+  const introduced = new Set<string>();
+
+  for (const value of referencedCodeValues(fragment, locals, codeBindings, values)) {
+    for (const name of freeReferenceNames(value.expandedNodes ?? value.parsed.nodes)) {
+      introduced.add(name);
+    }
+  }
+
+  const conflicts = Array.from(introduced)
+    .filter((name) => locals.has(name))
+    .sort();
+
+  if (conflicts.length === 0) {
+    return new Map();
+  }
+
+  const used = allIdentifierNames(fragment.nodes);
+  const renames = new Map<string, string>();
+
+  for (const name of conflicts) {
+    renames.set(name, freshIdentifierName(name, used));
+  }
+
+  return renames;
+}
+
+function referencedCodeValues(
+  fragment: ParsedFragment,
+  locals: Set<string>,
+  codeBindings: Map<string, CodeValue>,
+  values: Map<number, CodeValue>,
+): Set<CodeValue> {
+  const referenced = new Set<CodeValue>();
+
+  for (const hole of fragment.quote.holes) {
+    const value = codeValueForExpression(hole.expression, codeBindings, values);
+
+    if (value) {
+      referenced.add(value);
+    }
+  }
+
+  const visit = (node: ts.Node) => {
+    if (ts.isIdentifier(node)) {
+      const binding = codeBindings.get(node.text);
+
+      if (
+        binding &&
+        binding.quote.id !== fragment.quote.id &&
+        syntaxFamilyForKind(binding.kind) === "expr" &&
+        !locals.has(node.text) &&
+        isReferenceIdentifier(node)
+      ) {
+        referenced.add(binding);
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  for (const node of fragment.nodes) {
+    visit(node);
+  }
+
+  return referenced;
+}
+
+function freeReferenceNames(nodes: ts.Node[]): Set<string> {
+  const locals = localBindingNames(nodes);
+  const free = new Set<string>();
+
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isIdentifier(node) &&
+      isReferenceIdentifier(node) &&
+      !locals.has(node.text)
+    ) {
+      free.add(node.text);
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  for (const node of nodes) {
+    visit(node);
+  }
+
+  return free;
+}
+
+function localBindingNames(nodes: ts.Node[]): Set<string> {
+  const names = new Set<string>();
+
+  for (const node of nodes) {
+    collectBindingNames(node, names);
+  }
+
+  return names;
+}
+
+function collectBindingNames(node: ts.Node, names: Set<string>) {
+  if (ts.isVariableDeclaration(node)) {
+    collectBindingName(node.name, names);
+  } else if (ts.isParameter(node)) {
+    collectBindingName(node.name, names);
+  } else if (ts.isFunctionDeclaration(node) && node.name) {
+    names.add(node.name.text);
+  } else if (ts.isFunctionExpression(node) && node.name) {
+    names.add(node.name.text);
+  } else if (ts.isClassDeclaration(node) && node.name) {
+    names.add(node.name.text);
+  } else if (ts.isClassExpression(node) && node.name) {
+    names.add(node.name.text);
+  } else if (ts.isImportClause(node)) {
+    if (node.name) {
+      names.add(node.name.text);
+    }
+  } else if (ts.isImportSpecifier(node)) {
+    names.add(node.name.text);
+  } else if (ts.isNamespaceImport(node)) {
+    names.add(node.name.text);
+  } else if (ts.isTypeParameterDeclaration(node)) {
+    names.add(node.name.text);
+  } else if (ts.isCatchClause(node) && node.variableDeclaration) {
+    collectBindingName(node.variableDeclaration.name, names);
+  }
+
+  ts.forEachChild(node, (child) => collectBindingNames(child, names));
+}
+
+function collectBindingName(name: ts.BindingName, names: Set<string>) {
+  if (ts.isIdentifier(name)) {
+    names.add(name.text);
+    return;
+  }
+
+  for (const element of name.elements) {
+    if (ts.isOmittedExpression(element)) {
+      continue;
+    }
+
+    collectBindingName(element.name, names);
+  }
+}
+
+function allIdentifierNames(nodes: ts.Node[]): Set<string> {
+  const names = new Set<string>();
+
+  const visit = (node: ts.Node) => {
+    if (ts.isIdentifier(node)) {
+      names.add(node.text);
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  for (const node of nodes) {
+    visit(node);
+  }
+
+  return names;
+}
+
+function freshIdentifierName(base: string, used: Set<string>): string {
+  let suffix = 1;
+  let candidate = `${base}_${suffix}`;
+
+  while (used.has(candidate)) {
+    suffix++;
+    candidate = `${base}_${suffix}`;
+  }
+
+  used.add(candidate);
+
+  return candidate;
+}
+
+function renameIdentifiers(nodes: ts.Node[], renames: Map<string, string>): ts.Node[] {
+  return nodes.map((node) => {
+    const renamed = transformNode(node, (candidate) => {
+      if (
+        ts.isIdentifier(candidate) &&
+        shouldRenameIdentifier(candidate, renames)
+      ) {
+        return completedReplacement(
+          ts.factory.createIdentifier(renames.get(candidate.text)!),
+        );
+      }
+
+      return candidate;
+    });
+
+    return Array.isArray(renamed) ? renamed[0] ?? node : renamed;
+  });
+}
+
+function shouldRenameIdentifier(
+  node: ts.Identifier,
+  renames: Map<string, string>,
+): boolean {
+  return (
+    renames.has(node.text) &&
+    (isReferenceIdentifier(node) || isBindingIdentifier(node))
+  );
+}
+
+function isBindingIdentifier(node: ts.Identifier): boolean {
+  const parent = node.parent;
+
+  if (!parent) {
+    return false;
+  }
+
+  return (
+    (ts.isVariableDeclaration(parent) && parent.name === node) ||
+    (ts.isParameter(parent) && parent.name === node) ||
+    (ts.isBindingElement(parent) && parent.name === node) ||
+    (ts.isFunctionDeclaration(parent) && parent.name === node) ||
+    (ts.isFunctionExpression(parent) && parent.name === node) ||
+    (ts.isClassDeclaration(parent) && parent.name === node) ||
+    (ts.isClassExpression(parent) && parent.name === node) ||
+    (ts.isImportClause(parent) && parent.name === node) ||
+    (ts.isImportSpecifier(parent) && parent.name === node) ||
+    (ts.isNamespaceImport(parent) && parent.name === node) ||
+    (ts.isTypeParameterDeclaration(parent) && parent.name === node)
+  );
+}
+
 function isCompatible(actual: FragmentKind, expected: FragmentKind): boolean {
   if (actual === expected) {
     return true;
@@ -359,6 +606,10 @@ function syntaxFamilyForKind(kind: FragmentKind): SyntaxFamily | undefined {
 
 function isExpressionListPosition(node: ts.Identifier): boolean {
   const parent = node.parent;
+
+  if (!parent) {
+    return false;
+  }
 
   if (ts.isCallExpression(parent)) {
     return parent.arguments.some((argument) => argument === node);

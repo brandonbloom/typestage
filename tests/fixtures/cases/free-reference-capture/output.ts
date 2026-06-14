@@ -1,4 +1,4 @@
 export const expr = ((() => {
-    const x = 10;
+    const x_1 = 10;
     return (x + 1);
 })());

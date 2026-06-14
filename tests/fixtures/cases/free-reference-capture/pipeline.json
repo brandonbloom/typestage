@@ -13,7 +13,7 @@
       "kind": "expr",
       "bindingName": "expr",
       "exported": true,
-      "source": "\n  (() => {\n    const x = 10;\n    return freeX;\n  })()\n",
+      "source": "\n  (() => {\n    // TODO: Explicit identifiers should let intentional capture preserve names;\n    // bare free references still require this local binding to move.\n    const x = 10;\n    return freeX;\n  })()\n",
       "holes": []
     }
   ],
@@ -27,9 +27,9 @@
     },
     {
       "quoteId": 1,
-      "virtualSource": "const __typestage_fragment = (\n  (() => {\n    const x = 10;\n    return freeX;\n  })()\n);\n",
+      "virtualSource": "const __typestage_fragment = (\n  (() => {\n    // TODO: Explicit identifiers should let intentional capture preserve names;\n    // bare free references still require this local binding to move.\n    const x = 10;\n    return freeX;\n  })()\n);\n",
       "nodes": [
-        "(\n  (() => {\n    const x = 10;\n    return freeX;\n  })()\n)"
+        "(\n  (() => {\n    // TODO: Explicit identifiers should let intentional capture preserve names;\n    // bare free references still require this local binding to move.\n    const x = 10;\n    return freeX;\n  })()\n)"
       ]
     }
   ],
@@ -68,9 +68,9 @@
     {
       "quoteId": 1,
       "kind": "expr",
-      "text": "(() => {\n    const x = 10;\n    return (x + 1);\n})()"
+      "text": "(() => {\n    const x_1 = 10;\n    return (x + 1);\n})()"
     }
   ],
   "diagnostics": [],
-  "outputText": "export const expr = ((() => {\n    const x = 10;\n    return (x + 1);\n})());"
+  "outputText": "export const expr = ((() => {\n    const x_1 = 10;\n    return (x + 1);\n})());"
 }

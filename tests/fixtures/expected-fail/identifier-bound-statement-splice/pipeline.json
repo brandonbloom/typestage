@@ -91,7 +91,7 @@
       "code": "TSG1001",
       "message": "explicit splice 'x' does not resolve to a TypeStage code value",
       "origin": {
-        "sourceFile": "tests/fixtures/expected-fail/symbol-bound-statement-splice/input.ts",
+        "sourceFile": "tests/fixtures/expected-fail/identifier-bound-statement-splice/input.ts",
         "start": 85,
         "end": 86
       }
@@ -100,7 +100,7 @@
       "code": "TSG1001",
       "message": "explicit splice 'x' does not resolve to a TypeStage code value",
       "origin": {
-        "sourceFile": "tests/fixtures/expected-fail/symbol-bound-statement-splice/input.ts",
+        "sourceFile": "tests/fixtures/expected-fail/identifier-bound-statement-splice/input.ts",
         "start": 85,
         "end": 86
       }
@@ -109,7 +109,7 @@
       "code": "TSG1001",
       "message": "explicit splice 'x' does not resolve to a TypeStage code value",
       "origin": {
-        "sourceFile": "tests/fixtures/expected-fail/symbol-bound-statement-splice/input.ts",
+        "sourceFile": "tests/fixtures/expected-fail/identifier-bound-statement-splice/input.ts",
         "start": 141,
         "end": 142
       }

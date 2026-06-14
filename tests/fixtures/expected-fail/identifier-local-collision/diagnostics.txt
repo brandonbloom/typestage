@@ -1,0 +1,4 @@
+tests/fixtures/expected-fail/identifier-local-collision/input.ts:6:11 TSG1001: explicit splice 'tmp' does not resolve to a TypeStage code value
+tests/fixtures/expected-fail/identifier-local-collision/input.ts:7:9 TSG1001: explicit splice 'tmp' does not resolve to a TypeStage code value
+tests/fixtures/expected-fail/identifier-local-collision/input.ts:6:11 TSG1001: explicit splice 'tmp' does not resolve to a TypeStage code value
+tests/fixtures/expected-fail/identifier-local-collision/input.ts:7:9 TSG1001: explicit splice 'tmp' does not resolve to a TypeStage code value

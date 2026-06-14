@@ -13,7 +13,7 @@
       "kind": "decl",
       "bindingName": "fn",
       "exported": true,
-      "source": "\n  export function f(x: number) {\n    __typestage_hole_1_0\n  }\n",
+      "source": "\n  // TODO: With explicit identifiers, prefer preserving this user-written\n  // parameter name when the splice intentionally refers to it.\n  export function f(x: number) {\n    __typestage_hole_1_0\n  }\n",
       "holes": [
         {
           "placeholder": "__typestage_hole_1_0",
@@ -32,7 +32,7 @@
     },
     {
       "quoteId": 1,
-      "virtualSource": "\n  export function f(x: number) {\n    __typestage_hole_1_0\n  }\n\n",
+      "virtualSource": "\n  // TODO: With explicit identifiers, prefer preserving this user-written\n  // parameter name when the splice intentionally refers to it.\n  export function f(x: number) {\n    __typestage_hole_1_0\n  }\n\n",
       "nodes": [
         "export function f(x: number) {\n    __typestage_hole_1_0\n  }"
       ]
@@ -74,9 +74,9 @@
     {
       "quoteId": 1,
       "kind": "decl",
-      "text": "export function f(x: number) {\n    return x;\n}"
+      "text": "export function f(x_1: number) {\n    return x;\n}"
     }
   ],
   "diagnostics": [],
-  "outputText": "export function f(x: number) {\n    return x;\n}"
+  "outputText": "export function f(x_1: number) {\n    return x;\n}"
 }
