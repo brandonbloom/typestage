@@ -12,6 +12,7 @@ export type RuntimeCode = {
   cardinality: QuoteCardinality;
   kind: FragmentKind;
   quoteId?: number;
+  strings: readonly string[];
   text: string;
   values: unknown[];
   hostValues?: Record<string, unknown>;
@@ -37,6 +38,7 @@ function code(
     __typestageRuntimeCode: true,
     cardinality,
     kind,
+    strings: Array.from(strings),
     text,
     values,
   };

@@ -39,7 +39,7 @@ describe("Lisp example", () => {
     });
   });
 
-  test("compiles a tiny program through TypeStage", async () => {
+  test("compiles a tiny program through the runtime TypeStage API", async () => {
     const result = await compileLispSourceToTypeScript(sampleProgram, {
       sourceFile: "sample.lisp",
     });
@@ -66,7 +66,7 @@ export function main() {
 `);
   });
 
-  test("throw source maps show the compiler-origin limitation", async () => {
+  test("throw source maps show the generated-origin limitation", async () => {
     const result = await compileLispSourceToTypeScript(sampleProgram, {
       sourceFile: "sample.lisp",
       sourceMaps: true,
@@ -85,17 +85,30 @@ export function main() {
     );
     const sourceMap = JSON.parse(result.sourceMapText!) as {sources: string[]};
 
-    expect(original?.sourceFile).toBe("examples/lisp/src/compiler.ts");
+    expect(original?.sourceFile).toBe("sample.lisp.generated.ts");
     expect(sourceMap.sources).not.toContain("sample.lisp");
   });
 
-  test("reports Lisp diagnostics through the staging bridge", async () => {
+  test("reports Lisp diagnostics through the runtime TypeStage API", async () => {
     const result = await compileLispSourceToTypeScript(`(+ 1)`, {
       sourceFile: "bad.lisp",
     });
 
     expect(formatGraphDiagnostics(result.graph.diagnostics).join("\n"))
       .toContain("LISP2015");
+  });
+
+  test("compiles REPL globals inside do expressions", async () => {
+    const result = await compileLispSourceToTypeScript(`(do (define y 2) (+ x y))`, {
+      globals: ["x"],
+    });
+
+    expect(formatGraphDiagnostics(result.graph.diagnostics)).toEqual([]);
+    expect(result.outputText).toEqual(`export const result0 = (() => {
+    const y = 2;
+    return (x + y);
+})();
+`);
   });
 
   test("compiles booleans null if and do", async () => {

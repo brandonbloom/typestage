@@ -1,9 +1,14 @@
 import {mkdtemp, readFile, rm, writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
-import {join, relative, resolve, sep} from "node:path";
+import {join} from "node:path";
 import {pathToFileURL} from "node:url";
-import {compileFileGraph, type CompileGraphResult} from "typestage";
+import {
+  compileRuntimeModule,
+  type CompileGraphResult,
+  type Diagnostic,
+} from "typestage";
 import * as ts from "typescript";
+import {compileLisp} from "./compiler.ts";
 
 export type CompileLispToTypeScriptOptions = {
   globals?: string[];
@@ -28,9 +33,6 @@ type NamespaceBinding = {
   moduleName: string;
 };
 
-const lispRoot = resolve(import.meta.dir, "..");
-const compilerPath = resolve(import.meta.dir, "compiler.ts");
-
 export async function compileLispFileToTypeScript(
   inputPath: string,
   options: Omit<CompileLispToTypeScriptOptions, "sourceFile"> = {},
@@ -47,27 +49,27 @@ export async function compileLispSourceToTypeScript(
   source: string,
   options: CompileLispToTypeScriptOptions = {},
 ): Promise<CompileLispToTypeScriptResult> {
-  const tempRoot = await mkdtemp(join(lispRoot, ".tmp-"));
-  const entryPath = join(tempRoot, "main.ts");
+  const sourceFile = options.sourceFile ?? "repl.lisp";
+  const compiled = compileLisp(source, options.globals ?? []);
 
-  try {
-    await writeFile(entryPath, stagingSource(tempRoot, source, options));
+  if (compiled.diagnostics.length > 0) {
+    const graph = graphWithLispDiagnostics(sourceFile, compiled.diagnostics);
 
-    const graph = await compileFileGraph(entryPath, {
-      sourceMaps: options.sourceMaps,
-      sourceRoot: lispRoot,
-    });
-    const entryOutputPath = relative(lispRoot, entryPath).split(sep).join("/");
-    const entryFile = graph.files.find((file) => file.outputPath === entryOutputPath);
-
-    return {
-      graph,
-      outputText: entryFile?.outputText,
-      sourceMapText: entryFile?.sourceMapText,
-    };
-  } finally {
-    await rm(tempRoot, {force: true, recursive: true});
+    return {graph};
   }
+
+  const graph = await compileRuntimeModule(compiled.declarations, {
+    outputPath: "main.ts",
+    sourceFile: generatedSourceFile(sourceFile),
+    sourceMaps: options.sourceMaps,
+  });
+  const entryFile = graph.files.find((file) => file.outputPath === "main.ts");
+
+  return {
+    graph,
+    outputText: entryFile?.outputText,
+    sourceMapText: entryFile?.sourceMapText,
+  };
 }
 
 export async function evaluateTypeScript(outputText: string): Promise<EvaluationResult> {
@@ -196,35 +198,38 @@ async function evaluateModule(
   }
 }
 
-function stagingSource(
-  tempRoot: string,
-  source: string,
-  options: CompileLispToTypeScriptOptions,
-): string {
-  const compilerImport = relativeImport(tempRoot, compilerPath);
-  const sourceFile = options.sourceFile ?? "repl.lisp";
-
-  return `import {q} from "typestage";
-import {compileProgram} from ${JSON.stringify(compilerImport)};
-
-const source = ${JSON.stringify(source)};
-const sourceFile = ${JSON.stringify(sourceFile)};
-const globals = ${JSON.stringify(options.globals ?? [])};
-
-export const program = q.decls\`
-  \${compileProgram(source, sourceFile, globals)}
-\`;
-`;
-}
-
-function relativeImport(fromDirectory: string, toPath: string): string {
-  const specifier = relative(fromDirectory, toPath).split(sep).join("/");
-
-  return specifier.startsWith(".") ? specifier : `./${specifier}`;
-}
-
 function formatLogValue(value: unknown): string {
   return formatJsonValue(value);
+}
+
+function graphWithLispDiagnostics(
+  sourceFile: string,
+  diagnostics: Array<{code: string; message: string; span: {end: number; start: number}}>,
+): CompileGraphResult {
+  const graphDiagnostics: Diagnostic[] = diagnostics.map((diagnostic) => ({
+    code: diagnostic.code,
+    message: diagnostic.message,
+    origin: {
+      sourceFile,
+      start: diagnostic.span.start,
+      end: diagnostic.span.end,
+    },
+  }));
+
+  return {
+    diagnostics: graphDiagnostics,
+    files: [],
+    pipeline: {
+      modules: [],
+      expanded: [],
+      diagnostics: graphDiagnostics,
+      files: [],
+    },
+  };
+}
+
+function generatedSourceFile(sourceFile: string): string {
+  return `${sourceFile}.generated.ts`;
 }
 
 function latestGeneratedResultName(exports: Record<string, unknown>): string | undefined {

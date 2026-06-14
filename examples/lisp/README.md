@@ -126,12 +126,12 @@ pressure point.
 ## Source Maps
 
 The CLI can ask TypeStage for source maps with `--source-map`. The generated
-source map points residual TypeScript back to TypeStage quote sites in
-`src/compiler.ts`.
+source map points residual TypeScript back to generated TypeScript fragments
+created by the Lisp compiler.
 
 It does not map residual TypeScript directly back to `.lisp` character spans.
 That limitation is tracked by `tests/lisp.test.ts`: the generated throw
-expression maps to the compiler quote that produced it, and the `.lisp` file is
-absent from the map. Fixing that needs a TypeStage API for attaching external
-source origins to generated fragments, or a remapping layer from compiler quote
-origins back to Lisp spans.
+expression maps to the generated TypeScript source that TypeStage receives,
+and the `.lisp` file is absent from the map. Fixing that needs a TypeStage API
+for attaching external source origins to generated fragments, or a remapping
+layer from generated TypeScript origins back to Lisp spans.

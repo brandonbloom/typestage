@@ -498,6 +498,7 @@ function compileDoBlock(
 
   const localContext: CompileContext = {
     diagnostics: context.diagnostics,
+    globals: context.globals,
     locals: new Map(context.locals),
   };
   const statements: RuntimeCode[] = [];
