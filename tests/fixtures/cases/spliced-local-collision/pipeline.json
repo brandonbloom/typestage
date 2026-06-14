@@ -77,9 +77,9 @@
     {
       "quoteId": 1,
       "kind": "decl",
-      "text": "export function run() {\n    const tmp = \"outer\";\n    const tmp = compute();\n    use(tmp);\n    return tmp;\n}"
+      "text": "export function run() {\n    const tmp = \"outer\";\n    const tmp_1 = compute();\n    use(tmp_1);\n    return tmp;\n}"
     }
   ],
   "diagnostics": [],
-  "outputText": "export function run() {\n    const tmp = \"outer\";\n    const tmp = compute();\n    use(tmp);\n    return tmp;\n}"
+  "outputText": "export function run() {\n    const tmp = \"outer\";\n    const tmp_1 = compute();\n    use(tmp_1);\n    return tmp;\n}"
 }

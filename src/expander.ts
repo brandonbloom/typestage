@@ -103,6 +103,8 @@ function expandParsedFragment(
   const renamedFragment =
     sourceNodes === fragment.nodes ? fragment : {...fragment, nodes: sourceNodes};
   const locals = collectLocalBindings(renamedFragment);
+  const occupiedLocalNames = new Set(locals);
+  const usedIdentifierNames = allIdentifierNames(sourceNodes);
   const holes = new Map(fragment.quote.holes.map((hole) => [hole.placeholder, hole]));
 
   const expandSpliceExpression = (
@@ -152,11 +154,11 @@ function expandParsedFragment(
       }
 
       if (expectedCardinality === "many") {
-        return replacements;
+        return hygienicReplacementNodes(replacements);
       }
 
       if (replacements.length === 1) {
-        return replacements;
+        return hygienicReplacementNodes(replacements);
       }
 
       diagnostics.push({
@@ -179,7 +181,7 @@ function expandParsedFragment(
         return undefined;
       }
 
-      return [adapted.expression];
+      return hygienicReplacementNodes([adapted.expression]);
     }
 
     if (!isCompatible(expanded.kind, expected)) {
@@ -191,7 +193,36 @@ function expandParsedFragment(
       return undefined;
     }
 
-    return expandedNodes;
+    return hygienicReplacementNodes(expandedNodes);
+  };
+
+  const hygienicReplacementNodes = (nodes: ts.Node[]): ts.Node[] => {
+    const localNames = localBindingNames(nodes);
+    const conflicts = Array.from(localNames)
+      .filter((name) => occupiedLocalNames.has(name))
+      .sort();
+    const used = new Set([...usedIdentifierNames, ...allIdentifierNames(nodes)]);
+    let result = nodes;
+
+    if (conflicts.length > 0) {
+      const renames = new Map<string, string>();
+
+      for (const name of conflicts) {
+        renames.set(name, freshIdentifierName(name, used));
+      }
+
+      result = renameIdentifiers(nodes, renames);
+    }
+
+    for (const name of localBindingNames(result)) {
+      occupiedLocalNames.add(name);
+    }
+
+    for (const name of allIdentifierNames(result)) {
+      usedIdentifierNames.add(name);
+    }
+
+    return result;
   };
 
   const expandedNodes = sourceNodes
