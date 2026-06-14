@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "file": "main.ts",
+  "sources": [
+    "tests/fixtures/typecheck/no-diagnostics/input/main.ts"
+  ],
+  "sourcesContent": [
+    "import {q} from \"typestage\";\n\nexport const decl = q.decl`\n  export const value: number = 1;\n`;\n"
+  ],
+  "names": [],
+  "mappings": "aAGe,OAAO,SAAS"
+}

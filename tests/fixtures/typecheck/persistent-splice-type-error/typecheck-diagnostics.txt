@@ -1,0 +1,1 @@
+tests/fixtures/typecheck/persistent-splice-type-error/input/main.ts:6:28 TS1360: Type 'number' does not satisfy the expected type 'string'.

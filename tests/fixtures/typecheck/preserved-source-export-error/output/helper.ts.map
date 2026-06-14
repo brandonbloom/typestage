@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "file": "helper.ts",
+  "sources": [
+    "tests/fixtures/typecheck/preserved-source-export-error/input/helper.ts"
+  ],
+  "sourcesContent": [
+    "export function value(): string {\n  return 1;\n}\n"
+  ],
+  "names": [],
+  "mappings": "gBAAgB,SAAS;EACvB,OAAO"
+}

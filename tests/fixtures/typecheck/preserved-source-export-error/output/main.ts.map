@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "file": "main.ts",
+  "sources": [
+    "tests/fixtures/typecheck/preserved-source-export-error/input/main.ts"
+  ],
+  "sourcesContent": [
+    "import {q} from \"typestage\";\nimport {value} from \"./helper\";\n\nexport const decl = q.decl`\n  export const result = value();\n`;\n"
+  ],
+  "names": [],
+  "mappings": ";aAIe,SAAS"
+}

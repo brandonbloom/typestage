@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "file": "main.ts",
+  "sources": [
+    "tests/fixtures/typecheck/direct-quote-type-error/input/main.ts"
+  ],
+  "sourcesContent": [
+    "import {q} from \"typestage\";\n\nexport const decl = q.decl`\n  export const value = 1 satisfies string;\n`;\n"
+  ],
+  "names": [],
+  "mappings": "aAGe,QAAQ,YAAY"
+}

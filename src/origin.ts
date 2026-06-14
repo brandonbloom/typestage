@@ -4,7 +4,10 @@
  * source files so parse and expansion errors point at user-authored code.
  */
 import {LinesAndColumns} from "lines-and-columns";
+import * as ts from "typescript";
 import type {Origin, OriginMap} from "./types.ts";
+
+const nodeOrigins = new WeakMap<ts.Node, Origin>();
 
 /** Creates origin metadata for a half-open source range. */
 export function originForRange(
@@ -13,6 +16,37 @@ export function originForRange(
   end: number,
 ): Origin {
   return {sourceFile, start, end};
+}
+
+/** Associates a generated TypeScript AST node with original source text. */
+export function setNodeOrigin<T extends ts.Node>(node: T, origin: Origin): T {
+  nodeOrigins.set(node, origin);
+
+  return node;
+}
+
+/** Returns original source metadata previously associated with an AST node. */
+export function getNodeOrigin(node: ts.Node): Origin | undefined {
+  return nodeOrigins.get(node);
+}
+
+/** Copies original source metadata between related AST nodes. */
+export function copyNodeOrigin<T extends ts.Node>(target: T, source: ts.Node): T {
+  const origin = getNodeOrigin(source);
+
+  return origin ? setNodeOrigin(target, origin) : target;
+}
+
+/** Associates every node in an AST subtree with the same original source range. */
+export function setTreeOrigin<T extends ts.Node>(node: T, origin: Origin): T {
+  const visit = (candidate: ts.Node) => {
+    setNodeOrigin(candidate, origin);
+    ts.forEachChild(candidate, visit);
+  };
+
+  visit(node);
+
+  return node;
 }
 
 /** Creates per-character origin metadata for text copied from source. */

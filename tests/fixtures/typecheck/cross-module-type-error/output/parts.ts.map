@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "file": "parts.ts",
+  "sources": [
+    "tests/fixtures/typecheck/cross-module-type-error/input/parts.ts"
+  ],
+  "sourcesContent": [
+    "import {q} from \"typestage\";\n\nexport const decl = q.decl`\n  export const value = \"nope\" satisfies number;\n`;\n"
+  ],
+  "names": [],
+  "mappings": "aAGe,QAAQ,iBAAiB"
+}

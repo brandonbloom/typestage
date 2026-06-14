@@ -7,6 +7,7 @@
 import * as ts from "typescript";
 import {collectLocalBindings} from "./binder.ts";
 import {printExpressionList, printNode} from "./ast-print.ts";
+import {copyNodeOrigin, getNodeOrigin, setNodeOrigin, setTreeOrigin} from "./origin.ts";
 import {persistValueToExpression} from "./persistence.ts";
 import {isRuntimeCode, type RuntimeCode} from "./runtime.ts";
 import type {
@@ -104,6 +105,7 @@ function expandParsedFragment(
   nodes: ts.Node[];
 } {
   const diagnostics: Diagnostic[] = [];
+  annotateFragmentNodeOrigins(fragment);
   const initialLocals = collectLocalBindings(fragment);
   const captureRenames = captureAvoidanceRenames(
     fragment,
@@ -193,7 +195,7 @@ function expandParsedFragment(
       return undefined;
     }
 
-    return hygienicReplacementNodes([persisted.expression]);
+    return hygienicReplacementNodes([setTreeOrigin(persisted.expression, hole.origin)]);
   };
 
   const expandCodeValue = (
@@ -249,7 +251,7 @@ function expandParsedFragment(
     }
 
     if (expected === "expr" && expanded.kind === "block") {
-      const adapted = adaptBlockToExpression(expandedNodes);
+      const adapted = adaptBlockToExpression(expandedNodes, origin);
 
       if (!adapted.ok) {
         diagnostics.push({
@@ -428,6 +430,8 @@ function expandParsedFragment(
       return Array.isArray(transformed) ? transformed : [transformed];
     })
     .filter((node): node is ts.Node => Boolean(node));
+
+  annotateFragmentNodeOrigins({...fragment, nodes: expandedNodes});
 
   return {diagnostics, nodes: expandedNodes};
 }
@@ -667,7 +671,10 @@ function renameIdentifiers(nodes: ts.Node[], renames: Map<string, string>): ts.N
         shouldRenameIdentifier(candidate, renames)
       ) {
         return completedReplacement(
-          ts.factory.createIdentifier(renames.get(candidate.text)!),
+          copyNodeOrigin(
+            ts.factory.createIdentifier(renames.get(candidate.text)!),
+            candidate,
+          ),
         );
       }
 
@@ -762,7 +769,16 @@ function identifierReplacementNodes(
       return [identifier];
 
     case "type":
-      return [ts.factory.createTypeReferenceNode(identifier.text)];
+      return [
+        setTreeOrigin(
+          ts.factory.createTypeReferenceNode(identifier.text),
+          getNodeOrigin(identifier) ?? {
+            sourceFile: identifier.getSourceFile().fileName,
+            start: identifier.getStart(),
+            end: identifier.getEnd(),
+          },
+        ),
+      ];
 
     case "stmt":
     case "block":
@@ -938,7 +954,7 @@ function originForNode(fragment: ParsedFragment, node: ts.Node): Origin {
   return startOrigin ?? fragment.quote.origin;
 }
 
-function adaptBlockToExpression(nodes: ts.Node[]): {
+function adaptBlockToExpression(nodes: ts.Node[], origin: Origin): {
   expression: ts.Expression;
   ok: true;
 } | {
@@ -962,13 +978,17 @@ function adaptBlockToExpression(nodes: ts.Node[]): {
     ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
     ts.factory.createBlock(statements, true),
   );
+  setNodeOrigin(arrow, origin);
 
   return {
     ok: true,
-    expression: ts.factory.createCallExpression(
-      ts.factory.createParenthesizedExpression(arrow),
-      undefined,
-      [],
+    expression: setTreeOrigin(
+      ts.factory.createCallExpression(
+        ts.factory.createParenthesizedExpression(arrow),
+        undefined,
+        [],
+      ),
+      origin,
     ),
   };
 }
@@ -1161,5 +1181,19 @@ function cloneNode<T extends ts.Node>(node: T): T {
     cloneNode<NodeType extends ts.Node>(node: NodeType): NodeType;
   };
 
-  return factory.cloneNode(node);
+  return copyNodeOrigin(factory.cloneNode(node), node);
+}
+
+function annotateFragmentNodeOrigins(fragment: ParsedFragment) {
+  const visit = (node: ts.Node) => {
+    if (!getNodeOrigin(node) && node.pos >= 0 && node.end >= 0) {
+      setNodeOrigin(node, originForNode(fragment, node));
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  for (const node of fragment.nodes) {
+    visit(node);
+  }
 }

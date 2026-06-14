@@ -4,12 +4,13 @@
  * reflects newly added cases while the Bun watcher restarts the server.
  */
 import {existsSync, readdirSync, readFileSync} from "node:fs";
-import {mkdir, mkdtemp} from "node:fs/promises";
+import {mkdir, mkdtemp, rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
-import {dirname, join, relative, resolve} from "node:path";
+import {basename, dirname, join, relative, resolve} from "node:path";
 import {LinesAndColumns} from "lines-and-columns";
 import {compileFileGraph} from "./graph.ts";
-import type {Diagnostic} from "./types.ts";
+import {originalPositionForGeneratedLocation} from "./source-map.ts";
+import type {CompileGraphFile, Diagnostic} from "./types.ts";
 
 type ExampleFile = {
   fileName: string;
@@ -19,6 +20,15 @@ type ExampleFile = {
 type OutputFile = {
   fileName: string;
   outputText: string;
+};
+
+type PlaygroundDiagnostic = {
+  code: string;
+  fileName: string;
+  from: number;
+  message: string;
+  severity: "error";
+  to: number;
 };
 
 type Example = {
@@ -38,11 +48,19 @@ const server = Bun.serve({
   port,
   routes: {
     "/": new Response(pageHtml(), {
-      headers: {"content-type": "text/html; charset=utf-8"},
+      headers: {
+        "cache-control": "no-store",
+        "content-type": "text/html; charset=utf-8",
+      },
     }),
     "/api/examples": {
       GET() {
         return Response.json(readExamples());
+      },
+    },
+    "/playground-client.js": {
+      async GET() {
+        return playgroundClientResponse();
       },
     },
     "/api/compile": {
@@ -74,6 +92,7 @@ function readExamples(): Example[] {
   return [
     ...readExampleGroup("pass", "Pass"),
     ...readExampleGroup("fail", "Fail"),
+    ...readExampleGroup("typecheck", "Typecheck"),
   ];
 }
 
@@ -140,29 +159,65 @@ async function compilePlaygroundGraph(files: ExampleFile[], entryFileName: strin
   }
 
   const result = await compileFileGraph(join(sourceRoot, entryFileName), {
+    sourceMaps: true,
     sourceRoot,
   });
   const sourceByFileName = new Map(files.map((file) => [file.fileName, file.source]));
+  const graphDiagnostics = playgroundSourceDiagnostics(sourceRoot, result.diagnostics);
+  const typecheck = result.diagnostics.length === 0
+    ? await typecheckPlaygroundOutput(sourceRoot, sourceByFileName, result.files)
+    : {diagnostics: [], textLines: []};
+  const diagnosticLines = [
+    ...formatGraphDiagnosticLines(sourceRoot, sourceByFileName, result.diagnostics),
+    ...typecheck.textLines,
+  ];
 
   return {
-    diagnostics: formatGraphDiagnostics(sourceRoot, sourceByFileName, result.diagnostics),
-    outputFiles: result.files.map((file) => ({
-      fileName: file.outputPath,
-      outputText: file.outputText,
-    })),
+    diagnostics: diagnosticLines.length > 0 ? diagnosticLines.join("\n") : "No diagnostics.",
+    outputFiles: result.files.flatMap((file) => [
+      {
+        fileName: file.outputPath,
+        outputText: file.outputText,
+      },
+      ...(file.sourceMapPath && file.sourceMapText
+        ? [{
+            fileName: file.sourceMapPath,
+            outputText: file.sourceMapText,
+          }]
+        : []),
+    ]),
     outputText: result.files.find((file) => file.outputPath === entryFileName)?.outputText ?? "",
+    sourceDiagnostics: [
+      ...graphDiagnostics,
+      ...typecheck.diagnostics,
+    ],
   };
 }
 
-function formatGraphDiagnostics(
+async function playgroundClientResponse(): Promise<Response> {
+  const result = await Bun.build({
+    entrypoints: [join(import.meta.dir, "playground-client.ts")],
+    format: "esm",
+    target: "browser",
+  });
+
+  if (!result.success) {
+    return new Response(result.logs.map((log) => log.message).join("\n"), {status: 500});
+  }
+
+  return new Response(await result.outputs[0]!.text(), {
+    headers: {
+      "cache-control": "no-store",
+      "content-type": "text/javascript; charset=utf-8",
+    },
+  });
+}
+
+function formatGraphDiagnosticLines(
   sourceRoot: string,
   sourceByFileName: Map<string, string>,
   diagnostics: Diagnostic[],
-): string {
-  if (diagnostics.length === 0) {
-    return "No diagnostics.";
-  }
-
+): string[] {
   return diagnostics
     .map((diagnostic) => {
       if (!diagnostic.origin) {
@@ -178,8 +233,201 @@ function formatGraphDiagnostics(
       const column = location ? location.column + 1 : 0;
 
       return `${fileName}:${line}:${column} ${diagnostic.code}: ${diagnostic.message}`;
-    })
-    .join("\n");
+    });
+}
+
+function playgroundSourceDiagnostics(
+  sourceRoot: string,
+  diagnostics: Diagnostic[],
+): PlaygroundDiagnostic[] {
+  return diagnostics.flatMap((diagnostic) => {
+    if (!diagnostic.origin) {
+      return [];
+    }
+
+    const absoluteSourceFile = resolve(process.cwd(), diagnostic.origin.sourceFile);
+
+    return [{
+      code: diagnostic.code,
+      fileName: relative(sourceRoot, absoluteSourceFile),
+      from: diagnostic.origin.start,
+      message: diagnostic.message,
+      severity: "error" as const,
+      to: diagnostic.origin.end,
+    }];
+  });
+}
+
+async function typecheckPlaygroundOutput(
+  sourceRoot: string,
+  sourceByFileName: Map<string, string>,
+  files: CompileGraphFile[],
+): Promise<{
+  diagnostics: PlaygroundDiagnostic[];
+  textLines: string[];
+}> {
+  const outputRoot = await mkdtemp(join(tmpdir(), "typestage-playground-typecheck-"));
+
+  try {
+    const sourceMapsByOutputPath = new Map<string, string>();
+
+    for (const file of files) {
+      const outputPath = join(outputRoot, file.outputPath);
+
+      await mkdir(dirname(outputPath), {recursive: true});
+      await Bun.write(outputPath, file.outputText);
+
+      if (file.sourceMapPath && file.sourceMapText) {
+        const sourceMapPath = join(outputRoot, file.sourceMapPath);
+
+        await mkdir(dirname(sourceMapPath), {recursive: true});
+        await Bun.write(sourceMapPath, file.sourceMapText);
+        sourceMapsByOutputPath.set(resolve(outputPath), file.sourceMapText);
+        sourceMapsByOutputPath.set(outputPath, file.sourceMapText);
+        sourceMapsByOutputPath.set(file.outputPath, file.sourceMapText);
+        sourceMapsByOutputPath.set(basename(file.outputPath), file.sourceMapText);
+      }
+    }
+
+    await Bun.write(
+      join(outputRoot, "tsconfig.json"),
+      `${JSON.stringify({
+        compilerOptions: {
+          lib: ["ES2024"],
+          module: "Preserve",
+          moduleResolution: "Bundler",
+          noEmit: true,
+          strict: true,
+          target: "ES2024",
+        },
+        include: ["**/*.ts"],
+      }, null, 2)}\n`,
+    );
+
+    const process = Bun.spawn(
+      [
+        join(import.meta.dir, "..", "node_modules", ".bin", "tsgo"),
+        "--pretty",
+        "false",
+        "-p",
+        join(outputRoot, "tsconfig.json"),
+      ],
+      {
+        cwd: outputRoot,
+        stderr: "pipe",
+        stdout: "pipe",
+      },
+    );
+    const [stdout, stderr, status] = await Promise.all([
+      new Response(process.stdout).text(),
+      new Response(process.stderr).text(),
+      process.exited,
+    ]);
+    const output = `${stdout}${stderr}`.trim();
+
+    if (!output) {
+      if (status !== 0) {
+        throw new Error(`tsgo exited with status ${status} and no diagnostics`);
+      }
+
+      return {diagnostics: [], textLines: []};
+    }
+
+    return output.split("\n").reduce<{
+      diagnostics: PlaygroundDiagnostic[];
+      textLines: string[];
+    }>((summary, line) => {
+      const diagnostic = remapTypecheckDiagnostic(
+        line,
+        outputRoot,
+        sourceRoot,
+        sourceByFileName,
+        sourceMapsByOutputPath,
+      );
+
+      summary.textLines.push(diagnostic.textLine);
+
+      if (diagnostic.sourceDiagnostic) {
+        summary.diagnostics.push(diagnostic.sourceDiagnostic);
+      }
+
+      return summary;
+    }, {diagnostics: [], textLines: []});
+  } finally {
+    await rm(outputRoot, {force: true, recursive: true});
+  }
+}
+
+function remapTypecheckDiagnostic(
+  line: string,
+  outputRoot: string,
+  sourceRoot: string,
+  sourceByFileName: Map<string, string>,
+  sourceMapsByOutputPath: Map<string, string>,
+): {
+  sourceDiagnostic?: PlaygroundDiagnostic;
+  textLine: string;
+} {
+  const match = /^(.*)\((\d+),(\d+)\): error TS(\d+): (.*)$/.exec(line);
+
+  if (!match) {
+    return {textLine: line};
+  }
+
+  const [, generatedFile, lineText, columnText, code, message] = match;
+  const diagnosticCode = code ?? "0000";
+  const diagnosticMessage = message ?? "";
+  const generatedPath = resolve(outputRoot, generatedFile!);
+  const sourceMapText =
+    sourceMapsByOutputPath.get(generatedPath) ??
+    sourceMapsByOutputPath.get(relative(outputRoot, generatedPath)) ??
+    sourceMapsByOutputPath.get(generatedFile!) ??
+    sourceMapsByOutputPath.get(basename(generatedFile!));
+  const original = sourceMapText
+    ? originalPositionForGeneratedLocation(
+        sourceMapText,
+        Number(lineText),
+        Number(columnText),
+      )
+    : undefined;
+
+  if (!original) {
+    return {
+      textLine: `${generatedFile}:${lineText}:${columnText} TS${diagnosticCode}: ${diagnosticMessage}`,
+    };
+  }
+
+  const absoluteSourceFile = resolve(process.cwd(), original.sourceFile);
+  const fileName = relative(sourceRoot, absoluteSourceFile);
+  const sourceText = sourceByFileName.get(fileName) ?? "";
+  const index = new LinesAndColumns(sourceText).indexForLocation({
+    column: original.column - 1,
+    line: original.line - 1,
+  });
+  const from = index ?? 0;
+  const to = diagnosticEnd(sourceText, from);
+
+  return {
+    sourceDiagnostic: {
+      code: `TS${diagnosticCode}`,
+      fileName,
+      from,
+      message: diagnosticMessage,
+      severity: "error",
+      to,
+    },
+    textLine: `${fileName}:${original.line}:${original.column} TS${diagnosticCode}: ${diagnosticMessage}`,
+  };
+}
+
+function diagnosticEnd(sourceText: string, start: number): number {
+  let end = start;
+
+  while (end < sourceText.length && /[$\w]/u.test(sourceText[end]!)) {
+    end++;
+  }
+
+  return end > start ? end : Math.min(sourceText.length, start + 1);
 }
 
 function pageHtml(): string {
@@ -203,8 +451,8 @@ function pageHtml(): string {
       --bad-border: #e5aaaa;
       --ok-bg: #eef9f2;
       --ok-border: #a8d7b8;
-      --code-bg: #101317;
-      --code-ink: #f1f5f9;
+      --code-bg: #ffffff;
+      --code-ink: #15171a;
     }
 
     * {
@@ -290,7 +538,8 @@ function pageHtml(): string {
       background: var(--panel);
     }
 
-    .source-pane {
+    .source-pane,
+    .output-pane {
       grid-template-rows: auto auto minmax(0, 1fr);
     }
 
@@ -352,6 +601,14 @@ function pageHtml(): string {
       white-space: pre;
     }
 
+    .editor-host {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+      background: var(--code-bg);
+    }
+
     .diagnostics {
       min-height: 92px;
       max-height: 28vh;
@@ -409,7 +666,6 @@ function pageHtml(): string {
       <div class="brand">TypeStage Playground</div>
       <label for="examples">Example</label>
       <select id="examples"></select>
-      <button id="compile" type="button">Compile</button>
     </header>
     <section class="workspace">
       <section class="pane source-pane">
@@ -417,13 +673,14 @@ function pageHtml(): string {
           <span>Source</span>
         </div>
         <div id="sourceTabs" class="file-tabs" role="tablist" aria-label="Source files"></div>
-        <textarea id="source" spellcheck="false"></textarea>
+        <div id="source" class="editor-host"></div>
       </section>
-      <section class="pane">
+      <section class="pane output-pane">
         <div class="pane-header">
           <span>Compiled Output</span>
         </div>
-        <pre id="output"></pre>
+        <div id="outputTabs" class="file-tabs" role="tablist" aria-label="Output files"></div>
+        <div id="output" class="editor-host"></div>
       </section>
     </section>
     <footer id="diagnostics" class="diagnostics">
@@ -431,226 +688,7 @@ function pageHtml(): string {
       <pre id="diagnosticsText">Loading examples...</pre>
     </footer>
   </main>
-  <script type="module">
-    const examplesSelect = document.querySelector("#examples");
-    const source = document.querySelector("#source");
-    const sourceTabs = document.querySelector("#sourceTabs");
-    const output = document.querySelector("#output");
-    const diagnostics = document.querySelector("#diagnostics");
-    const diagnosticsText = document.querySelector("#diagnosticsText");
-    const compileButton = document.querySelector("#compile");
-    let examples = [];
-    let selectedExample;
-    let currentFileName = "";
-    let lastCompileResult;
-    let debounceTimer;
-    let loadingExample = false;
-
-    boot();
-
-    async function boot() {
-      examples = await fetchJson("/api/examples");
-      populateExamples(examples);
-      selectedExample = exampleFromLocation() ?? examples[0];
-
-      if (selectedExample) {
-        loadExample(selectedExample.id, {updateUrl: false});
-      } else {
-        diagnosticsText.textContent = "No fixtures found.";
-      }
-
-      examplesSelect.addEventListener("change", () => loadExample(examplesSelect.value));
-      compileButton.addEventListener("click", compileNow);
-      source.addEventListener("input", () => {
-        saveCurrentSource();
-
-        if (!loadingExample) {
-          clearExampleParam();
-        }
-
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(compileNow, 250);
-      });
-    }
-
-    function exampleFromLocation() {
-      const id = new URL(location.href).searchParams.get("example");
-
-      return id ? examples.find((example) => example.id === id) : undefined;
-    }
-
-    function populateExamples(items) {
-      examplesSelect.textContent = "";
-      const groups = new Map();
-
-      for (const item of items) {
-        const groupItems = groups.get(item.group) ?? [];
-
-        groupItems.push(item);
-        groups.set(item.group, groupItems);
-      }
-
-      for (const [groupName, groupItems] of groups) {
-        const group = document.createElement("optgroup");
-        group.label = groupName;
-
-        for (const item of groupItems) {
-          const option = document.createElement("option");
-          option.value = item.id;
-          option.textContent = item.name;
-          group.append(option);
-        }
-
-        examplesSelect.append(group);
-      }
-    }
-
-    function loadExample(id, options = {}) {
-      selectedExample = examples.find((example) => example.id === id);
-
-      if (!selectedExample) {
-        return;
-      }
-
-      loadingExample = true;
-      examplesSelect.value = selectedExample.id;
-      currentFileName = selectedExample.entryFileName;
-      renderSourceTabs();
-      loadCurrentSource();
-      lastCompileResult = {
-        outputFiles: selectedExample.outputFiles,
-        outputText: selectedExample.outputFiles.find((file) => file.fileName === currentFileName)?.outputText ?? "",
-      };
-      renderOutput();
-      loadingExample = false;
-
-      if (options.updateUrl ?? true) {
-        setExampleParam(selectedExample.id);
-      }
-
-      compileNow();
-    }
-
-    function renderSourceTabs() {
-      sourceTabs.textContent = "";
-
-      for (const file of currentFiles()) {
-        const tab = document.createElement("button");
-
-        tab.type = "button";
-        tab.className = "file-tab";
-        tab.textContent = file.fileName;
-        tab.dataset.fileName = file.fileName;
-        tab.setAttribute("role", "tab");
-        tab.setAttribute("aria-selected", String(file.fileName === currentFileName));
-        tab.classList.toggle("is-active", file.fileName === currentFileName);
-        tab.addEventListener("click", () => selectSourceFile(file.fileName));
-        sourceTabs.append(tab);
-      }
-    }
-
-    function selectSourceFile(fileName) {
-      if (fileName === currentFileName) {
-        return;
-      }
-
-      saveCurrentSource();
-      currentFileName = fileName;
-      renderSourceTabs();
-      loadCurrentSource();
-      renderOutput();
-    }
-
-    function currentFiles() {
-      return selectedExample?.files ?? [
-        {
-          fileName: "main.ts",
-          source: source.value,
-        },
-      ];
-    }
-
-    function currentFile() {
-      return currentFiles().find((file) => file.fileName === currentFileName);
-    }
-
-    function loadCurrentSource() {
-      const file = currentFile();
-
-      source.value = file?.source ?? "";
-    }
-
-    function saveCurrentSource() {
-      const file = currentFile();
-
-      if (file) {
-        file.source = source.value;
-      }
-    }
-
-    function setExampleParam(id) {
-      const url = new URL(location.href);
-
-      url.searchParams.set("example", id);
-      history.replaceState(null, "", url);
-    }
-
-    function clearExampleParam() {
-      const url = new URL(location.href);
-
-      if (!url.searchParams.has("example")) {
-        return;
-      }
-
-      url.searchParams.delete("example");
-      history.replaceState(null, "", url);
-    }
-
-    async function compileNow() {
-      saveCurrentSource();
-
-      try {
-        const result = await fetchJson("/api/compile", compileRequest());
-
-        lastCompileResult = result;
-        renderOutput();
-        diagnosticsText.textContent = result.diagnostics;
-        diagnostics.classList.toggle("has-errors", result.diagnostics !== "No diagnostics.");
-      } catch (error) {
-        output.textContent = "";
-        diagnosticsText.textContent = error instanceof Error ? error.message : String(error);
-        diagnostics.classList.add("has-errors");
-      }
-    }
-
-    function compileRequest() {
-      return {
-        method: "POST",
-        headers: {"content-type": "application/json"},
-        body: JSON.stringify({
-          entryFileName: selectedExample?.entryFileName ?? "main.ts",
-          files: currentFiles(),
-        }),
-      };
-    }
-
-    function renderOutput() {
-      const outputFiles = lastCompileResult?.outputFiles ?? selectedExample?.outputFiles ?? [];
-      const matchingOutput = outputFiles.find((file) => file.fileName === currentFileName);
-
-      output.textContent = matchingOutput?.outputText ?? lastCompileResult?.outputText ?? "";
-    }
-
-    async function fetchJson(url, options) {
-      const response = await fetch(url, options);
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      return response.json();
-    }
-  </script>
+  <script type="module" src="/playground-client.js"></script>
 </body>
 </html>`;
 }

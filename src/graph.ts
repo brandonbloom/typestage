@@ -5,7 +5,7 @@
  * re-exports, then emits one residual file per source module.
  */
 import {existsSync, mkdirSync, readFileSync, statSync, writeFileSync} from "node:fs";
-import {dirname, extname, join, relative, resolve, sep} from "node:path";
+import {basename, dirname, extname, join, relative, resolve, sep} from "node:path";
 import * as ts from "typescript";
 import {buildCodeBindings, summarizeBindings} from "./binder.ts";
 import {moduleStatementsForValue, printCodeValue} from "./emitter.ts";
@@ -13,6 +13,7 @@ import {expandFragments} from "./expander.ts";
 import {parseFragments} from "./fragments.ts";
 import {formatOrigin} from "./origin.ts";
 import {extractQuotes, parseHostSource} from "./quote-extractor.ts";
+import {createSourceMappedOutput, type SourceMapBlock} from "./source-map.ts";
 import {evaluateStagingGraph} from "./staging.ts";
 import type {
   CodeValue,
@@ -25,6 +26,7 @@ import type {
 
 /** Options for compiling a TypeStage module graph. */
 export type CompileFileGraphOptions = {
+  sourceMaps?: boolean;
   sourceRoot?: string;
 };
 
@@ -128,7 +130,7 @@ export async function compileFileGraph(
     ...expanded.diagnostics,
   ];
   const files = diagnostics.length === 0
-    ? emitGraphFiles(modules, expanded.values, exportedBindings)
+    ? emitGraphFiles(modules, expanded.values, exportedBindings, options)
     : [];
 
   return {
@@ -161,6 +163,13 @@ export async function emitFileGraph(
 
     mkdirSync(dirname(outputPath), {recursive: true});
     writeFileSync(outputPath, file.outputText);
+
+    if (file.sourceMapPath && file.sourceMapText) {
+      const sourceMapPath = join(outDir, file.sourceMapPath);
+
+      mkdirSync(dirname(sourceMapPath), {recursive: true});
+      writeFileSync(sourceMapPath, file.sourceMapText);
+    }
   }
 
   return result;
@@ -382,6 +391,7 @@ function emitGraphFiles(
   modules: GraphModule[],
   values: Map<number, CodeValue>,
   exportedBindings: Map<string, Map<string, CodeValue>>,
+  options: CompileFileGraphOptions,
 ): CompileGraphFile[] {
   const generatedStatementsByPath = new Map<string, ts.Statement[]>();
 
@@ -417,21 +427,53 @@ function emitGraphFiles(
     const exportStatements = module.sourceFile.statements
       .filter(ts.isExportDeclaration)
       .map(clonedExportDeclaration);
-    const outputText = printStatementBlocks([
-      printStatements([
-        ...importStatements,
-        ...exportStatements,
-      ]),
-      printSourceStatements(sourceStatements, module.sourceFile),
-      printStatements(generatedStatements),
-    ]);
+    const blocks: SourceMapBlock[] = [
+      {
+        statements: [
+          ...importStatements,
+          ...exportStatements,
+        ],
+        text: printStatements([
+          ...importStatements,
+          ...exportStatements,
+        ]),
+      },
+      {
+        sourceFile: module.sourceFile,
+        statements: sourceStatements,
+        text: options.sourceMaps
+          ? printOriginalSourceStatements(sourceStatements, module.sourceFile)
+          : printSourceStatements(sourceStatements, module.sourceFile),
+      },
+      {
+        statements: generatedStatements,
+        text: printStatements(generatedStatements),
+      },
+    ];
+    const sourceMapped = createSourceMappedOutput(
+      module.outputPath,
+      blocks,
+      (sourceFile) => sourceTextForFile(sourceFile, modules),
+    );
+    const sourceMapPath = `${module.outputPath}.map`;
+    const outputText = options.sourceMaps
+      ? `${sourceMapped.outputText}//# sourceMappingURL=${basename(sourceMapPath)}\n`
+      : sourceMapped.outputText;
 
     return {
       inputPath: relative(process.cwd(), module.inputPath),
       outputPath: module.outputPath,
+      sourceMapPath: options.sourceMaps ? sourceMapPath : undefined,
+      sourceMapText: options.sourceMaps ? sourceMapped.sourceMapText : undefined,
       outputText,
     };
   });
+}
+
+function sourceTextForFile(sourceFile: string, modules: GraphModule[]): string {
+  const module = modules.find((candidate) => candidate.sourceFile.fileName === sourceFile);
+
+  return module?.sourceText ?? (existsSync(sourceFile) ? readFileSync(sourceFile, "utf8") : "");
 }
 
 function collectResidualSourceDemands(
@@ -809,13 +851,17 @@ function printSourceStatements(
   ).join("\n")}\n`;
 }
 
-function printStatementBlocks(blocks: string[]): string {
-  const text = blocks
-    .map((block) => block.trimEnd())
-    .filter((block) => block.length > 0)
-    .join("\n");
+function printOriginalSourceStatements(
+  statements: ts.Statement[],
+  sourceFile: ts.SourceFile,
+): string {
+  if (statements.length === 0) {
+    return "";
+  }
 
-  return text.length === 0 ? "" : `${text}\n`;
+  return `${statements.map((statement) =>
+    sourceFile.text.slice(statement.getStart(sourceFile), statement.end).trimEnd()
+  ).join("\n")}\n`;
 }
 
 function isRelativeSpecifier(specifier: string): boolean {

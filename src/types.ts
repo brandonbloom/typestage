@@ -89,6 +89,8 @@ export type CodeValue = {
 export type CompileGraphFile = {
   inputPath: string;
   outputPath: string;
+  sourceMapPath?: string;
+  sourceMapText?: string;
   outputText: string;
 };
 
