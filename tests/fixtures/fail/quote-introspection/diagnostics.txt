@@ -1,0 +1,2 @@
+TSG1006: staging evaluation failed: q.isLValue is not a function. (In 'q.isLValue(expr)', 'q.isLValue' is undefined)
+tests/fixtures/fail/quote-introspection/input/main.ts:10:30 TSG1001: explicit splice 'isAssignable' does not resolve to a TypeStage code value

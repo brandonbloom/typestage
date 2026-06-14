@@ -1,0 +1,3 @@
+TSG1006: staging evaluation failed: q.list is not a function. (In 'q.list(["id", "name"])', 'q.list' is undefined)
+tests/fixtures/fail/code-list-helpers/input/main.ts:7:18 TSG1001: explicit splice 'q.identifier(name)' does not resolve to a TypeStage code value
+tests/fixtures/fail/code-list-helpers/input/main.ts:7:42 TSG1001: explicit splice 'name' does not resolve to a TypeStage code value

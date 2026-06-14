@@ -1,0 +1,80 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/fail/public-reflection-predicate/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "bindingName": "value",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "decl",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "decl",
+            "kind": "decl",
+            "quoteId": 1
+          },
+          {
+            "name": "value",
+            "kind": "expr",
+            "quoteId": 0
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": [
+              "wasCode"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "expr",
+      "text": "user.name"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
+      "kind": "decl",
+      "text": "export const wasCode = __typestage_hole_1_0;"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1006",
+      "message": "staging evaluation failed: q.isCode is not a function. (In 'q.isCode(value)', 'q.isCode' is undefined)"
+    },
+    {
+      "code": "TSG1001",
+      "message": "explicit splice 'q.isCode(value)' does not resolve to a TypeStage code value",
+      "origin": {
+        "sourceFile": "tests/fixtures/fail/public-reflection-predicate/input/main.ts",
+        "start": 361,
+        "end": 376
+      }
+    }
+  ],
+  "files": []
+}

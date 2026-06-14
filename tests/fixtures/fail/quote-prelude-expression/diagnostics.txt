@@ -1,0 +1,6 @@
+TSG1006: staging evaluation failed: undefined is not a function (near '...q.exprWithPrelude`
+  const temporary = compute();
+in
+  temporary * temporary
+`...')
+tests/fixtures/fail/quote-prelude-expression/input/main.ts:14:28 TSG1001: explicit splice 'value' does not resolve to a TypeStage code value

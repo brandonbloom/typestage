@@ -1,0 +1,4 @@
+TSG1006: staging evaluation failed: q.macro is not a function. (In 'q.macro((input) => __typestageTag(0, q.expr)`${input} + ${input}`)', 'q.macro' is undefined)
+tests/fixtures/fail/compile-time-macro/input/main.ts:6:52 TSG1001: explicit splice 'input' does not resolve to a TypeStage code value
+tests/fixtures/fail/compile-time-macro/input/main.ts:6:63 TSG1001: explicit splice 'input' does not resolve to a TypeStage code value
+tests/fixtures/fail/compile-time-macro/input/main.ts:9:26 TSG1001: explicit splice 'twice(q.expr`21`)' does not resolve to a TypeStage code value

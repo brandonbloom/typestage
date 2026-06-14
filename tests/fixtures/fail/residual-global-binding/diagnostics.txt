@@ -1,0 +1,2 @@
+TSG1006: staging evaluation failed: q.global is not a function. (In 'q.global("counter", __typestageTag(0, q.type)`number`, { mutable: !0, initial: 0 })', 'q.global' is undefined)
+tests/fixtures/fail/residual-global-binding/input/main.ts:10:14 TSG1001: explicit splice 'counter' does not resolve to a TypeStage code value

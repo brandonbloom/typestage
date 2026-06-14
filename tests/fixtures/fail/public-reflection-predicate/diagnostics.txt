@@ -1,0 +1,2 @@
+TSG1006: staging evaluation failed: q.isCode is not a function. (In 'q.isCode(value)', 'q.isCode' is undefined)
+tests/fixtures/fail/public-reflection-predicate/input/main.ts:9:28 TSG1001: explicit splice 'q.isCode(value)' does not resolve to a TypeStage code value

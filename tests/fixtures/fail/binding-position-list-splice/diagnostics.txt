@@ -1,0 +1,4 @@
+TSG1006: staging evaluation failed: q.identifier is not a function. (In 'q.identifier("a", __typestageTag(0, q.type)`number`)', 'q.identifier' is undefined)
+tests/fixtures/fail/binding-position-list-splice/input/main.ts:11:25 TSG1001: explicit splice 'params' does not resolve to a TypeStage code value
+tests/fixtures/fail/binding-position-list-splice/input/main.ts:12:14 TSG1001: explicit splice 'a' does not resolve to a TypeStage code value
+tests/fixtures/fail/binding-position-list-splice/input/main.ts:12:21 TSG1001: explicit splice 'b' does not resolve to a TypeStage code value

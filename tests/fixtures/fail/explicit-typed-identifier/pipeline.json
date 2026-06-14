@@ -1,0 +1,84 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/fail/explicit-typed-identifier/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "type",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "decl",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "decl",
+            "kind": "decl",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": [
+              "__typestage_hole_1_0",
+              "read"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "type",
+      "text": "number"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
+      "kind": "decl",
+      "text": "export function read(__typestage_hole_1_0: number) {\n    return __typestage_hole_1_1;\n}"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1006",
+      "message": "staging evaluation failed: q.identifier is not a function. (In 'q.identifier(\"x\", __typestageTag(0, q.type)`number`)', 'q.identifier' is undefined)"
+    },
+    {
+      "code": "TSG1001",
+      "message": "explicit splice 'x' does not resolve to a TypeStage code value",
+      "origin": {
+        "sourceFile": "tests/fixtures/fail/explicit-typed-identifier/input/main.ts",
+        "start": 392,
+        "end": 393
+      }
+    },
+    {
+      "code": "TSG1001",
+      "message": "explicit splice 'x' does not resolve to a TypeStage code value",
+      "origin": {
+        "sourceFile": "tests/fixtures/fail/explicit-typed-identifier/input/main.ts",
+        "start": 419,
+        "end": 420
+      }
+    }
+  ],
+  "files": []
+}

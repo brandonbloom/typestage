@@ -1,0 +1,2 @@
+tests/fixtures/fail/persistent-conversion-protocol/input/main.ts:10:29 TSG1001: explicit splice 'this.path' does not resolve to a TypeStage code value
+tests/fixtures/fail/persistent-conversion-protocol/input/main.ts:17:24 TSG1005: persistent splice 'endpoint' is unsupported: class instances cannot be persisted

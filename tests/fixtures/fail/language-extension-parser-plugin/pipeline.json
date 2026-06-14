@@ -1,0 +1,83 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/fail/language-extension-parser-plugin/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "decl",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "decl",
+            "kind": "decl",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": [
+              "rows"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "expr",
+      "text": "query(__typestage_hole_0_0)"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
+      "kind": "decl",
+      "text": "export const rows = __typestage_hole_1_0;"
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "TSG1006",
+      "message": "staging evaluation failed: q.language is not a function. (In 'q.language(\"sql\", {\n  expression(source) {\n    return __typestageTag(0, q.expr)`query(${source})`;\n  }\n})', 'q.language' is undefined)"
+    },
+    {
+      "code": "TSG1001",
+      "message": "explicit splice 'source' does not resolve to a TypeStage code value",
+      "origin": {
+        "sourceFile": "tests/fixtures/fail/language-extension-parser-plugin/input/main.ts",
+        "start": 354,
+        "end": 360
+      }
+    },
+    {
+      "code": "TSG1001",
+      "message": "explicit splice 'sql.expr`select * from users where active = true`' does not resolve to a TypeStage code value",
+      "origin": {
+        "sourceFile": "tests/fixtures/fail/language-extension-parser-plugin/input/main.ts",
+        "start": 427,
+        "end": 476
+      }
+    }
+  ],
+  "files": []
+}

@@ -1,0 +1,2 @@
+TSG1006: staging evaluation failed: q.pretty is not a function. (In 'q.pretty(expr)', 'q.pretty' is undefined)
+tests/fixtures/fail/pretty-print-debug-api/input/main.ts:12:30 TSG1001: explicit splice 'printed' does not resolve to a TypeStage code value

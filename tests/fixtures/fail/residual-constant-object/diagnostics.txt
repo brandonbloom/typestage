@@ -1,0 +1,2 @@
+TSG1006: staging evaluation failed: q.constant is not a function. (In 'q.constant("TABLE", [1, 1, 2, 3, 5, 8])', 'q.constant' is undefined)
+tests/fixtures/fail/residual-constant-object/input/main.ts:9:26 TSG1001: explicit splice 'table' does not resolve to a TypeStage code value

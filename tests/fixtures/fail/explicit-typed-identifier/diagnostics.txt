@@ -1,0 +1,3 @@
+TSG1006: staging evaluation failed: q.identifier is not a function. (In 'q.identifier("x", __typestageTag(0, q.type)`number`)', 'q.identifier' is undefined)
+tests/fixtures/fail/explicit-typed-identifier/input/main.ts:10:26 TSG1001: explicit splice 'x' does not resolve to a TypeStage code value
+tests/fixtures/fail/explicit-typed-identifier/input/main.ts:11:14 TSG1001: explicit splice 'x' does not resolve to a TypeStage code value
