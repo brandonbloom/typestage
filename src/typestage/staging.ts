@@ -10,6 +10,10 @@ import {dirname, isAbsolute, join, resolve} from "node:path";
 import {pathToFileURL} from "node:url";
 import * as ts from "typescript";
 import {
+  localModuleNotResolved,
+  stagingEvaluationFailed,
+} from "./diagnostics/index.ts";
+import {
   __typestageCapturedValues,
   __typestageResetCapturedValues,
 } from "./runtime.ts";
@@ -81,7 +85,7 @@ export async function evaluateStagingGraph(
       capturedValues: new Map(),
       diagnostics: [
         {
-          code: "TSG1007",
+          code: localModuleNotResolved.code,
           message: `entry module '${entryPath}' was not found in the staging graph`,
         },
       ],
@@ -97,7 +101,7 @@ export async function evaluateStagingGraph(
       capturedValues: __typestageCapturedValues(),
       diagnostics: [
         {
-          code: "TSG1006",
+          code: stagingEvaluationFailed.code,
           message: `staging evaluation failed: ${errorMessage(error)}`,
         },
       ],

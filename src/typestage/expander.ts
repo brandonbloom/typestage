@@ -7,6 +7,13 @@
 import * as ts from "typescript";
 import {collectLocalBindings} from "./binder.ts";
 import {printExpressionList, printNode} from "./ast-print.ts";
+import {
+  blockExpressionAdapterFailed,
+  incompatibleSplice,
+  persistentValueUnsupported,
+  recursiveImplicitUnquote,
+  unresolvedExplicitSplice,
+} from "./diagnostics/index.ts";
 import {copyNodeOrigin, getNodeOrigin, setNodeOrigin, setTreeOrigin} from "./origin.ts";
 import {persistValueToExpression} from "./persistence.ts";
 import {isRuntimeCode, type RuntimeCode} from "./runtime.ts";
@@ -62,7 +69,7 @@ export function expandFragments(
 
     if (expanding.has(value.quote.id)) {
       diagnostics.push({
-        code: "TSG1004",
+        code: recursiveImplicitUnquote.code,
         message: `recursive code binding '${value.quote.bindingName ?? "<anonymous>"}' cannot be implicitly unquoted`,
         origin: value.quote.origin,
       });
@@ -154,7 +161,7 @@ function expandParsedFragment(
     }
 
     diagnostics.push({
-      code: "TSG1001",
+      code: unresolvedExplicitSplice.code,
       message: `explicit splice '${hole.expression.getText()}' does not resolve to a TypeStage code value`,
       origin: hole.origin,
     });
@@ -175,7 +182,7 @@ function expandParsedFragment(
       }
 
       diagnostics.push({
-        code: "TSG1001",
+        code: unresolvedExplicitSplice.code,
         message: `runtime code splice '${hole.expression.getText()}' does not resolve to a static TypeStage quote`,
         origin: hole.origin,
       });
@@ -193,7 +200,7 @@ function expandParsedFragment(
 
     if (expected !== "expr") {
       diagnostics.push({
-        code: "TSG1002",
+        code: incompatibleSplice.code,
         message: `cannot splice persistent value '${hole.expression.getText()}' into ${expected} position`,
         origin: hole.origin,
       });
@@ -204,7 +211,7 @@ function expandParsedFragment(
 
     if (!persisted.ok) {
       diagnostics.push({
-        code: "TSG1005",
+        code: persistentValueUnsupported.code,
         message: `persistent splice '${hole.expression.getText()}' is unsupported: ${persisted.message}`,
         origin: hole.origin,
       });
@@ -230,7 +237,7 @@ function expandParsedFragment(
 
     if (typeof captured.value !== "string") {
       diagnostics.push({
-        code: "TSG1002",
+        code: incompatibleSplice.code,
         message: `cannot splice persistent value '${hole.expression.getText()}' into ident position`,
         origin: hole.origin,
       });
@@ -239,7 +246,7 @@ function expandParsedFragment(
 
     if (!isValidIdentifierText(captured.value)) {
       diagnostics.push({
-        code: "TSG1002",
+        code: incompatibleSplice.code,
         message: `persistent splice '${hole.expression.getText()}' is not a valid identifier`,
         origin: hole.origin,
       });
@@ -265,7 +272,7 @@ function expandParsedFragment(
 
       if (!codeValue) {
         diagnostics.push({
-          code: "TSG1001",
+          code: unresolvedExplicitSplice.code,
           message: `runtime code splice '${hole.expression.getText()}' does not resolve to a static TypeStage quote`,
           origin: hole.origin,
         });
@@ -290,7 +297,7 @@ function expandParsedFragment(
     }
 
     diagnostics.push({
-      code: "TSG1002",
+      code: incompatibleSplice.code,
       message: `cannot splice ${replacements.length} ${expected} nodes into ${expected} position`,
       origin: hole.origin,
     });
@@ -468,7 +475,7 @@ function expandParsedFragment(
       }
 
       diagnostics.push({
-        code: "TSG1002",
+        code: incompatibleSplice.code,
         message: `cannot splice ${replacements.length} ${expanded.kind} nodes into ${expected} position`,
         origin,
       });
@@ -480,7 +487,7 @@ function expandParsedFragment(
 
       if (!adapted.ok) {
         diagnostics.push({
-          code: "TSG1003",
+          code: blockExpressionAdapterFailed.code,
           message: adapted.message,
           origin,
         });
@@ -492,7 +499,7 @@ function expandParsedFragment(
 
     if (!isCompatible(expanded.kind, expected)) {
       diagnostics.push({
-        code: "TSG1002",
+        code: incompatibleSplice.code,
         message: `cannot splice ${expanded.kind} code into ${expected} position`,
         origin,
       });

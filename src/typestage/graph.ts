@@ -8,6 +8,10 @@ import {existsSync, mkdirSync, readFileSync, statSync, writeFileSync} from "node
 import {basename, dirname, extname, join, relative, resolve, sep} from "node:path";
 import * as ts from "typescript";
 import {buildCodeBindings, summarizeBindings} from "./binder.ts";
+import {
+  localExportMissing,
+  localModuleNotResolved,
+} from "./diagnostics/index.ts";
 import {moduleStatementsForValue, printCodeValue} from "./emitter.ts";
 import {expandFragments} from "./expander.ts";
 import {parseFragments} from "./fragments.ts";
@@ -214,7 +218,7 @@ class GraphBuilder {
 
     if (!existsSync(canonicalPath)) {
       this.diagnostics.push({
-        code: "TSG1007",
+        code: localModuleNotResolved.code,
         message: `local module '${relative(process.cwd(), canonicalPath)}' could not be resolved`,
       });
       return undefined;
@@ -261,7 +265,7 @@ class GraphBuilder {
 
       if (!targetPath) {
         this.diagnostics.push({
-          code: "TSG1007",
+          code: localModuleNotResolved.code,
           message: `local module '${statement.moduleSpecifier.text}' could not be resolved from '${module.sourceFile.fileName}'`,
           origin: {
             sourceFile: module.sourceFile.fileName,
@@ -381,7 +385,7 @@ function validateLocalImports(modules: GraphModule[]): Diagnostic[] {
 
       if (!exportNamesByPath.get(target.inputPath)?.has(imported.imported)) {
         diagnostics.push({
-          code: "TSG1008",
+          code: localExportMissing.code,
           message: `local module '${target.outputPath}' does not export '${imported.imported}'`,
           origin: imported.origin,
         });
