@@ -1,0 +1,50 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "expr",
+      "bindingName": "expr",
+      "exported": true,
+      "source": "\n  configure(__typestage_hole_0_0)\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_0_0",
+          "expression": "runtimeValue"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "const __typestage_fragment = (\n  configure(__typestage_hole_0_0)\n);\n",
+      "nodes": [
+        "(\n  configure(__typestage_hole_0_0)\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "expr",
+        "kind": "expr",
+        "quoteId": 0
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "expr",
+      "text": "configure({\n    values: [undefined, NaN, Infinity, -Infinity, -0, 1n],\n    nested: {\n        ok: true\n    },\n    set: new Set([\n        \"a\",\n        \"b\"\n    ]),\n    pattern: /ab+/gi\n})"
+    }
+  ],
+  "diagnostics": [],
+  "outputText": "export const expr = (configure({\n    values: [undefined, NaN, Infinity, -Infinity, -0, 1n],\n    nested: {\n        ok: true\n    },\n    set: new Set([\n        \"a\",\n        \"b\"\n    ]),\n    pattern: /ab+/gi\n}));"
+}

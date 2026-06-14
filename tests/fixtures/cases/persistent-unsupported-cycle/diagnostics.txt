@@ -1,0 +1,1 @@
+tests/fixtures/cases/persistent-unsupported-cycle/input.ts:9:5 TSG1005: persistent splice 'runtimeValue' is unsupported: cyclic or shared object identity cannot be persisted

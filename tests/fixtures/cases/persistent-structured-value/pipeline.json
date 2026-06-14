@@ -1,0 +1,50 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "expr",
+      "bindingName": "expr",
+      "exported": true,
+      "source": "\n  configure(__typestage_hole_0_0)\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_0_0",
+          "expression": "settings"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "const __typestage_fragment = (\n  configure(__typestage_hole_0_0)\n);\n",
+      "nodes": [
+        "(\n  configure(__typestage_hole_0_0)\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "expr",
+        "kind": "expr",
+        "quoteId": 0
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "expr",
+      "text": "configure({\n    enabled: true,\n    thresholds: new Map([\n        [\"low\", 2],\n        [\"high\", 10]\n    ]),\n    launchedAt: new Date(\"2026-06-13T00:00:00.000Z\")\n})"
+    }
+  ],
+  "diagnostics": [],
+  "outputText": "export const expr = (configure({\n    enabled: true,\n    thresholds: new Map([\n        [\"low\", 2],\n        [\"high\", 10]\n    ]),\n    launchedAt: new Date(\"2026-06-13T00:00:00.000Z\")\n}));"
+}

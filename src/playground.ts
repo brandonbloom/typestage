@@ -35,7 +35,7 @@ const server = Bun.serve({
         };
         const source = body.source ?? "";
         const fileName = body.fileName ?? "playground.ts";
-        const result = compileSource(source, fileName);
+        const result = await compileSource(source, fileName);
 
         return Response.json({
           diagnostics: formatDiagnostics(source, result.diagnostics),

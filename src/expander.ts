@@ -1,13 +1,14 @@
 import * as ts from "typescript";
 import {collectLocalBindings} from "./binder.ts";
 import {printExpressionList, printNode} from "./ast-print.ts";
+import {persistValueToExpression} from "./persistence.ts";
+import {isRuntimeCode, type RuntimeCode} from "./runtime.ts";
 import type {
   CodeValue,
   Diagnostic,
   FragmentKind,
   Origin,
   ParsedFragment,
-  PersistentBinding,
   QuoteCardinality,
   SpliceHole,
 } from "./types.ts";
@@ -27,7 +28,7 @@ type Replacement = ts.VisitResult<ts.Node> | {
 export function expandFragments(
   fragments: ParsedFragment[],
   codeBindings: Map<string, CodeValue>,
-  persistentBindings: Map<string, PersistentBinding> = new Map(),
+  capturedValues: Map<number, unknown[]> = new Map(),
 ): ExpansionResult {
   const values = new Map<number, CodeValue>();
   const diagnostics: Diagnostic[] = [];
@@ -62,7 +63,7 @@ export function expandFragments(
     const expanded = expandParsedFragment(
       value.parsed,
       codeBindings,
-      persistentBindings,
+      capturedValues,
       values,
       expandValue,
       (candidate) => expanding.has(candidate.quote.id),
@@ -84,7 +85,7 @@ export function expandFragments(
 function expandParsedFragment(
   fragment: ParsedFragment,
   codeBindings: Map<string, CodeValue>,
-  persistentBindings: Map<string, PersistentBinding>,
+  capturedValues: Map<number, unknown[]>,
   values: Map<number, CodeValue>,
   expandValue: (value: CodeValue) => CodeValue,
   isExpanding: (value: CodeValue) => boolean,
@@ -122,13 +123,15 @@ function expandParsedFragment(
       return expandCodeValue(value, expected, expectedCardinality, hole.origin);
     }
 
-    const persistent = persistentBindingForExpression(
-      hole.expression,
-      persistentBindings,
-    );
+    const captured = capturedValueForHole(fragment, hole, capturedValues);
 
-    if (persistent) {
-      return expandPersistentBinding(persistent, expected, hole);
+    if (captured.found) {
+      return expandCapturedValue(
+        captured.value,
+        expected,
+        expectedCardinality,
+        hole,
+      );
     }
 
     diagnostics.push({
@@ -139,15 +142,22 @@ function expandParsedFragment(
     return undefined;
   };
 
-  const expandPersistentBinding = (
-    binding: PersistentBinding,
+  const expandCapturedValue = (
+    value: unknown,
     expected: FragmentKind,
+    expectedCardinality: QuoteCardinality,
     hole: SpliceHole,
   ): ts.Node[] | undefined => {
-    if (binding.persistence === "unsupported") {
+    if (isRuntimeCode(value)) {
+      const codeValue = codeValueForRuntimeCode(value, values);
+
+      if (codeValue) {
+        return expandCodeValue(codeValue, expected, expectedCardinality, hole.origin);
+      }
+
       diagnostics.push({
-        code: "TSG1005",
-        message: `persistent splice '${hole.expression.getText()}' has unsupported initializer syntax`,
+        code: "TSG1001",
+        message: `runtime code splice '${hole.expression.getText()}' does not resolve to a static TypeStage quote`,
         origin: hole.origin,
       });
       return undefined;
@@ -162,9 +172,18 @@ function expandParsedFragment(
       return undefined;
     }
 
-    return hygienicReplacementNodes([
-      cloneExpression(binding.initializer),
-    ]);
+    const persisted = persistValueToExpression(value);
+
+    if (!persisted.ok) {
+      diagnostics.push({
+        code: "TSG1005",
+        message: `persistent splice '${hole.expression.getText()}' is unsupported: ${persisted.message}`,
+        origin: hole.origin,
+      });
+      return undefined;
+    }
+
+    return hygienicReplacementNodes([persisted.expression]);
   };
 
   const expandCodeValue = (
@@ -423,13 +442,28 @@ function codeValueForExpression(
   return undefined;
 }
 
-function persistentBindingForExpression(
-  expression: ts.Expression,
-  persistentBindings: Map<string, PersistentBinding>,
-): PersistentBinding | undefined {
-  return ts.isIdentifier(expression)
-    ? persistentBindings.get(expression.text)
-    : undefined;
+function capturedValueForHole(
+  fragment: ParsedFragment,
+  hole: SpliceHole,
+  capturedValues: Map<number, unknown[]>,
+): {
+  found: true;
+  value: unknown;
+} | {
+  found: false;
+} {
+  const values = capturedValues.get(fragment.quote.id);
+
+  return values && hole.index < values.length
+    ? {found: true, value: values[hole.index]}
+    : {found: false};
+}
+
+function codeValueForRuntimeCode(
+  value: RuntimeCode,
+  values: Map<number, CodeValue>,
+): CodeValue | undefined {
+  return value.quoteId === undefined ? undefined : values.get(value.quoteId);
 }
 
 function captureAvoidanceRenames(
@@ -1083,12 +1117,6 @@ function isCompletedReplacement(
       typeof value === "object" &&
       "skipChildren" in value,
   );
-}
-
-function cloneExpression(expression: ts.Expression): ts.Expression {
-  const cloned = synthesizeNode(expression);
-
-  return ts.isExpression(cloned) ? cloned : expression;
 }
 
 function synthesizeNode(node: ts.Node): ts.Node {

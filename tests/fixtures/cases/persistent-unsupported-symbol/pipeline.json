@@ -5,11 +5,11 @@
       "kind": "expr",
       "bindingName": "expr",
       "exported": true,
-      "source": "\n  configure(__typestage_hole_0_0)\n",
+      "source": "\n  __typestage_hole_0_0\n",
       "holes": [
         {
           "placeholder": "__typestage_hole_0_0",
-          "expression": "settings"
+          "expression": "runtimeValue"
         }
       ]
     }
@@ -17,9 +17,9 @@
   "fragments": [
     {
       "quoteId": 0,
-      "virtualSource": "const __typestage_fragment = (\n  configure(__typestage_hole_0_0)\n);\n",
+      "virtualSource": "const __typestage_fragment = (\n  __typestage_hole_0_0\n);\n",
       "nodes": [
-        "(\n  configure(__typestage_hole_0_0)\n)"
+        "(\n  __typestage_hole_0_0\n)"
       ]
     }
   ],
@@ -42,17 +42,17 @@
     {
       "quoteId": 0,
       "kind": "expr",
-      "text": "configure(__typestage_hole_0_0)"
+      "text": "__typestage_hole_0_0"
     }
   ],
   "diagnostics": [
     {
       "code": "TSG1005",
-      "message": "persistent splice 'settings' has unsupported initializer syntax",
+      "message": "persistent splice 'runtimeValue' is unsupported: local symbol values cannot be persisted",
       "origin": {
-        "sourceFile": "tests/fixtures/expected-fail/persistent-structured-value/input.ts",
-        "start": 228,
-        "end": 236
+        "sourceFile": "tests/fixtures/cases/persistent-unsupported-symbol/input.ts",
+        "start": 97,
+        "end": 109
       }
     }
   ],

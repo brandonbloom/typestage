@@ -1,0 +1,50 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "expr",
+      "bindingName": "expr",
+      "exported": true,
+      "source": "\n  __typestage_hole_0_0 + 1\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_0_0",
+          "expression": "runtimeValue"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "const __typestage_fragment = (\n  __typestage_hole_0_0 + 1\n);\n",
+      "nodes": [
+        "(\n  __typestage_hole_0_0 + 1\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "expr",
+        "kind": "expr",
+        "quoteId": 0
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "expr",
+      "text": "42 + 1"
+    }
+  ],
+  "diagnostics": [],
+  "outputText": "export const expr = (42 + 1);"
+}

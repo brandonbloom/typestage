@@ -79,13 +79,6 @@ export type CodeValue = {
   expandedNodes?: ts.Node[];
 };
 
-/** Host const binding that may be persisted into generated code. */
-export type PersistentBinding = {
-  name: string;
-  initializer: ts.Expression;
-  persistence: "primitive" | "unsupported";
-};
-
 /** Public result returned by a TypeStage compile operation. */
 export type CompileResult = {
   diagnostics: Diagnostic[];

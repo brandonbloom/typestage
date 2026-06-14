@@ -1,5 +1,5 @@
 import * as ts from "typescript";
-import type {CodeValue, ParsedFragment, PersistentBinding} from "./types.ts";
+import type {CodeValue, ParsedFragment} from "./types.ts";
 
 /** Snapshot-friendly summary of code-valued and residual bindings. */
 export type BindingSummary = {
@@ -38,41 +38,6 @@ export function buildCodeBindings(
   return bindings;
 }
 
-/** Builds host const bindings available for multi-stage persistence. */
-export function buildPersistentBindings(
-  sourceFile: ts.SourceFile,
-): Map<string, PersistentBinding> {
-  const bindings = new Map<string, PersistentBinding>();
-
-  for (const statement of sourceFile.statements) {
-    if (!ts.isVariableStatement(statement)) {
-      continue;
-    }
-
-    if ((statement.declarationList.flags & ts.NodeFlags.Const) === 0) {
-      continue;
-    }
-
-    for (const declaration of statement.declarationList.declarations) {
-      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) {
-        continue;
-      }
-
-      // Keep unsupported consts resolvable so structured persistence has a
-      // single extension point after the design is settled.
-      bindings.set(declaration.name.text, {
-        name: declaration.name.text,
-        initializer: declaration.initializer,
-        persistence: isPrimitivePersistentExpression(declaration.initializer)
-          ? "primitive"
-          : "unsupported",
-      });
-    }
-  }
-
-  return bindings;
-}
-
 /** Collects syntactic names declared inside a parsed residual fragment. */
 export function collectLocalBindings(fragment: ParsedFragment): Set<string> {
   const names = new Set<string>();
@@ -82,31 +47,6 @@ export function collectLocalBindings(fragment: ParsedFragment): Set<string> {
   }
 
   return names;
-}
-
-function isPrimitivePersistentExpression(expression: ts.Expression): boolean {
-  if (
-    ts.isStringLiteral(expression) ||
-    ts.isNoSubstitutionTemplateLiteral(expression) ||
-    ts.isNumericLiteral(expression) ||
-    ts.isBigIntLiteral(expression) ||
-    expression.kind === ts.SyntaxKind.TrueKeyword ||
-    expression.kind === ts.SyntaxKind.FalseKeyword ||
-    expression.kind === ts.SyntaxKind.NullKeyword
-  ) {
-    return true;
-  }
-
-  if (ts.isPrefixUnaryExpression(expression)) {
-    return (
-      (expression.operator === ts.SyntaxKind.MinusToken ||
-        expression.operator === ts.SyntaxKind.PlusToken) &&
-      (ts.isNumericLiteral(expression.operand) ||
-        ts.isBigIntLiteral(expression.operand))
-    );
-  }
-
-  return false;
 }
 
 /** Produces a stable binding summary for diagnostics and fixture output. */

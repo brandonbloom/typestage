@@ -1,0 +1,73 @@
+{
+  "quotes": [
+    {
+      "id": 0,
+      "kind": "expr",
+      "exported": false,
+      "source": "x + 1",
+      "holes": []
+    },
+    {
+      "id": 1,
+      "kind": "expr",
+      "bindingName": "expr",
+      "exported": true,
+      "source": "\n  __typestage_hole_1_0 * 2\n",
+      "holes": [
+        {
+          "placeholder": "__typestage_hole_1_0",
+          "expression": "runtimeExpr"
+        }
+      ]
+    }
+  ],
+  "fragments": [
+    {
+      "quoteId": 0,
+      "virtualSource": "const __typestage_fragment = (x + 1);\n",
+      "nodes": [
+        "(x + 1)"
+      ]
+    },
+    {
+      "quoteId": 1,
+      "virtualSource": "const __typestage_fragment = (\n  __typestage_hole_1_0 * 2\n);\n",
+      "nodes": [
+        "(\n  __typestage_hole_1_0 * 2\n)"
+      ]
+    }
+  ],
+  "bindings": {
+    "codeBindings": [
+      {
+        "name": "expr",
+        "kind": "expr",
+        "quoteId": 1
+      }
+    ],
+    "localBindingsByQuote": [
+      {
+        "quoteId": 0,
+        "names": []
+      },
+      {
+        "quoteId": 1,
+        "names": []
+      }
+    ]
+  },
+  "expanded": [
+    {
+      "quoteId": 0,
+      "kind": "expr",
+      "text": "x + 1"
+    },
+    {
+      "quoteId": 1,
+      "kind": "expr",
+      "text": "(x + 1) * 2"
+    }
+  ],
+  "diagnostics": [],
+  "outputText": "export const expr = ((x + 1) * 2);"
+}

@@ -3,13 +3,13 @@ import * as ts from "typescript";
 import {printExpressionList, printNode, printNodes} from "./ast-print.ts";
 import {
   buildCodeBindings,
-  buildPersistentBindings,
   summarizeBindings,
   type BindingSummary,
 } from "./binder.ts";
 import {expandFragments} from "./expander.ts";
 import {parseFragments} from "./fragments.ts";
 import {extractQuotes, parseHostSource} from "./quote-extractor.ts";
+import {evaluateStagingModule} from "./staging.ts";
 import type {CodeValue, CompileResult, Diagnostic} from "./types.ts";
 
 /** Serializable view of each compiler phase used by fixture diagnostics. */
@@ -41,11 +41,11 @@ export type PipelineSnapshot = {
 };
 
 /** Compiles TypeStage source text into residual TypeScript and diagnostics. */
-export function compileSource(
+export async function compileSource(
   sourceText: string,
   fileName = "input.ts",
-): CompileResult {
-  const pipeline = runPipeline(sourceText, fileName);
+): Promise<CompileResult> {
+  const pipeline = await runPipeline(sourceText, fileName);
 
   return {
     diagnostics: pipeline.diagnostics,
@@ -55,11 +55,11 @@ export function compileSource(
 }
 
 /** Runs the compiler and returns a stable phase-by-phase debug snapshot. */
-export function snapshotPipeline(
+export async function snapshotPipeline(
   sourceText: string,
   fileName = "input.ts",
-): PipelineSnapshot {
-  const pipeline = runPipeline(sourceText, fileName);
+): Promise<PipelineSnapshot> {
+  const pipeline = await runPipeline(sourceText, fileName);
 
   return {
     quotes: pipeline.quotesRaw.map((quote) => ({
@@ -93,8 +93,8 @@ export function snapshotPipeline(
 export function emitFile(inputPath: string, outputPath: string | undefined) {
   const sourceText = Bun.file(inputPath).text();
 
-  return sourceText.then((text) => {
-    const result = compileSource(text, inputPath);
+  return sourceText.then(async (text) => {
+    const result = await compileSource(text, inputPath);
 
     if (outputPath) {
       writeFileSync(outputPath, result.outputText);
@@ -104,15 +104,23 @@ export function emitFile(inputPath: string, outputPath: string | undefined) {
   });
 }
 
-function runPipeline(sourceText: string, fileName: string) {
+async function runPipeline(sourceText: string, fileName: string) {
   const hostSourceFile = parseHostSource(sourceText, fileName);
   const quotesRaw = extractQuotes(hostSourceFile);
   const parsed = parseFragments(quotesRaw);
   const codeBindings = buildCodeBindings(parsed.fragments);
-  const persistentBindings = buildPersistentBindings(hostSourceFile);
+  const staging = await evaluateStagingModule(hostSourceFile, quotesRaw);
   const bindings = summarizeBindings(parsed.fragments, codeBindings);
-  const expanded = expandFragments(parsed.fragments, codeBindings, persistentBindings);
-  const diagnostics = [...parsed.diagnostics, ...expanded.diagnostics];
+  const expanded = expandFragments(
+    parsed.fragments,
+    codeBindings,
+    staging.capturedValues,
+  );
+  const diagnostics = [
+    ...parsed.diagnostics,
+    ...staging.diagnostics,
+    ...expanded.diagnostics,
+  ];
   const outputText = diagnostics.length === 0 ? emitModule(expanded.values) : "";
 
   return {

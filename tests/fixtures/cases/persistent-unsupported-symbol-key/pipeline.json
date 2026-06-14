@@ -5,11 +5,11 @@
       "kind": "expr",
       "bindingName": "expr",
       "exported": true,
-      "source": "\n  (() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n  })()\n",
+      "source": "\n  __typestage_hole_0_0\n",
       "holes": [
         {
           "placeholder": "__typestage_hole_0_0",
-          "expression": "capture(\"x\")"
+          "expression": "runtimeValue"
         }
       ]
     }
@@ -17,9 +17,9 @@
   "fragments": [
     {
       "quoteId": 0,
-      "virtualSource": "const __typestage_fragment = (\n  (() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n  })()\n);\n",
+      "virtualSource": "const __typestage_fragment = (\n  __typestage_hole_0_0\n);\n",
       "nodes": [
-        "(\n  (() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n  })()\n)"
+        "(\n  __typestage_hole_0_0\n)"
       ]
     }
   ],
@@ -34,9 +34,7 @@
     "localBindingsByQuote": [
       {
         "quoteId": 0,
-        "names": [
-          "x"
-        ]
+        "names": []
       }
     ]
   },
@@ -44,15 +42,15 @@
     {
       "quoteId": 0,
       "kind": "expr",
-      "text": "(() => {\n    const x = 10;\n    return __typestage_hole_0_0 + 1;\n})()"
+      "text": "__typestage_hole_0_0"
     }
   ],
   "diagnostics": [
     {
       "code": "TSG1005",
-      "message": "persistent splice 'capture(\"x\")' is unsupported: function values cannot be persisted",
+      "message": "persistent splice 'runtimeValue' is unsupported: objects with symbol keys cannot be persisted",
       "origin": {
-        "sourceFile": "tests/fixtures/expected-fail/intentional-capture/input.ts",
+        "sourceFile": "tests/fixtures/cases/persistent-unsupported-symbol-key/input.ts",
         "start": 109,
         "end": 121
       }

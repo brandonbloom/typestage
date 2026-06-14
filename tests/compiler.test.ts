@@ -10,16 +10,16 @@ const expectedFailuresRoot = join(import.meta.dir, "fixtures", "expected-fail");
 
 describe("TypeStage fixture cases", () => {
   for (const caseName of fixtureCaseNames()) {
-    test(caseName, () => {
-      assertFixture(caseName);
+    test(caseName, async () => {
+      await assertFixture(caseName);
     });
   }
 });
 
 describe("TypeStage expected-failure fixtures", () => {
   for (const caseName of expectedFailureCaseNames()) {
-    test(caseName, () => {
-      assertExpectedFailureFixture(caseName);
+    test(caseName, async () => {
+      await assertExpectedFailureFixture(caseName);
     });
   }
 });
@@ -40,13 +40,13 @@ function caseNamesIn(root: string): string[] {
     .sort();
 }
 
-function assertFixture(caseName: string) {
+async function assertFixture(caseName: string) {
   const caseRoot = join(fixturesRoot, caseName);
   const sourcePath = join(caseRoot, "input.ts");
   const fixtureFileName = relative(process.cwd(), sourcePath);
   const sourceText = readFileSync(sourcePath, "utf8");
-  const result = compileSource(sourceText, fixtureFileName);
-  const pipeline = snapshotPipeline(sourceText, fixtureFileName);
+  const result = await compileSource(sourceText, fixtureFileName);
+  const pipeline = await snapshotPipeline(sourceText, fixtureFileName);
 
   assertGeneratedFiles(caseRoot, [
     ["output.ts", normalizeOutput(result.outputText)],
@@ -55,13 +55,13 @@ function assertFixture(caseName: string) {
   ]);
 }
 
-function assertExpectedFailureFixture(caseName: string) {
+async function assertExpectedFailureFixture(caseName: string) {
   const caseRoot = join(expectedFailuresRoot, caseName);
   const sourcePath = join(caseRoot, "input.ts");
   const fixtureFileName = relative(process.cwd(), sourcePath);
   const sourceText = readFileSync(sourcePath, "utf8");
-  const result = compileSource(sourceText, fixtureFileName);
-  const pipeline = snapshotPipeline(sourceText, fixtureFileName);
+  const result = await compileSource(sourceText, fixtureFileName);
+  const pipeline = await snapshotPipeline(sourceText, fixtureFileName);
   const actualFiles: Array<[fileName: string, actual: string]> = [
     ["output.ts", normalizeOutput(result.outputText)],
     ["diagnostics.txt", formatDiagnostics(sourceText, result.diagnostics)],
