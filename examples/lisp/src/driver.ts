@@ -53,7 +53,19 @@ export async function compileLispSourceToTypeScript(
   const compiled = compileLisp(source, options.globals ?? [], sourceFile);
 
   if (compiled.diagnostics.length > 0) {
-    const graph = graphWithLispDiagnostics(sourceFile, compiled.diagnostics);
+    const graph = await compileRuntimeModule([], {
+      diagnostics: compiled.diagnostics.map((diagnostic): Diagnostic => ({
+        code: diagnostic.code,
+        message: diagnostic.message,
+        origin: {
+          sourceFile,
+          start: diagnostic.span.start,
+          end: diagnostic.span.end,
+        },
+      })),
+      outputPath: "main.ts",
+      sourceFile: generatedSourceFile(sourceFile),
+    });
 
     return {graph};
   }
@@ -201,32 +213,6 @@ async function evaluateModule(
 
 function formatLogValue(value: unknown): string {
   return formatJsonValue(value);
-}
-
-function graphWithLispDiagnostics(
-  sourceFile: string,
-  diagnostics: Array<{code: string; message: string; span: {end: number; start: number}}>,
-): CompileGraphResult {
-  const graphDiagnostics: Diagnostic[] = diagnostics.map((diagnostic) => ({
-    code: diagnostic.code,
-    message: diagnostic.message,
-    origin: {
-      sourceFile,
-      start: diagnostic.span.start,
-      end: diagnostic.span.end,
-    },
-  }));
-
-  return {
-    diagnostics: graphDiagnostics,
-    files: [],
-    pipeline: {
-      modules: [],
-      expanded: [],
-      diagnostics: graphDiagnostics,
-      files: [],
-    },
-  };
 }
 
 function generatedSourceFile(sourceFile: string): string {

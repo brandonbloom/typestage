@@ -92,4 +92,20 @@ describe("compileRuntimeModule", () => {
       sourceFile: "source.lisp",
     });
   });
+
+  test("accepts external diagnostics as plain data", async () => {
+    const diagnostic = {
+      code: "LISP2015",
+      message: "'+' expects exactly two arguments",
+      origin: {end: 4, sourceFile: "bad.lisp", start: 0},
+    };
+    const result = await compileRuntimeModule(q.decls``, {
+      diagnostics: [diagnostic],
+      outputPath: "main.ts",
+    });
+
+    expect(result.files).toEqual([]);
+    expect(result.diagnostics).toEqual([diagnostic]);
+    expect(result.pipeline.diagnostics).toEqual([diagnostic]);
+  });
 });

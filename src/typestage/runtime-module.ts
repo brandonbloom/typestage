@@ -14,6 +14,7 @@ import type {
   CodeValue,
   CompileGraphPipeline,
   CompileGraphResult,
+  Diagnostic,
   Origin,
   OriginMap,
   ParsedFragment,
@@ -23,6 +24,7 @@ import type {
 } from "./types.ts";
 
 export type CompileRuntimeModuleOptions = {
+  diagnostics?: Diagnostic[];
   outputPath?: string;
   sourceFile?: string;
   sourceText?: string;
@@ -45,6 +47,23 @@ export async function compileRuntimeModule(
     : code;
   const outputPath = options.outputPath ?? "main.ts";
   const sourceFileName = options.sourceFile ?? "<runtime>";
+  const externalDiagnostics = options.diagnostics ?? [];
+
+  if (externalDiagnostics.length > 0) {
+    return {
+      diagnostics: externalDiagnostics,
+      files: [],
+      pipeline: runtimePipelineSnapshot(
+        outputPath,
+        sourceFileName,
+        [],
+        new Map(),
+        externalDiagnostics,
+        false,
+      ),
+    };
+  }
+
   const runtimeGraph = runtimeQuoteGraph(root, outputPath, sourceFileName);
   const semantic = createRuntimeSemanticContext(
     `${outputPath}.runtime.ts`,
