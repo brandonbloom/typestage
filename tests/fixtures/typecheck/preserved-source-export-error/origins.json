@@ -1,0 +1,13 @@
+[
+  {
+    "name": "preserved source declaration maps directly to source text",
+    "generated": {
+      "file": "helper.ts",
+      "text": "return"
+    },
+    "source": {
+      "file": "helper.ts",
+      "text": "return"
+    }
+  }
+]

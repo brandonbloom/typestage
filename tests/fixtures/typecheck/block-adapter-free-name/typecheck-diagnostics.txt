@@ -1,0 +1,1 @@
+tests/fixtures/typecheck/block-adapter-free-name/input/main.ts:5:19 TS2304: Cannot find name 'compute'.

@@ -1,0 +1,13 @@
+[
+  {
+    "name": "block-to-expression adapter preserves origin inside adapted block",
+    "generated": {
+      "file": "main.ts",
+      "text": "compute"
+    },
+    "source": {
+      "file": "main.ts",
+      "text": "compute"
+    }
+  }
+]

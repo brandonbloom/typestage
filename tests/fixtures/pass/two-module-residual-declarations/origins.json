@@ -1,0 +1,13 @@
+[
+  {
+    "name": "cross-module emitted declaration maps to its source module",
+    "generated": {
+      "file": "extra.ts",
+      "text": "extraValue"
+    },
+    "source": {
+      "file": "extra.ts",
+      "text": "extraValue"
+    }
+  }
+]

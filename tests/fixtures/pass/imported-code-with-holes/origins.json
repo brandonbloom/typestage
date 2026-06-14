@@ -1,0 +1,24 @@
+[
+  {
+    "name": "imported code token maps to defining module",
+    "generated": {
+      "file": "main.ts",
+      "text": "fn"
+    },
+    "source": {
+      "file": "parts.ts",
+      "text": "fn"
+    }
+  },
+  {
+    "name": "imported code hole token maps to caller module",
+    "generated": {
+      "file": "main.ts",
+      "text": "first"
+    },
+    "source": {
+      "file": "main.ts",
+      "text": "first"
+    }
+  }
+]

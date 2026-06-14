@@ -1,0 +1,24 @@
+[
+  {
+    "name": "explicit splice token keeps spliced code origin",
+    "generated": {
+      "file": "main.ts",
+      "text": "x + 1"
+    },
+    "source": {
+      "file": "main.ts",
+      "text": "x + 1"
+    }
+  },
+  {
+    "name": "token around explicit splice keeps containing quote origin",
+    "generated": {
+      "file": "main.ts",
+      "text": "scale"
+    },
+    "source": {
+      "file": "main.ts",
+      "text": "scale"
+    }
+  }
+]

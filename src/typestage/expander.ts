@@ -970,26 +970,26 @@ function adaptBlockToExpression(nodes: ts.Node[], origin: Origin): {
     };
   }
 
+  const block = ts.factory.createBlock(statements, true);
   const arrow = ts.factory.createArrowFunction(
     undefined,
     undefined,
     [],
     undefined,
     ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-    ts.factory.createBlock(statements, true),
+    block,
   );
+  const callee = ts.factory.createParenthesizedExpression(arrow);
+  const call = ts.factory.createCallExpression(callee, undefined, []);
+
+  setNodeOrigin(block, origin);
   setNodeOrigin(arrow, origin);
+  setNodeOrigin(callee, origin);
+  setNodeOrigin(call, origin);
 
   return {
     ok: true,
-    expression: setTreeOrigin(
-      ts.factory.createCallExpression(
-        ts.factory.createParenthesizedExpression(arrow),
-        undefined,
-        [],
-      ),
-      origin,
-    ),
+    expression: call,
   };
 }
 

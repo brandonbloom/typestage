@@ -35,30 +35,6 @@ describe("TypeStage typecheck fixtures", () => {
   }
 });
 
-describe("TypeStage source maps", () => {
-  test("generated declaration wrappers map to their quote origin", async () => {
-    const caseRoot = join(fixturesRoot, "aliased-import");
-    const sourcePath = entryPath(caseRoot);
-    const result = await compileFileGraph(sourcePath, {
-      sourceMaps: true,
-      sourceRoot: join(caseRoot, "input"),
-    });
-    const sourceMapText = result.files.find((file) => file.outputPath === "main.ts")
-      ?.sourceMapText;
-    const original = sourceMapText
-      ? originalPositionForGeneratedLocation(sourceMapText, 1, 1)
-      : undefined;
-    const sourceText = readFileSync(sourcePath, "utf8");
-    const quoteOffset = sourceText.lastIndexOf("quote.expr");
-    const quoteLocation = new LinesAndColumns(sourceText).locationForIndex(quoteOffset);
-
-    expect(original).toBeDefined();
-    expect(resolve(process.cwd(), original!.sourceFile)).toBe(resolve(sourcePath));
-    expect(original!.line).toBe((quoteLocation?.line ?? -1) + 1);
-    expect(original!.column).toBe((quoteLocation?.column ?? -1) + 1);
-  });
-});
-
 function fixtureCaseNames(): string[] {
   return caseNamesIn(fixturesRoot);
 }
