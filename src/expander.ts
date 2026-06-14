@@ -7,6 +7,7 @@ import type {
   FragmentKind,
   Origin,
   ParsedFragment,
+  PersistentBinding,
   QuoteCardinality,
   SpliceHole,
 } from "./types.ts";
@@ -26,6 +27,7 @@ type Replacement = ts.VisitResult<ts.Node> | {
 export function expandFragments(
   fragments: ParsedFragment[],
   codeBindings: Map<string, CodeValue>,
+  persistentBindings: Map<string, PersistentBinding> = new Map(),
 ): ExpansionResult {
   const values = new Map<number, CodeValue>();
   const diagnostics: Diagnostic[] = [];
@@ -60,6 +62,7 @@ export function expandFragments(
     const expanded = expandParsedFragment(
       value.parsed,
       codeBindings,
+      persistentBindings,
       values,
       expandValue,
       (candidate) => expanding.has(candidate.quote.id),
@@ -81,6 +84,7 @@ export function expandFragments(
 function expandParsedFragment(
   fragment: ParsedFragment,
   codeBindings: Map<string, CodeValue>,
+  persistentBindings: Map<string, PersistentBinding>,
   values: Map<number, CodeValue>,
   expandValue: (value: CodeValue) => CodeValue,
   isExpanding: (value: CodeValue) => boolean,
@@ -114,16 +118,53 @@ function expandParsedFragment(
   ): ts.Node[] | undefined => {
     const value = codeValueForExpression(hole.expression, codeBindings, values);
 
-    if (!value) {
+    if (value) {
+      return expandCodeValue(value, expected, expectedCardinality, hole.origin);
+    }
+
+    const persistent = persistentBindingForExpression(
+      hole.expression,
+      persistentBindings,
+    );
+
+    if (persistent) {
+      return expandPersistentBinding(persistent, expected, hole);
+    }
+
+    diagnostics.push({
+      code: "TSG1001",
+      message: `explicit splice '${hole.expression.getText()}' does not resolve to a TypeStage code value`,
+      origin: hole.origin,
+    });
+    return undefined;
+  };
+
+  const expandPersistentBinding = (
+    binding: PersistentBinding,
+    expected: FragmentKind,
+    hole: SpliceHole,
+  ): ts.Node[] | undefined => {
+    if (binding.persistence === "unsupported") {
       diagnostics.push({
-        code: "TSG1001",
-        message: `explicit splice '${hole.expression.getText()}' does not resolve to a TypeStage code value`,
+        code: "TSG1005",
+        message: `persistent splice '${hole.expression.getText()}' has unsupported initializer syntax`,
         origin: hole.origin,
       });
       return undefined;
     }
 
-    return expandCodeValue(value, expected, expectedCardinality, hole.origin);
+    if (expected !== "expr") {
+      diagnostics.push({
+        code: "TSG1002",
+        message: `cannot splice persistent value '${hole.expression.getText()}' into ${expected} position`,
+        origin: hole.origin,
+      });
+      return undefined;
+    }
+
+    return hygienicReplacementNodes([
+      cloneExpression(binding.initializer),
+    ]);
   };
 
   const expandCodeValue = (
@@ -380,6 +421,15 @@ function codeValueForExpression(
   }
 
   return undefined;
+}
+
+function persistentBindingForExpression(
+  expression: ts.Expression,
+  persistentBindings: Map<string, PersistentBinding>,
+): PersistentBinding | undefined {
+  return ts.isIdentifier(expression)
+    ? persistentBindings.get(expression.text)
+    : undefined;
 }
 
 function captureAvoidanceRenames(
@@ -1033,6 +1083,12 @@ function isCompletedReplacement(
       typeof value === "object" &&
       "skipChildren" in value,
   );
+}
+
+function cloneExpression(expression: ts.Expression): ts.Expression {
+  const cloned = synthesizeNode(expression);
+
+  return ts.isExpression(cloned) ? cloned : expression;
 }
 
 function synthesizeNode(node: ts.Node): ts.Node {

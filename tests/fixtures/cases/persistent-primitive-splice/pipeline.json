@@ -42,19 +42,9 @@
     {
       "quoteId": 0,
       "kind": "expr",
-      "text": "__typestage_hole_0_0 + 1"
+      "text": "42 + 1"
     }
   ],
-  "diagnostics": [
-    {
-      "code": "TSG1001",
-      "message": "explicit splice 'runtimeValue' does not resolve to a TypeStage code value",
-      "origin": {
-        "sourceFile": "tests/fixtures/expected-fail/persistent-primitive-splice/input.ts",
-        "start": 88,
-        "end": 100
-      }
-    }
-  ],
-  "outputText": ""
+  "diagnostics": [],
+  "outputText": "export const expr = (42 + 1);"
 }

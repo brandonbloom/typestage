@@ -3,6 +3,7 @@ import * as ts from "typescript";
 import {printExpressionList, printNode, printNodes} from "./ast-print.ts";
 import {
   buildCodeBindings,
+  buildPersistentBindings,
   summarizeBindings,
   type BindingSummary,
 } from "./binder.ts";
@@ -108,8 +109,9 @@ function runPipeline(sourceText: string, fileName: string) {
   const quotesRaw = extractQuotes(hostSourceFile);
   const parsed = parseFragments(quotesRaw);
   const codeBindings = buildCodeBindings(parsed.fragments);
+  const persistentBindings = buildPersistentBindings(hostSourceFile);
   const bindings = summarizeBindings(parsed.fragments, codeBindings);
-  const expanded = expandFragments(parsed.fragments, codeBindings);
+  const expanded = expandFragments(parsed.fragments, codeBindings, persistentBindings);
   const diagnostics = [...parsed.diagnostics, ...expanded.diagnostics];
   const outputText = diagnostics.length === 0 ? emitModule(expanded.values) : "";
 

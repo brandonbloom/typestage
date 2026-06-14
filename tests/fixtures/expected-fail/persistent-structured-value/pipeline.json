@@ -47,8 +47,8 @@
   ],
   "diagnostics": [
     {
-      "code": "TSG1001",
-      "message": "explicit splice 'settings' does not resolve to a TypeStage code value",
+      "code": "TSG1005",
+      "message": "persistent splice 'settings' has unsupported initializer syntax",
       "origin": {
         "sourceFile": "tests/fixtures/expected-fail/persistent-structured-value/input.ts",
         "start": 228,
