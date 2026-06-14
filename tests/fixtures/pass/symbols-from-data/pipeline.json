@@ -1,0 +1,82 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/symbols-from-data/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "ident",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "expr",
+          "exported": false
+        },
+        {
+          "id": 2,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "decl",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "decl",
+            "kind": "decl",
+            "quoteId": 2
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": []
+          },
+          {
+            "quoteId": 1,
+            "names": []
+          },
+          {
+            "quoteId": 2,
+            "names": [
+              "__typestage_hole_2_0",
+              "packFields"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "ident",
+      "text": "email"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
+      "kind": "expr",
+      "text": "email.trim()"
+    },
+    {
+      "quoteId": 2,
+      "moduleId": "main.ts",
+      "kind": "decl",
+      "text": "export function packFields(id: string, name: string, email: string) {\n    return pack(id.trim(), name.trim(), email.trim());\n}"
+    }
+  ],
+  "diagnostics": [],
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/symbols-from-data/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
+}

@@ -75,6 +75,7 @@ export function expandFragments(
       value.parsed,
       bindingResolver(value.parsed),
       capturedValues,
+      value.runtimeValues,
       values,
       expandValue,
       (candidate) => expanding.has(candidate.quote.id),
@@ -97,6 +98,7 @@ function expandParsedFragment(
   fragment: ParsedFragment,
   codeBindings: Map<string, CodeValue>,
   capturedValues: Map<number, unknown[]>,
+  runtimeValues: unknown[] | undefined,
   values: Map<number, CodeValue>,
   expandValue: (value: CodeValue) => CodeValue,
   isExpanding: (value: CodeValue) => boolean,
@@ -135,7 +137,12 @@ function expandParsedFragment(
       return expandCodeValue(value, expected, expectedCardinality, hole.origin);
     }
 
-    const captured = capturedValueForHole(fragment, hole, capturedValues);
+    const captured = capturedValueForHole(
+      fragment,
+      hole,
+      capturedValues,
+      runtimeValues,
+    );
 
     if (captured.found) {
       return expandCapturedValue(
@@ -175,6 +182,15 @@ function expandParsedFragment(
       return undefined;
     }
 
+    if (Array.isArray(value) && value.every(isRuntimeCode)) {
+      return expandRuntimeCodeArray(
+        value,
+        expected,
+        expectedCardinality,
+        hole,
+      );
+    }
+
     if (expected !== "expr") {
       diagnostics.push({
         code: "TSG1002",
@@ -198,6 +214,89 @@ function expandParsedFragment(
     return hygienicReplacementNodes([setTreeOrigin(persisted.expression, hole.origin)]);
   };
 
+  const expandCapturedIdentifier = (
+    hole: SpliceHole,
+  ): ts.Identifier | undefined => {
+    const captured = capturedValueForHole(
+      fragment,
+      hole,
+      capturedValues,
+      runtimeValues,
+    );
+
+    if (!captured.found) {
+      return undefined;
+    }
+
+    if (typeof captured.value !== "string") {
+      diagnostics.push({
+        code: "TSG1002",
+        message: `cannot splice persistent value '${hole.expression.getText()}' into ident position`,
+        origin: hole.origin,
+      });
+      return undefined;
+    }
+
+    if (!isValidIdentifierText(captured.value)) {
+      diagnostics.push({
+        code: "TSG1002",
+        message: `persistent splice '${hole.expression.getText()}' is not a valid identifier`,
+        origin: hole.origin,
+      });
+      return undefined;
+    }
+
+    return setTreeOrigin(
+      ts.factory.createIdentifier(captured.value),
+      hole.origin,
+    );
+  };
+
+  const expandRuntimeCodeArray = (
+    runtimeCodes: RuntimeCode[],
+    expected: FragmentKind,
+    expectedCardinality: QuoteCardinality,
+    hole: SpliceHole,
+  ): ts.Node[] | undefined => {
+    const replacements: ts.Node[] = [];
+
+    for (const runtimeCode of runtimeCodes) {
+      const codeValue = codeValueForRuntimeCode(runtimeCode, values);
+
+      if (!codeValue) {
+        diagnostics.push({
+          code: "TSG1001",
+          message: `runtime code splice '${hole.expression.getText()}' does not resolve to a static TypeStage quote`,
+          origin: hole.origin,
+        });
+        return undefined;
+      }
+
+      const expanded = expandCodeValue(codeValue, expected, "one", hole.origin);
+
+      if (!expanded) {
+        return undefined;
+      }
+
+      replacements.push(...expanded);
+    }
+
+    if (expectedCardinality === "many") {
+      return replacements;
+    }
+
+    if (replacements.length === 1) {
+      return replacements;
+    }
+
+    diagnostics.push({
+      code: "TSG1002",
+      message: `cannot splice ${replacements.length} ${expected} nodes into ${expected} position`,
+      origin: hole.origin,
+    });
+    return undefined;
+  };
+
   const codeValuesForSplice = (hole: SpliceHole): CodeValue[] | undefined => {
     const value = codeValueForExpression(hole.expression, codeBindings, values);
 
@@ -205,7 +304,12 @@ function expandParsedFragment(
       return [value];
     }
 
-    const captured = capturedValueForHole(fragment, hole, capturedValues);
+    const captured = capturedValueForHole(
+      fragment,
+      hole,
+      capturedValues,
+      runtimeValues,
+    );
 
     if (!captured.found) {
       return undefined;
@@ -517,6 +621,14 @@ function expandParsedFragment(
           const hole = holes.get(candidate.text);
 
           if (hole) {
+            if (fragment.quote.kind === "ident") {
+              const replacement = expandCapturedIdentifier(hole);
+
+              return replacement
+                ? completedReplacement(replacement)
+                : candidate;
+            }
+
             if (isExpressionListPosition(candidate)) {
               const replacements = expandSpliceExpression(hole, "expr", "many");
 
@@ -603,13 +715,14 @@ function capturedValueForHole(
   fragment: ParsedFragment,
   hole: SpliceHole,
   capturedValues: Map<number, unknown[]>,
+  runtimeValues: unknown[] | undefined,
 ): {
   found: true;
   value: unknown;
 } | {
   found: false;
 } {
-  const values = capturedValues.get(fragment.quote.id);
+  const values = runtimeValues ?? capturedValues.get(fragment.quote.id);
 
   return values && hole.index < values.length
     ? {found: true, value: values[hole.index]}
@@ -620,7 +733,17 @@ function codeValueForRuntimeCode(
   value: RuntimeCode,
   values: Map<number, CodeValue>,
 ): CodeValue | undefined {
-  return value.quoteId === undefined ? undefined : values.get(value.quoteId);
+  const codeValue = value.quoteId === undefined ? undefined : values.get(value.quoteId);
+
+  return codeValue
+    ? {
+      cardinality: codeValue.cardinality,
+      kind: codeValue.kind,
+      parsed: codeValue.parsed,
+      quote: codeValue.quote,
+      runtimeValues: value.values,
+    }
+    : undefined;
 }
 
 function captureAvoidanceRenames(
@@ -1196,6 +1319,40 @@ function parenthesizeIfNeeded(expression: ts.Expression): ts.Expression {
   }
 
   return ts.factory.createParenthesizedExpression(expression);
+}
+
+function isValidIdentifierText(text: string): boolean {
+  if (text.length === 0 || text.trim() !== text) {
+    return false;
+  }
+
+  const sourceFile = ts.createSourceFile(
+    "__typestage_identifier__.ts",
+    `let ${text};`,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const statement = sourceFile.statements[0];
+  const parseDiagnostics =
+    (sourceFile as ts.SourceFile & {parseDiagnostics?: unknown[]})
+      .parseDiagnostics ?? [];
+
+  if (
+    parseDiagnostics.length > 0 ||
+    !statement ||
+    !ts.isVariableStatement(statement)
+  ) {
+    return false;
+  }
+
+  const declaration = statement.declarationList.declarations[0];
+
+  return Boolean(
+    declaration &&
+      ts.isIdentifier(declaration.name) &&
+      declaration.name.text === text,
+  );
 }
 
 function isReferenceIdentifier(node: ts.Identifier): boolean {

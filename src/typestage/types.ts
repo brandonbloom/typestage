@@ -86,6 +86,8 @@ export type CodeValue = {
   quote: QuoteForm;
   parsed: ParsedFragment;
   expandedNodes?: ts.Node[];
+  /** Interpolation values captured by a particular runtime quote invocation. */
+  runtimeValues?: unknown[];
 };
 
 /** One residual TypeScript module emitted by graph compilation. */
