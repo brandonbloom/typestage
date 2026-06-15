@@ -4,12 +4,12 @@
  * RuntimeCode values and do not need a staging TypeScript file as a bridge.
  */
 import * as ts from "typescript";
+import {printStatements} from "./ast-print.ts";
 import {
   bindCompileUnits,
   compileUnitPipelineSnapshot,
   expandCompileUnits,
   parseDiagnosticsForCompileUnits,
-  type CompileUnitModule,
 } from "./compile-unit.ts";
 import {moduleStatementsForValue} from "./emitter.ts";
 import {parseFragments} from "./fragments.ts";
@@ -22,7 +22,6 @@ import type {
   Diagnostic,
   Origin,
   OriginMap,
-  ParsedFragment,
   QuoteForm,
   SpliceHole,
   TemplatePart,
@@ -37,11 +36,6 @@ export type CompileRuntimeModuleOptions = {
   sourceMaps?: boolean;
 };
 
-const printer = ts.createPrinter({
-  newLine: ts.NewLineKind.LineFeed,
-  removeComments: false,
-});
-
 /** Compiles an already-created runtime code fragment as one residual module. */
 export async function compileRuntimeModule(
   code: RuntimeCode | RuntimeCode[],
@@ -55,14 +49,18 @@ export async function compileRuntimeModule(
   const externalDiagnostics = options.diagnostics ?? [];
 
   if (externalDiagnostics.length > 0) {
-    const modules = [runtimeCompileUnitModule({
+    const modules = [{
+      inputPath: sourceFileName,
       outputPath,
-      sourceFileName,
       sourceText: options.sourceText ?? "",
+      sourceFile: runtimeSourceFile(sourceFileName, options.sourceText ?? ""),
       quotes: [],
       fragments: [],
       parseDiagnostics: [],
-    })];
+      imports: [],
+      residualImports: new Map(),
+      reexports: [],
+    }];
     const bindingState = bindCompileUnits(modules);
 
     return {
@@ -84,14 +82,18 @@ export async function compileRuntimeModule(
     "q.expr``;",
   );
   const parsed = parseFragments(runtimeGraph.quotes);
-  const modules = [runtimeCompileUnitModule({
+  const modules = [{
+    inputPath: sourceFileName,
     outputPath,
-    sourceFileName,
     sourceText: runtimeGraph.sourceText,
+    sourceFile: runtimeSourceFile(sourceFileName, runtimeGraph.sourceText),
     quotes: runtimeGraph.quotes,
     fragments: parsed.fragments,
     parseDiagnostics: parsed.diagnostics,
-  })];
+    imports: [],
+    residualImports: new Map(),
+    reexports: [],
+  }];
   const bindingState = bindCompileUnits(modules);
   const parseDiagnostics = parseDiagnosticsForCompileUnits(modules);
   const expanded = parseDiagnostics.length === 0
@@ -207,33 +209,14 @@ function runtimeQuoteGraph(
   };
 }
 
-function runtimeCompileUnitModule(options: {
-  outputPath: string;
-  sourceFileName: string;
-  sourceText: string;
-  quotes: QuoteForm[];
-  fragments: ParsedFragment[];
-  parseDiagnostics: Diagnostic[];
-}): CompileUnitModule {
-  return {
-    inputPath: options.sourceFileName,
-    outputPath: options.outputPath,
-    sourceText: options.sourceText,
-    sourceFile: ts.createSourceFile(
-      options.sourceFileName,
-      options.sourceText,
-      ts.ScriptTarget.Latest,
-      true,
-      ts.ScriptKind.TS,
-    ),
-    quotes: options.quotes,
-    fragments: options.fragments,
-    parseDiagnostics: options.parseDiagnostics,
-    localCodeBindings: new Map(),
-    imports: [],
-    residualImports: new Map(),
-    reexports: [],
-  };
+function runtimeSourceFile(sourceFileName: string, sourceText: string): ts.SourceFile {
+  return ts.createSourceFile(
+    sourceFileName,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
 }
 
 function runtimeQuoteSource(code: RuntimeCode, quoteId: number): string {
@@ -412,18 +395,4 @@ function runtimeModuleFile(
     sourceMapText: sourceMaps ? sourceMapped.sourceMapText : undefined,
     outputText: sourceMaps ? sourceMapped.outputText : text,
   };
-}
-
-function printStatements(statements: ts.Statement[]): string {
-  if (statements.length === 0) {
-    return "";
-  }
-
-  const sourceFile = ts.factory.createSourceFile(
-    statements,
-    ts.factory.createToken(ts.SyntaxKind.EndOfFileToken),
-    ts.NodeFlags.None,
-  );
-
-  return `${printer.printFile(sourceFile).trimEnd()}\n`;
 }

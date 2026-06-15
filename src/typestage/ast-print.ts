@@ -21,6 +21,11 @@ export function printNodes(nodes: readonly ts.Node[]): string {
   return printer.printFile(sourceFile).trimEnd();
 }
 
+/** Prints a list of TypeScript statements as a source file body with newline. */
+export function printStatements(statements: readonly ts.Statement[]): string {
+  return statements.length === 0 ? "" : `${printNodes(statements)}\n`;
+}
+
 /** Prints a TypeScript expression node without adding a trailing semicolon. */
 export function printExpression(expression: ts.Expression): string {
   const statement = ts.factory.createExpressionStatement(expression);

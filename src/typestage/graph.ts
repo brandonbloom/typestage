@@ -5,6 +5,7 @@
  * re-exports, then emits one residual file per source module.
  */
 import * as ts from "typescript";
+import {printStatements} from "./ast-print.ts";
 import {
   localModuleNotResolved,
 } from "./diagnostics/index.ts";
@@ -91,6 +92,15 @@ type GeneratedStatementGroup = {
   statements: ts.Statement[];
 };
 
+type GraphOutputPlan = {
+  capturedImportStatements: ts.ImportDeclaration[];
+  exportStatements: ts.ExportDeclaration[];
+  generatedGroups: GeneratedStatementGroup[];
+  importStatements: ts.ImportDeclaration[];
+  module: GraphModule;
+  sourceStatements: ts.Statement[];
+};
+
 const printer = ts.createPrinter({
   newLine: ts.NewLineKind.LineFeed,
   removeComments: false,
@@ -146,6 +156,7 @@ export async function compileGraph(
 
   const {
     exportedBindings,
+    localCodeBindingsByModule,
     localValues,
     visibleBindingsByModule,
   } = bindCompileUnits(modules);
@@ -200,9 +211,11 @@ export async function compileGraph(
     ...expanded.diagnostics,
   ];
   const files = diagnostics.length === 0
-    ? emitGraphFiles(modules, expanded.values, exportedBindings, {
+    ? emitGraphFiles(modules, expanded.values, {
         currentDirectory: options.currentDirectory,
+        exportedBindings,
         host,
+        localCodeBindingsByModule,
         sourceMaps: options.sourceMaps,
       })
     : [];
@@ -253,12 +266,21 @@ class GraphBuilder {
 
       normalizeQuoteOrigins(quotes, relativePath(this.currentDirectory, module.inputPath));
       const parsed = parseFragments(quotes);
-      module.sourceText = sourceFile.getFullText();
-      module.sourceFile = sourceFile;
-      module.quotes = quotes;
-      module.fragments = parsed.fragments;
-      module.parseDiagnostics = parsed.diagnostics;
-      module.localCodeBindings = new Map();
+      this.modules.set(
+        module.inputPath,
+        {
+          inputPath: module.inputPath,
+          outputPath: module.outputPath,
+          sourceText: sourceFile.getFullText(),
+          sourceFile,
+          quotes,
+          fragments: parsed.fragments,
+          parseDiagnostics: parsed.diagnostics,
+          imports: module.imports,
+          residualImports: module.residualImports,
+          reexports: module.reexports,
+        },
+      );
     }
 
     return Array.from(this.modules.values())
@@ -308,7 +330,6 @@ class GraphBuilder {
       quotes,
       fragments: parsed.fragments,
       parseDiagnostics: parsed.diagnostics,
-      localCodeBindings: new Map(),
       imports: [],
       residualImports: new Map(),
       reexports: [],
@@ -422,18 +443,35 @@ function assignGraphQuoteIds(modules: GraphModule[]) {
 function emitGraphFiles(
   modules: GraphModule[],
   values: Map<number, CodeValue>,
-  exportedBindings: Map<string, Map<string, CodeValue>>,
   options: {
     currentDirectory: string;
+    exportedBindings: Map<string, Map<string, CodeValue>>;
     host: GraphSourceHost;
+    localCodeBindingsByModule: Map<string, Map<string, CodeValue>>;
     sourceMaps?: boolean;
   },
 ): CompileGraphFile[] {
+  const plans = planGraphOutput(modules, values, {
+    exportedBindings: options.exportedBindings,
+    localCodeBindingsByModule: options.localCodeBindingsByModule,
+  });
+
+  return plans.map((plan) => emitGraphOutputPlan(plan, modules, options));
+}
+
+function planGraphOutput(
+  modules: GraphModule[],
+  values: Map<number, CodeValue>,
+  options: {
+    exportedBindings: Map<string, Map<string, CodeValue>>;
+    localCodeBindingsByModule: Map<string, Map<string, CodeValue>>;
+  },
+): GraphOutputPlan[] {
   const generatedGroupsByPath = new Map<string, GeneratedStatementGroup[]>();
   const generatedStatementsByPath = new Map<string, ts.Statement[]>();
 
   for (const module of modules) {
-    const exportedValues = new Set(exportedBindings.get(module.inputPath)?.values() ?? []);
+    const exportedValues = new Set(options.exportedBindings.get(module.inputPath)?.values() ?? []);
     const generatedGroups = Array.from(exportedValues)
       .filter((value) => value.quote.moduleId === module.outputPath)
       .map((value) => values.get(value.quote.id) ?? value)
@@ -452,6 +490,7 @@ function emitGraphFiles(
   const residualDemandByPath = collectResidualSourceDemands(
     modules,
     generatedGroupsByPath,
+    options.localCodeBindingsByModule,
   );
 
   return modules.map((module) => {
@@ -460,6 +499,7 @@ function emitGraphFiles(
     const sourceStatements = residualSourceStatements(
       module,
       residualDemandByPath.get(module.inputPath),
+      options.localCodeBindingsByModule,
     );
     const usedIdentifiers = referenceIdentifiers([
       ...sourceStatements,
@@ -476,59 +516,76 @@ function emitGraphFiles(
     const exportStatements = module.sourceFile.statements
       .filter(ts.isExportDeclaration)
       .map(clonedExportDeclaration);
-    const blocks: SourceMapBlock[] = [
-      {
-        statements: [
-          ...importStatements,
-          ...capturedImportStatements,
-          ...exportStatements,
-        ],
-        text: printStatements([
-          ...importStatements,
-          ...capturedImportStatements,
-          ...exportStatements,
-        ]),
-      },
-      {
-        sourceFile: module.sourceFile,
-        statements: sourceStatements,
-        text: options.sourceMaps
-          ? printOriginalSourceStatements(sourceStatements, module.sourceFile)
-          : printSourceStatements(sourceStatements, module.sourceFile),
-      },
-      ...generatedGroups.map((group) => ({
-        origin: group.origin,
-        statements: group.statements,
-        text: printStatements(group.statements),
-      })),
-    ];
-    const sourceMapped = createSourceMappedOutput(
-      module.outputPath,
-      blocks,
-      (sourceFile) => sourceTextForFile(
-        sourceFile,
-        modules,
-        options.host,
-        options.currentDirectory,
-      ),
-      {
-        sourceFileName: (sourceFile) =>
-          sourceMapSourceFileName(sourceFile, options.currentDirectory),
-      },
-    );
-    const sourceMapPath = `${module.outputPath}.map`;
-    const outputText = options.sourceMaps
-      ? `${sourceMapped.outputText}//# sourceMappingURL=${basenamePath(sourceMapPath)}\n`
-      : sourceMapped.outputText;
 
     return {
-      inputPath: relativePath(options.currentDirectory, module.inputPath),
-      outputPath: module.outputPath,
-      sourceMapPath: options.sourceMaps ? sourceMapPath : undefined,
-      sourceMapText: options.sourceMaps ? sourceMapped.sourceMapText : undefined,
-      outputText,
+      capturedImportStatements,
+      exportStatements,
+      generatedGroups,
+      importStatements,
+      module,
+      sourceStatements,
     };
   });
+}
+
+function emitGraphOutputPlan(
+  plan: GraphOutputPlan,
+  modules: GraphModule[],
+  options: {
+    currentDirectory: string;
+    host: GraphSourceHost;
+    sourceMaps?: boolean;
+  },
+): CompileGraphFile {
+  const headerStatements = [
+    ...plan.importStatements,
+    ...plan.capturedImportStatements,
+    ...plan.exportStatements,
+  ];
+  const blocks: SourceMapBlock[] = [
+    {
+      statements: headerStatements,
+      text: printStatements(headerStatements),
+    },
+    {
+      sourceFile: plan.module.sourceFile,
+      statements: plan.sourceStatements,
+      text: options.sourceMaps
+        ? printOriginalSourceStatements(plan.sourceStatements, plan.module.sourceFile)
+        : printSourceStatements(plan.sourceStatements, plan.module.sourceFile),
+    },
+    ...plan.generatedGroups.map((group) => ({
+      origin: group.origin,
+      statements: group.statements,
+      text: printStatements(group.statements),
+    })),
+  ];
+  const sourceMapped = createSourceMappedOutput(
+    plan.module.outputPath,
+    blocks,
+    (sourceFile) => sourceTextForFile(
+      sourceFile,
+      modules,
+      options.host,
+      options.currentDirectory,
+    ),
+    {
+      sourceFileName: (sourceFile) =>
+        sourceMapSourceFileName(sourceFile, options.currentDirectory),
+    },
+  );
+  const sourceMapPath = `${plan.module.outputPath}.map`;
+  const outputText = options.sourceMaps
+    ? `${sourceMapped.outputText}//# sourceMappingURL=${basenamePath(sourceMapPath)}\n`
+    : sourceMapped.outputText;
+
+  return {
+    inputPath: relativePath(options.currentDirectory, plan.module.inputPath),
+    outputPath: plan.module.outputPath,
+    sourceMapPath: options.sourceMaps ? sourceMapPath : undefined,
+    sourceMapText: options.sourceMaps ? sourceMapped.sourceMapText : undefined,
+    outputText,
+  };
 }
 
 function sourceTextForFile(
@@ -562,6 +619,7 @@ function sourceMapSourceFileName(sourceFile: string, currentDirectory: string): 
 function collectResidualSourceDemands(
   modules: GraphModule[],
   generatedGroupsByPath: Map<string, GeneratedStatementGroup[]>,
+  localCodeBindingsByModule: Map<string, Map<string, CodeValue>>,
 ): Map<string, Set<string>> {
   const demandByPath = new Map<string, Set<string>>();
   let changed = true;
@@ -573,6 +631,7 @@ function collectResidualSourceDemands(
       const sourceStatements = residualSourceStatements(
         module,
         demandByPath.get(module.inputPath),
+        localCodeBindingsByModule,
       );
       const usedIdentifiers = referenceIdentifiers([
         ...sourceStatements,
@@ -622,14 +681,18 @@ function collectResidualSourceDemands(
 function residualSourceStatements(
   module: GraphModule,
   demandedNames: Set<string> | undefined,
+  localCodeBindingsByModule: Map<string, Map<string, CodeValue>>,
 ): ts.Statement[] {
   if (!demandedNames || demandedNames.size === 0) {
     return [];
   }
 
+  const localCodeBindings = localCodeBindingsByModule.get(module.inputPath) ??
+    new Map();
+
   return module.sourceFile.statements.filter((statement) =>
     exportedStatementNames(statement).some((name) =>
-      demandedNames.has(name) && !module.localCodeBindings.has(name)
+      demandedNames.has(name) && !localCodeBindings.has(name)
     )
   );
 }
@@ -868,20 +931,6 @@ function filteredNamedBindings(
   return elements.length > 0
     ? ts.factory.updateNamedImports(bindings, elements)
     : undefined;
-}
-
-function printStatements(statements: ts.Statement[]): string {
-  if (statements.length === 0) {
-    return "";
-  }
-
-  const sourceFile = ts.factory.createSourceFile(
-    statements,
-    ts.factory.createToken(ts.SyntaxKind.EndOfFileToken),
-    ts.NodeFlags.None,
-  );
-
-  return `${printer.printFile(sourceFile).trimEnd()}\n`;
 }
 
 function printSourceStatements(

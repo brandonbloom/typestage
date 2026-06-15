@@ -29,7 +29,6 @@ export type CompileUnitModule = {
   quotes: QuoteForm[];
   fragments: ParsedFragment[];
   parseDiagnostics: Diagnostic[];
-  localCodeBindings: Map<string, CodeValue>;
   imports: CompileUnitImport[];
   residualImports: Map<string, ResidualImport>;
   reexports: CompileUnitReexport[];
@@ -51,6 +50,7 @@ export type CompileUnitReexport = {
 
 export type CompileUnitBindingState = {
   exportedBindings: Map<string, Map<string, CodeValue>>;
+  localCodeBindingsByModule: Map<string, Map<string, CodeValue>>;
   localValues: Map<number, CodeValue>;
   visibleBindingsByModule: Map<string, Map<string, CodeValue>>;
 };
@@ -58,20 +58,32 @@ export type CompileUnitBindingState = {
 export function bindCompileUnits(
   modules: CompileUnitModule[],
 ): CompileUnitBindingState {
+  const localCodeBindingsByModule = new Map<string, Map<string, CodeValue>>();
   const localValues = new Map<number, CodeValue>();
 
   for (const module of modules) {
-    module.localCodeBindings = buildCodeBindings(module.fragments);
+    const localCodeBindings = buildCodeBindings(module.fragments);
 
-    for (const value of module.localCodeBindings.values()) {
+    localCodeBindingsByModule.set(module.inputPath, localCodeBindings);
+
+    for (const value of localCodeBindings.values()) {
       localValues.set(value.quote.id, value);
     }
   }
 
-  const exportedBindings = buildExportBindings(modules);
-  const visibleBindingsByModule = buildVisibleBindings(modules, exportedBindings);
+  const exportedBindings = buildExportBindings(modules, localCodeBindingsByModule);
+  const visibleBindingsByModule = buildVisibleBindings(
+    modules,
+    localCodeBindingsByModule,
+    exportedBindings,
+  );
 
-  return {exportedBindings, localValues, visibleBindingsByModule};
+  return {
+    exportedBindings,
+    localCodeBindingsByModule,
+    localValues,
+    visibleBindingsByModule,
+  };
 }
 
 export function parseDiagnosticsForCompileUnits(
@@ -198,6 +210,7 @@ export function relativeCompileUnitInputPath(currentDirectory: string) {
 
 function buildExportBindings(
   modules: CompileUnitModule[],
+  localCodeBindingsByModule: Map<string, Map<string, CodeValue>>,
 ): Map<string, Map<string, CodeValue>> {
   const byPath = new Map(modules.map((module) => [module.inputPath, module]));
   const cache = new Map<string, Map<string, CodeValue>>();
@@ -213,7 +226,10 @@ function buildExportBindings(
 
     cache.set(module.inputPath, exported);
 
-    for (const value of module.localCodeBindings.values()) {
+    const localCodeBindings = localCodeBindingsByModule.get(module.inputPath) ??
+      new Map();
+
+    for (const value of localCodeBindings.values()) {
       if (value.quote.exported && value.quote.bindingName) {
         exported.set(value.quote.bindingName, value);
       }
@@ -221,7 +237,7 @@ function buildExportBindings(
 
     for (const reexport of module.reexports) {
       if (reexport.local) {
-        const value = module.localCodeBindings.get(reexport.local);
+        const value = localCodeBindings.get(reexport.local);
 
         if (value) {
           exported.set(reexport.exported, value);
@@ -244,12 +260,13 @@ function buildExportBindings(
 
 function buildVisibleBindings(
   modules: CompileUnitModule[],
+  localCodeBindingsByModule: Map<string, Map<string, CodeValue>>,
   exportedBindings: Map<string, Map<string, CodeValue>>,
 ): Map<string, Map<string, CodeValue>> {
   const visible = new Map<string, Map<string, CodeValue>>();
 
   for (const module of modules) {
-    const bindings = new Map(module.localCodeBindings);
+    const bindings = new Map(localCodeBindingsByModule.get(module.inputPath));
 
     for (const imported of module.imports) {
       const value = exportedBindings.get(imported.targetPath)?.get(imported.imported);
