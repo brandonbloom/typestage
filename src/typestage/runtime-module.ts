@@ -4,15 +4,20 @@
  * RuntimeCode values and do not need a staging TypeScript file as a bridge.
  */
 import * as ts from "typescript";
-import {moduleStatementsForValue, printCodeValue} from "./emitter.ts";
-import {expandFragments} from "./expander.ts";
+import {
+  bindCompileUnits,
+  compileUnitPipelineSnapshot,
+  expandCompileUnits,
+  parseDiagnosticsForCompileUnits,
+  type CompileUnitModule,
+} from "./compile-unit.ts";
+import {moduleStatementsForValue} from "./emitter.ts";
 import {parseFragments} from "./fragments.ts";
-import {createRuntimeSemanticContext, type SemanticContext} from "./semantic.ts";
+import {createRuntimeSemanticContext} from "./semantic.ts";
 import {createSourceMappedOutput, type SourceMapBlock} from "./source-map.ts";
 import {isRuntimeCode, type RuntimeCode} from "./runtime.ts";
 import type {
   CodeValue,
-  CompileGraphPipeline,
   CompileGraphResult,
   Diagnostic,
   Origin,
@@ -50,17 +55,26 @@ export async function compileRuntimeModule(
   const externalDiagnostics = options.diagnostics ?? [];
 
   if (externalDiagnostics.length > 0) {
+    const modules = [runtimeCompileUnitModule({
+      outputPath,
+      sourceFileName,
+      sourceText: options.sourceText ?? "",
+      quotes: [],
+      fragments: [],
+      parseDiagnostics: [],
+    })];
+    const bindingState = bindCompileUnits(modules);
+
     return {
       diagnostics: externalDiagnostics,
       files: [],
-      pipeline: runtimePipelineSnapshot(
-        outputPath,
-        sourceFileName,
-        [],
-        new Map(),
-        externalDiagnostics,
-        false,
-      ),
+      pipeline: compileUnitPipelineSnapshot({
+        diagnostics: externalDiagnostics,
+        files: [],
+        modules,
+        values: bindingState.localValues,
+        visibleBindingsByModule: bindingState.visibleBindingsByModule,
+      }),
     };
   }
 
@@ -70,16 +84,27 @@ export async function compileRuntimeModule(
     "q.expr``;",
   );
   const parsed = parseFragments(runtimeGraph.quotes);
-  const parseDiagnostics = parsed.diagnostics;
+  const modules = [runtimeCompileUnitModule({
+    outputPath,
+    sourceFileName,
+    sourceText: runtimeGraph.sourceText,
+    quotes: runtimeGraph.quotes,
+    fragments: parsed.fragments,
+    parseDiagnostics: parsed.diagnostics,
+  })];
+  const bindingState = bindCompileUnits(modules);
+  const parseDiagnostics = parseDiagnosticsForCompileUnits(modules);
   const expanded = parseDiagnostics.length === 0
-    ? expandRuntimeFragments(
-        parsed.fragments,
+    ? expandCompileUnits(
+        modules,
+        bindingState.visibleBindingsByModule,
         runtimeGraph.capturedValues,
+        new Map(),
         semantic,
       )
     : {
         diagnostics: [],
-        values: runtimeGraph.localValues(parsed.fragments),
+        values: bindingState.localValues,
       };
   const diagnostics = [
     ...parseDiagnostics,
@@ -100,14 +125,13 @@ export async function compileRuntimeModule(
   return {
     diagnostics,
     files,
-    pipeline: runtimePipelineSnapshot(
-      outputPath,
-      sourceFileName,
-      parsed.fragments,
-      expanded.values,
+    pipeline: compileUnitPipelineSnapshot({
       diagnostics,
-      files.length > 0,
-    ),
+      files,
+      modules,
+      values: expanded.values,
+      visibleBindingsByModule: bindingState.visibleBindingsByModule,
+    }),
   };
 }
 
@@ -130,7 +154,6 @@ function runtimeQuoteGraph(
   sourceFileName: string,
 ): {
   capturedValues: Map<number, unknown[]>;
-  localValues: (fragments: ParsedFragment[]) => Map<number, CodeValue>;
   quotes: QuoteForm[];
   sourceText: string;
 } {
@@ -176,21 +199,40 @@ function runtimeQuoteGraph(
 
   return {
     capturedValues,
-    localValues: (fragments) =>
-      new Map(fragments.map((fragment) => [
-        fragment.quote.id,
-        {
-          cardinality: fragment.quote.cardinality,
-          kind: fragment.quote.kind,
-          parsed: fragment,
-          quote: fragment.quote,
-        },
-      ])),
     quotes,
     sourceText: Array.from(sourceTexts.entries())
       .sort(([left], [right]) => left - right)
       .map(([, source]) => source)
       .join("\n"),
+  };
+}
+
+function runtimeCompileUnitModule(options: {
+  outputPath: string;
+  sourceFileName: string;
+  sourceText: string;
+  quotes: QuoteForm[];
+  fragments: ParsedFragment[];
+  parseDiagnostics: Diagnostic[];
+}): CompileUnitModule {
+  return {
+    inputPath: options.sourceFileName,
+    outputPath: options.outputPath,
+    sourceText: options.sourceText,
+    sourceFile: ts.createSourceFile(
+      options.sourceFileName,
+      options.sourceText,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    ),
+    quotes: options.quotes,
+    fragments: options.fragments,
+    parseDiagnostics: options.parseDiagnostics,
+    localCodeBindings: new Map(),
+    imports: [],
+    residualImports: new Map(),
+    reexports: [],
   };
 }
 
@@ -332,20 +374,6 @@ function taggedTemplateForKind(kind: RuntimeCode["kind"]): ts.TaggedTemplateExpr
   throw new Error(`could not construct runtime quote node for ${kind}`);
 }
 
-function expandRuntimeFragments(
-  fragments: ParsedFragment[],
-  capturedValues: Map<number, unknown[]>,
-  semantic: SemanticContext,
-) {
-  return expandFragments(
-    fragments,
-    new Map(),
-    capturedValues,
-    new Map(),
-    semantic,
-  );
-}
-
 function runtimeModuleFile(
   outputPath: string,
   sourceFileName: string,
@@ -383,46 +411,6 @@ function runtimeModuleFile(
     sourceMapPath: sourceMaps ? sourceMapPath : undefined,
     sourceMapText: sourceMaps ? sourceMapped.sourceMapText : undefined,
     outputText: sourceMaps ? sourceMapped.outputText : text,
-  };
-}
-
-function runtimePipelineSnapshot(
-  outputPath: string,
-  sourceFileName: string,
-  fragments: ParsedFragment[],
-  values: Map<number, CodeValue>,
-  diagnostics: CompileGraphResult["diagnostics"],
-  emitted: boolean,
-): CompileGraphPipeline {
-  return {
-    modules: [
-      {
-        inputPath: sourceFileName,
-        outputPath,
-        quotes: fragments.map((fragment) => ({
-          id: fragment.quote.id,
-          kind: fragment.quote.kind,
-          moduleId: fragment.quote.moduleId,
-          bindingName: fragment.quote.bindingName,
-          exported: fragment.quote.exported,
-        })),
-        bindings: {
-          codeBindings: [],
-          localBindingsByQuote: fragments.map((fragment) => ({
-            quoteId: fragment.quote.id,
-            names: [],
-          })),
-        },
-      },
-    ],
-    expanded: Array.from(values.values()).map((value) => ({
-      quoteId: value.quote.id,
-      moduleId: value.quote.moduleId,
-      kind: value.kind,
-      text: printCodeValue(value),
-    })),
-    diagnostics,
-    files: emitted ? [{inputPath: sourceFileName, outputPath}] : [],
   };
 }
 

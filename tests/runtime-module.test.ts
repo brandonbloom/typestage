@@ -41,6 +41,24 @@ describe("compileRuntimeModule", () => {
     expect(result.files[0]!.outputText).toContain("count: 2");
   });
 
+  test("summarizes runtime fragment bindings through compile units", async () => {
+    const program = q.decls`
+      export const value = 1;
+    `;
+
+    const result = await compileRuntimeModule(program, {
+      outputPath: "main.ts",
+    });
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.pipeline.modules[0]!.bindings.localBindingsByQuote).toEqual([
+      {
+        quoteId: 0,
+        names: ["value"],
+      },
+    ]);
+  });
+
   test("resolves ambient globals from TypeScript config", async () => {
     const program = q.decls`
       export const value = Date.now();

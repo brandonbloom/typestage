@@ -5,13 +5,23 @@
  * re-exports, then emits one residual file per source module.
  */
 import * as ts from "typescript";
-import {buildCodeBindings, summarizeBindings} from "./binder.ts";
 import {
-  localExportMissing,
   localModuleNotResolved,
 } from "./diagnostics/index.ts";
-import {moduleStatementsForValue, printCodeValue} from "./emitter.ts";
-import {collectHostCaptureNames, expandFragments} from "./expander.ts";
+import {
+  bindCompileUnits,
+  collectCompileUnitHostCaptures,
+  compileUnitPipelineSnapshot,
+  expandCompileUnits,
+  exportedStatementNames,
+  parseDiagnosticsForCompileUnits,
+  relativeCompileUnitInputPath,
+  type CompileUnitImport,
+  type CompileUnitModule,
+  type CompileUnitReexport,
+  validateCompileUnitLocalImports,
+} from "./compile-unit.ts";
+import {moduleStatementsForValue} from "./emitter.ts";
 import {parseFragments} from "./fragments.ts";
 import {formatOrigin} from "./origin.ts";
 import {
@@ -24,10 +34,7 @@ import {
   relative as relativePath,
 } from "pathe";
 import {extractQuotes, parseHostSource} from "./quote-extractor.ts";
-import {
-  bindingNames,
-  referenceIdentifiers,
-} from "./residual-scope.ts";
+import {referenceIdentifiers} from "./residual-scope.ts";
 import {createSemanticContext, type SemanticContext, type SemanticHost} from "./semantic.ts";
 import {createSourceMappedOutput, type SourceMapBlock} from "./source-map.ts";
 import {evaluateBrowserStagingGraph} from "./staging-browser.ts";
@@ -35,10 +42,8 @@ import type {StagingEvaluator} from "./staging.ts";
 import type {
   CodeValue,
   CompileGraphFile,
-  CompileGraphPipeline,
   CompileGraphResult,
   Diagnostic,
-  ParsedFragment,
   ResidualImport,
 } from "./types.ts";
 
@@ -76,33 +81,9 @@ export type CompileGraphOptions = {
   stagingEvaluator: StagingEvaluator;
 };
 
-type GraphModule = {
-  inputPath: string;
-  outputPath: string;
-  sourceText: string;
-  sourceFile: ts.SourceFile;
-  quotes: ReturnType<typeof extractQuotes>;
-  fragments: ParsedFragment[];
-  parseDiagnostics: Diagnostic[];
-  localCodeBindings: Map<string, CodeValue>;
-  imports: LocalImport[];
-  residualImports: Map<string, ResidualImport>;
-  reexports: LocalReexport[];
-};
-
-type LocalImport = {
-  imported: string;
-  local: string;
-  targetPath: string;
-  origin: Diagnostic["origin"];
-};
-
-type LocalReexport = {
-  exported: string;
-  imported: string;
-  targetPath?: string;
-  local?: string;
-};
+type GraphModule = CompileUnitModule;
+type LocalImport = CompileUnitImport;
+type LocalReexport = CompileUnitReexport;
 
 type GeneratedStatementGroup = {
   origin: CodeValue["quote"]["origin"];
@@ -163,31 +144,18 @@ export async function compileGraph(
 
   assignGraphQuoteIds(modules);
 
-  const fragments = modules.flatMap((module) => module.fragments);
-  const localValues = new Map<number, CodeValue>();
-
-  for (const module of modules) {
-    module.localCodeBindings = buildCodeBindings(module.fragments);
-
-    for (const value of module.localCodeBindings.values()) {
-      localValues.set(value.quote.id, value);
-    }
-  }
-
-  const exportedBindings = buildExportBindings(modules);
-  const visibleBindingsByModule = buildVisibleBindings(modules, exportedBindings);
-  const parseDiagnostics = modules.flatMap((module) => module.parseDiagnostics);
+  const {
+    exportedBindings,
+    localValues,
+    visibleBindingsByModule,
+  } = bindCompileUnits(modules);
+  const parseDiagnostics = parseDiagnosticsForCompileUnits(modules);
   const hostCaptures = parseDiagnostics.length === 0
-    ? collectHostCaptureNames(
-        fragments,
-        (fragment) => visibleBindingsByModule.get(fragment.quote.moduleId ?? "") ?? new Map(),
-        semantic,
-        (fragment) => residualImportsForModule(modules, fragment.quote.moduleId),
-      )
+    ? collectCompileUnitHostCaptures(modules, visibleBindingsByModule, semantic)
     : {diagnostics: [], hostCaptureNames: new Map<number, Set<string>>()};
   const earlyDiagnostics = [
     ...graphDiagnostics,
-    ...validateLocalImports(modules),
+    ...validateCompileUnitLocalImports(modules),
     ...parseDiagnostics,
     ...hostCaptures.diagnostics,
   ];
@@ -196,14 +164,14 @@ export async function compileGraph(
     return {
       diagnostics: earlyDiagnostics,
       files: [],
-      pipeline: graphPipelineSnapshot(
+      pipeline: compileUnitPipelineSnapshot({
+        diagnostics: earlyDiagnostics,
+        files: [],
+        inputPath: relativeCompileUnitInputPath(options.currentDirectory),
         modules,
+        values: localValues,
         visibleBindingsByModule,
-        localValues,
-        earlyDiagnostics,
-        [],
-        options.currentDirectory,
-      ),
+      }),
     };
   }
 
@@ -218,13 +186,12 @@ export async function compileGraph(
     (specifier, importerPath) => builder.resolveLocalSpecifier(specifier, importerPath),
     hostCaptures.hostCaptureNames,
   );
-  const expanded = expandFragments(
-    fragments,
-    (fragment) => visibleBindingsByModule.get(fragment.quote.moduleId ?? "") ?? new Map(),
+  const expanded = expandCompileUnits(
+    modules,
+    visibleBindingsByModule,
     staging.capturedValues,
     staging.capturedHostValues,
     semantic,
-    (fragment) => residualImportsForModule(modules, fragment.quote.moduleId),
   );
   const diagnostics = [
     ...graphDiagnostics,
@@ -243,14 +210,14 @@ export async function compileGraph(
   return {
     diagnostics,
     files,
-    pipeline: graphPipelineSnapshot(
-      modules,
-      visibleBindingsByModule,
-      expanded.values,
+    pipeline: compileUnitPipelineSnapshot({
       diagnostics,
       files,
-      options.currentDirectory,
-    ),
+      inputPath: relativeCompileUnitInputPath(options.currentDirectory),
+      modules,
+      values: expanded.values,
+      visibleBindingsByModule,
+    }),
   };
 }
 
@@ -450,109 +417,6 @@ function assignGraphQuoteIds(modules: GraphModule[]) {
       nextId++;
     }
   }
-}
-
-function buildExportBindings(modules: GraphModule[]): Map<string, Map<string, CodeValue>> {
-  const byPath = new Map(modules.map((module) => [module.inputPath, module]));
-  const cache = new Map<string, Map<string, CodeValue>>();
-
-  const exportsFor = (module: GraphModule): Map<string, CodeValue> => {
-    const cached = cache.get(module.inputPath);
-
-    if (cached) {
-      return cached;
-    }
-
-    const exported = new Map<string, CodeValue>();
-
-    cache.set(module.inputPath, exported);
-
-    for (const value of module.localCodeBindings.values()) {
-      if (value.quote.exported && value.quote.bindingName) {
-        exported.set(value.quote.bindingName, value);
-      }
-    }
-
-    for (const reexport of module.reexports) {
-      if (reexport.local) {
-        const value = module.localCodeBindings.get(reexport.local);
-
-        if (value) {
-          exported.set(reexport.exported, value);
-        }
-      } else if (reexport.targetPath) {
-        const target = byPath.get(reexport.targetPath);
-        const value = target ? exportsFor(target).get(reexport.imported) : undefined;
-
-        if (value) {
-          exported.set(reexport.exported, value);
-        }
-      }
-    }
-
-    return exported;
-  };
-
-  return new Map(modules.map((module) => [module.inputPath, exportsFor(module)]));
-}
-
-function buildVisibleBindings(
-  modules: GraphModule[],
-  exportedBindings: Map<string, Map<string, CodeValue>>,
-): Map<string, Map<string, CodeValue>> {
-  const visible = new Map<string, Map<string, CodeValue>>();
-
-  for (const module of modules) {
-    const bindings = new Map(module.localCodeBindings);
-
-    for (const imported of module.imports) {
-      const value = exportedBindings.get(imported.targetPath)?.get(imported.imported);
-
-      if (value) {
-        bindings.set(imported.local, value);
-      }
-    }
-
-    visible.set(module.outputPath, bindings);
-  }
-
-  return visible;
-}
-
-function residualImportsForModule(
-  modules: GraphModule[],
-  moduleId: string | undefined,
-): Map<string, ResidualImport> {
-  return modules.find((module) => module.outputPath === moduleId)?.residualImports ??
-    new Map();
-}
-
-function validateLocalImports(modules: GraphModule[]): Diagnostic[] {
-  const byPath = new Map(modules.map((module) => [module.inputPath, module]));
-  const exportNamesByPath = new Map(
-    modules.map((module) => [module.inputPath, sourceExportNames(module)]),
-  );
-  const diagnostics: Diagnostic[] = [];
-
-  for (const module of modules) {
-    for (const imported of module.imports) {
-      const target = byPath.get(imported.targetPath);
-
-      if (!target) {
-        continue;
-      }
-
-      if (!exportNamesByPath.get(target.inputPath)?.has(imported.imported)) {
-        diagnostics.push({
-          code: localExportMissing.code,
-          message: `local module '${target.outputPath}' does not export '${imported.imported}'`,
-          origin: imported.origin,
-        });
-      }
-    }
-  }
-
-  return diagnostics;
 }
 
 function emitGraphFiles(
@@ -770,41 +634,6 @@ function residualSourceStatements(
   );
 }
 
-function graphPipelineSnapshot(
-  modules: GraphModule[],
-  visibleBindingsByModule: Map<string, Map<string, CodeValue>>,
-  values: Map<number, CodeValue>,
-  diagnostics: Diagnostic[],
-  files: CompileGraphFile[],
-  currentDirectory: string,
-): CompileGraphPipeline {
-  return {
-    modules: modules.map((module) => ({
-      inputPath: relativePath(currentDirectory, module.inputPath),
-      outputPath: module.outputPath,
-      quotes: module.quotes.map((quote) => ({
-        id: quote.id,
-        moduleId: quote.moduleId,
-        kind: quote.kind,
-        bindingName: quote.bindingName,
-        exported: quote.exported,
-      })),
-      bindings: summarizeBindings(module.fragments, visibleBindingsByModule.get(module.outputPath) ?? new Map()),
-    })),
-    expanded: Array.from(values.values()).map((value) => ({
-      quoteId: value.quote.id,
-      moduleId: value.quote.moduleId,
-      kind: value.kind,
-      text: printCodeValue(value),
-    })),
-    diagnostics,
-    files: files.map((file) => ({
-      inputPath: file.inputPath,
-      outputPath: file.outputPath,
-    })),
-  };
-}
-
 function resolveModulePath(basePath: string, host: GraphSourceHost): string | undefined {
   const candidates = extnamePath(basePath)
     ? [basePath]
@@ -873,61 +702,6 @@ function residualNamedImports(
     targetInputPath: targetPath,
     targetOutputPath: targetPath ? normalizeCompilerPath(relativePath(sourceRoot, targetPath)) : undefined,
   }));
-}
-
-function sourceExportNames(module: GraphModule): Set<string> {
-  const names = new Set<string>();
-
-  for (const statement of module.sourceFile.statements) {
-    for (const name of exportedStatementNames(statement)) {
-      names.add(name);
-    }
-  }
-
-  return names;
-}
-
-function exportedStatementNames(statement: ts.Statement): string[] {
-  if (ts.isExportDeclaration(statement)) {
-    return namedExportedNames(statement);
-  }
-
-  if (!hasExportModifier(statement)) {
-    return [];
-  }
-
-  if (
-    (ts.isFunctionDeclaration(statement) ||
-      ts.isClassDeclaration(statement) ||
-      ts.isInterfaceDeclaration(statement) ||
-      ts.isTypeAliasDeclaration(statement) ||
-      ts.isEnumDeclaration(statement)) &&
-    statement.name
-  ) {
-    return [statement.name.text];
-  }
-
-  if (ts.isVariableStatement(statement)) {
-    return statement.declarationList.declarations.flatMap((declaration) =>
-      bindingNames(declaration.name)
-    );
-  }
-
-  return [];
-}
-
-function namedExportedNames(statement: ts.ExportDeclaration): string[] {
-  if (!statement.exportClause || !ts.isNamedExports(statement.exportClause)) {
-    return [];
-  }
-
-  return statement.exportClause.elements.map((specifier) => specifier.name.text);
-}
-
-function hasExportModifier(node: ts.Node): boolean {
-  return ts.canHaveModifiers(node) && Boolean(ts.getModifiers(node)?.some(
-    (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
-  ));
 }
 
 function namedReexports(
