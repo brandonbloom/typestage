@@ -8,7 +8,9 @@
     "build": "bun build src/typestage/cli.ts --outdir=dist --target=bun",
     "playground": "bun --watch src/playground/server.ts",
     "playground:build": "bun scripts/build-playground.ts",
-    "playground:preview": "bun scripts/serve-playground.ts"
+    "playground:preview": "bun scripts/serve-playground.ts",
+    "site:build": "bun scripts/build-site.ts",
+    "site:preview": "bun scripts/serve-playground.ts dist/site"
   },
   "bin": {
     "typestage": "./src/typestage/cli.ts"
@@ -33,6 +35,9 @@
   },
   "devDependencies": {
     "@types/bun": "^1.2.22",
-    "@typescript/native-preview": "latest"
+    "@types/markdown-it": "^14.1.2",
+    "@typescript/native-preview": "latest",
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.2.0"
   }
 }

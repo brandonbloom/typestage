@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TypeStage — Staged metaprogramming for TypeScript</title>
+    <meta
+      name="description"
+      content="TypeStage is staged metaprogramming for TypeScript. Build TypeScript programs from TypeScript using syntax-aware quotes, splices, hygiene, and source maps instead of string templates."
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <div class="nav-inner">
+        <a class="brand" href="index.html">
+          <img src="favicon.svg" alt="" />
+          TypeStage
+        </a>
+        <nav class="nav-links">
+          <a class="home-link" href="index.html">Home</a>
+          <a href="primer.html">Primer</a>
+          <a href="https://github.com/brandonbloom/typestage">GitHub</a>
+          <a class="cta" href="playground/">Playground</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <!-- Hero -->
+      <section class="hero">
+        <div class="wrap hero-grid">
+          <div>
+            <p class="eyebrow">Staged metaprogramming for TypeScript</p>
+            <h1>The painless way to generate TypeScript.</h1>
+            <p class="lead">
+              TypeStage lets you build TypeScript programs from TypeScript —
+              with syntax-aware quotes and splices, not string templates.
+            </p>
+            <div class="btn-row">
+              <a class="btn btn-primary" href="primer.html">Read the primer →</a>
+              <a class="btn btn-ghost" href="playground/">Open playground</a>
+              <a
+                class="btn btn-ghost"
+                href="https://github.com/brandonbloom/typestage"
+                >View on GitHub</a
+              >
+            </div>
+          </div>
+          <div>
+            <pre><code>__HERO_CODE__</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- The tradeoff -->
+      <section class="band">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>Code generation forces a false tradeoff</h2>
+            <p>
+              The same tiny generator — a record factory — written three ways.
+              All three emit this exact function:
+            </p>
+          </div>
+
+          <div class="compare-target">
+            <span class="target-label">Generated output</span>
+            <pre><code>__TARGET_CODE__</code></pre>
+          </div>
+
+          <div class="compare-grid">
+            <div class="approach">
+              <div class="approach-head">
+                <span class="approach-name">String templating</span>
+                <span class="tag bad">Fragile</span>
+              </div>
+              <p class="approach-note">
+                Direct, but you hand-manage separators, escaping, precedence,
+                and hygiene. One stray comma and the output won't parse.
+              </p>
+              <pre><code>__TEXT_TEMPLATE_CODE__</code></pre>
+            </div>
+            <div class="approach">
+              <div class="approach-head">
+                <span class="approach-name">AST construction</span>
+                <span class="tag bad">Verbose</span>
+              </div>
+              <p class="approach-note">
+                Safe and well-formed, but a page of factory calls that looks
+                nothing like the code it emits.
+              </p>
+              <pre><code>__AST_CODE__</code></pre>
+            </div>
+          </div>
+
+          <div class="approach win">
+            <div class="approach-head">
+              <span class="approach-name">TypeStage</span>
+              <span class="tag good">Direct &amp; safe</span>
+            </div>
+            <p class="approach-note">
+              Looks like the output, composes like data, and stays hygienic —
+              separators, arity, and binding handled for you.
+            </p>
+            <pre><code>__TYPESTAGE_CODE__</code></pre>
+          </div>
+
+          <p class="takeaway">
+            Quotes let generated code <span>look like code</span>. Splices let
+            generators <span>compose that code</span> with host TypeScript.
+          </p>
+        </div>
+      </section>
+
+      <!-- Features -->
+      <section>
+        <div class="wrap">
+          <div class="section-head">
+            <h2>Syntax all the way down</h2>
+            <p>
+              Internally the generated program is real syntax: expressions are
+              expressions, declarations are declarations, types are types.
+            </p>
+          </div>
+          <div class="features">
+            <div class="card">
+              <div class="dot">❝❞</div>
+              <h3>Syntax-aware quotes</h3>
+              <p>
+                Each quote form — <code>q.expr</code>, <code>q.type</code>,
+                <code>q.stmt</code>, <code>q.decl</code> and more — chooses a
+                TypeScript grammar entry point that constrains what can be
+                spliced in.
+              </p>
+            </div>
+            <div class="card">
+              <div class="dot">⎘</div>
+              <h3>Composable splices</h3>
+              <p>
+                <code>${...}</code> inserts a fragment as syntax. Arity is
+                preserved, so generators hand expressions to each other without
+                shipping separator or precedence rules.
+              </p>
+            </div>
+            <div class="card">
+              <div class="dot">✶</div>
+              <h3>Automatic hygiene</h3>
+              <p>
+                TypeStage tracks bindings and free references. When an introduced
+                local would capture a spliced reference, it renames the local for
+                you.
+              </p>
+            </div>
+            <div class="card">
+              <div class="dot">⤓</div>
+              <h3>Value persistence</h3>
+              <p>
+                Host-stage data — maps, sets, dates, regexps, plain objects —
+                serializes into residual expressions for schemas, lookup tables,
+                and config.
+              </p>
+            </div>
+            <div class="card">
+              <div class="dot">⌖</div>
+              <h3>Source maps &amp; origins</h3>
+              <p>
+                Attach origins with <code>q.withOrigin</code> so diagnostics and
+                source maps can point back to an external source language.
+              </p>
+            </div>
+            <div class="card">
+              <div class="dot">⊞</div>
+              <h3>Module graphs</h3>
+              <p>
+                Compile a local module graph from an entry file and emit one
+                residual file per input module — organize compiler code normally.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section class="cta-band">
+        <div class="wrap">
+          <h2>See it compile, side by side</h2>
+          <p>
+            Walk the concepts in the primer, then try your own fragments in the
+            in-browser playground.
+          </p>
+          <div class="btn-row" style="justify-content: center">
+            <a class="btn btn-primary" href="primer.html">Read the primer →</a>
+            <a class="btn btn-ghost" href="playground/">Open the playground</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        TypeStage is experimental — the public surface and semantics are still
+        being shaped.
+      </div>
+    </footer>
+  </body>
+</html>

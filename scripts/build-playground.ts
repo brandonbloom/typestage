@@ -13,44 +13,48 @@ import type {Example} from "../src/playground/protocol.ts";
 
 const projectRoot = process.cwd();
 const fixturesRoot = join(projectRoot, "tests", "fixtures");
-const outDir = join(projectRoot, "dist", "playground");
 
-rmSync(outDir, {force: true, recursive: true});
-mkdirSync(outDir, {recursive: true});
+/** Build the static playground bundle into `outDir`. */
+export async function buildPlayground(outDir: string): Promise<void> {
+  const playgroundDir = join(projectRoot, "src", "playground");
 
-copyFileSync(
-  join(projectRoot, "src", "playground", "index.html"),
-  join(outDir, "index.html"),
-);
-copyFileSync(
-  join(projectRoot, "src", "playground", "playground.css"),
-  join(outDir, "playground.css"),
-);
-writeFileSync(
-  join(outDir, "examples.json"),
-  `${JSON.stringify(readExamples(), null, 2)}\n`,
-);
+  rmSync(outDir, {force: true, recursive: true});
+  mkdirSync(outDir, {recursive: true});
 
-const build = await Bun.build({
-  entrypoints: [
-    join(projectRoot, "src", "playground", "client.ts"),
-    join(projectRoot, "src", "playground", "compiler-worker.ts"),
-  ],
-  format: "esm",
-  minify: true,
-  outdir: outDir,
-  target: "browser",
-});
+  copyFileSync(
+    join(playgroundDir, "index.html"),
+    join(outDir, "index.html"),
+  );
+  copyFileSync(
+    join(playgroundDir, "playground.css"),
+    join(outDir, "playground.css"),
+  );
+  writeFileSync(
+    join(outDir, "examples.json"),
+    `${JSON.stringify(readExamples(), null, 2)}\n`,
+  );
 
-if (!build.success) {
-  for (const log of build.logs) {
-    console.error(log.message);
+  const build = await Bun.build({
+    entrypoints: [
+      join(playgroundDir, "client.ts"),
+      join(playgroundDir, "compiler-worker.ts"),
+    ],
+    format: "esm",
+    minify: true,
+    outdir: outDir,
+    target: "browser",
+  });
+
+  if (!build.success) {
+    for (const log of build.logs) {
+      console.error(log.message);
+    }
+
+    throw new Error("Playground bundle failed to build.");
   }
 
-  process.exit(1);
+  renameSync(join(outDir, "client.js"), join(outDir, "playground-client.js"));
 }
-
-renameSync(join(outDir, "client.js"), join(outDir, "playground-client.js"));
 
 function readExamples(): Example[] {
   return [
@@ -110,4 +114,8 @@ function readFixtureTree(root: string, prefix = ""): Array<{
         : [{fileName: name, text: readFileSync(path, "utf8")}];
     })
     .sort((left, right) => left.fileName.localeCompare(right.fileName));
+}
+
+if (import.meta.main) {
+  await buildPlayground(join(projectRoot, "dist", "playground"));
 }

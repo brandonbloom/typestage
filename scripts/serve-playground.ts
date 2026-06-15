@@ -1,7 +1,7 @@
 import {existsSync, readFileSync, statSync} from "node:fs";
 import {extname, join, resolve} from "node:path";
 
-const root = resolve(process.cwd(), "dist", "playground");
+const root = resolve(process.cwd(), Bun.argv[2] ?? join("dist", "playground"));
 const port = Number(Bun.env.PORT ?? 3000);
 
 const server = Bun.serve({
@@ -9,7 +9,11 @@ const server = Bun.serve({
   port,
   fetch(request) {
     const url = new URL(request.url);
-    const path = resolve(root, `.${url.pathname === "/" ? "/index.html" : url.pathname}`);
+    let path = resolve(root, `.${url.pathname}`);
+
+    if (existsSync(path) && statSync(path).isDirectory()) {
+      path = join(path, "index.html");
+    }
 
     if (!path.startsWith(root) || !existsSync(path) || !statSync(path).isFile()) {
       return new Response("Not found", {status: 404});
@@ -23,7 +27,7 @@ const server = Bun.serve({
   },
 });
 
-console.log(`TypeStage playground preview: http://localhost:${server.port}`);
+console.log(`Serving ${root} at http://localhost:${server.port}`);
 
 function contentType(path: string): string {
   switch (extname(path)) {
@@ -35,6 +39,8 @@ function contentType(path: string): string {
       return "application/json; charset=utf-8";
     case ".css":
       return "text/css; charset=utf-8";
+    case ".svg":
+      return "image/svg+xml";
     default:
       return "application/octet-stream";
   }

@@ -686,9 +686,9 @@ TypeScript is represented as typed syntax fragments.
 
 ## 16. What To Read Next
 
-- The fixture cases in [tests/fixtures/pass](../tests/fixtures/pass) are
-  executable examples.
-- [examples/lisp/README.md](../examples/lisp/README.md) sketches a future toy
+- The [playground](playground/) lets you edit and compile the fixture examples
+  interactively.
+- [examples/lisp/README.md](../examples/lisp/README.md) walks through a tiny
   compiler example.
 - [docs/design.md](design.md) contains broader design notes and historical
   context.
