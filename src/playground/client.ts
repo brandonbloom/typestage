@@ -52,6 +52,11 @@ type SourceMapLookup = {
   sources: string[];
 };
 
+type ShareState = {
+  entryFileName: string;
+  files: ExampleFile[];
+};
+
 const examplesSelect = query<HTMLSelectElement>("#examples");
 const sourceElement = query<HTMLElement>("#source");
 const sourceTabs = query<HTMLElement>("#sourceTabs");
@@ -60,12 +65,17 @@ const outputElement = query<HTMLElement>("#output");
 const diagnostics = query<HTMLElement>("#diagnostics");
 const diagnosticsText = query<HTMLElement>("#diagnosticsText");
 const outputSelectionText = query<HTMLElement>("#outputSelectionText");
+const shareButton = query<HTMLButtonElement>("#shareButton");
+const sharePopover = query<HTMLElement>("#sharePopover");
+const shareUrlInput = query<HTMLInputElement>("#shareUrl");
+const shareCopyButton = query<HTMLButtonElement>("#shareCopy");
 const copyButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-copy-target]"));
 const sourceLanguage = new Compartment();
 const outputLanguage = new Compartment();
 const base64Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const base64Values = new Map(Array.from(base64Digits, (digit, index) => [digit, index]));
 const compilerWorker = new Worker("compiler-worker.js", {type: "module"});
+const sharedExampleId = "__shared__";
 let nextCompileRequestId = 0;
 let examples: Example[] = [];
 let selectedExample: Example | undefined;
@@ -92,7 +102,7 @@ const sourceView = new EditorView({
         saveCurrentSource();
 
         if (!loadingExample) {
-          clearExampleParam();
+          clearStateParams();
         }
 
         if (debounceTimer) {
@@ -128,13 +138,20 @@ void boot();
 async function boot() {
   examples = await fetchJson<Example[]>("examples.json");
   populateExamples(examples);
-  selectedExample = exampleFromLocation() ?? examples[0];
 
-  if (selectedExample) {
-    loadExample(selectedExample.id, {updateUrl: false});
+  const shared = await sharedExampleFromLocation();
+
+  if (shared) {
+    applyExample(shared, {updateUrl: false});
   } else {
-    diagnosticsText.textContent = "No fixtures found.";
-    outputSelectionText.textContent = "No output selected.";
+    selectedExample = exampleFromLocation() ?? examples[0];
+
+    if (selectedExample) {
+      loadExample(selectedExample.id, {updateUrl: false});
+    } else {
+      diagnosticsText.textContent = "No fixtures found.";
+      outputSelectionText.textContent = "No output selected.";
+    }
   }
 
   examplesSelect.addEventListener("change", () => loadExample(examplesSelect.value));
@@ -143,6 +160,8 @@ async function boot() {
   for (const button of copyButtons) {
     button.addEventListener("click", () => void copyPanelText(button));
   }
+
+  setupShare();
 }
 
 function query<ElementType extends Element>(selector: string): ElementType {
@@ -300,23 +319,32 @@ function populateExamples(items: Example[]) {
 }
 
 function loadExample(id: string, options: {updateUrl?: boolean} = {}) {
-  selectedExample = examples.find((example) => example.id === id);
+  const example = examples.find((item) => item.id === id);
 
-  if (!selectedExample) {
+  if (!example) {
     return;
   }
 
+  applyExample(example, options);
+}
+
+function applyExample(example: Example, options: {updateUrl?: boolean} = {}) {
+  if (example.id === sharedExampleId) {
+    ensureSharedOption();
+  }
+
+  selectedExample = example;
   loadingExample = true;
-  examplesSelect.value = selectedExample.id;
-  currentFileName = selectedExample.entryFileName;
-  currentOutputFileName = selectedExample.entryFileName;
+  examplesSelect.value = example.id;
+  currentFileName = example.entryFileName;
+  currentOutputFileName = example.entryFileName;
   renderSourceTabs();
   loadCurrentSource();
   sourceDiagnostics = [];
   lastCompileResult = {
     diagnostics: "No diagnostics.",
-    outputFiles: selectedExample.outputFiles,
-    outputText: selectedExample.outputFiles.find((file) => file.fileName === currentFileName)?.outputText ?? "",
+    outputFiles: example.outputFiles,
+    outputText: example.outputFiles.find((file) => file.fileName === currentFileName)?.outputText ?? "",
     sourceDiagnostics: [],
   };
   synchronizeOutputFile(currentFileName);
@@ -325,10 +353,22 @@ function loadExample(id: string, options: {updateUrl?: boolean} = {}) {
   loadingExample = false;
 
   if (options.updateUrl ?? true) {
-    setExampleParam(selectedExample.id);
+    setExampleParam(example.id);
   }
 
   void compileNow();
+}
+
+function ensureSharedOption() {
+  if (examplesSelect.querySelector(`option[value="${sharedExampleId}"]`)) {
+    return;
+  }
+
+  const option = document.createElement("option");
+
+  option.value = sharedExampleId;
+  option.textContent = "Shared snapshot";
+  examplesSelect.prepend(option);
 }
 
 function handleExampleHotkey(event: KeyboardEvent) {
@@ -485,14 +525,15 @@ function setExampleParam(id: string) {
   history.replaceState(null, "", url);
 }
 
-function clearExampleParam() {
+function clearStateParams() {
   const url = new URL(location.href);
 
-  if (!url.searchParams.has("example")) {
+  if (!url.searchParams.has("example") && !url.searchParams.has("share")) {
     return;
   }
 
   url.searchParams.delete("example");
+  url.searchParams.delete("share");
   history.replaceState(null, "", url);
 }
 
@@ -778,6 +819,176 @@ async function copyPanelText(button: HTMLButtonElement) {
   setTimeout(() => {
     button.title = originalTitle;
   }, 900);
+}
+
+function setupShare() {
+  shareButton.addEventListener("click", () => toggleSharePopover());
+  shareCopyButton.addEventListener("click", () => void copyShareUrl());
+  shareUrlInput.addEventListener("focus", () => shareUrlInput.select());
+
+  document.addEventListener("click", (event) => {
+    if (sharePopover.hidden) {
+      return;
+    }
+
+    const target = event.target as Node;
+
+    if (target !== shareButton && !sharePopover.contains(target)) {
+      closeSharePopover();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !sharePopover.hidden) {
+      closeSharePopover();
+      shareButton.focus();
+    }
+  });
+}
+
+function toggleSharePopover() {
+  if (sharePopover.hidden) {
+    openSharePopover();
+  } else {
+    closeSharePopover();
+  }
+}
+
+function openSharePopover() {
+  shareCopyButton.textContent = "Copy";
+  shareUrlInput.value = "Generating link…";
+  sharePopover.hidden = false;
+  shareButton.setAttribute("aria-expanded", "true");
+  void fillShareUrl();
+}
+
+async function fillShareUrl() {
+  const url = await buildShareUrl();
+
+  // The popover may have been closed while the link was being compressed.
+  if (sharePopover.hidden) {
+    return;
+  }
+
+  // Reflect the encoded snapshot in the address bar so the page itself is shareable.
+  history.replaceState(null, "", url);
+  shareUrlInput.value = url;
+  shareUrlInput.focus();
+  shareUrlInput.select();
+}
+
+function closeSharePopover() {
+  sharePopover.hidden = true;
+  shareButton.setAttribute("aria-expanded", "false");
+}
+
+async function copyShareUrl() {
+  try {
+    await navigator.clipboard.writeText(shareUrlInput.value);
+    shareCopyButton.textContent = "Copied";
+  } catch {
+    shareUrlInput.select();
+    shareCopyButton.textContent = "Copy failed";
+  }
+
+  setTimeout(() => {
+    shareCopyButton.textContent = "Copy";
+  }, 1200);
+}
+
+async function buildShareUrl(): Promise<string> {
+  const url = new URL(location.href);
+
+  url.searchParams.delete("example");
+  url.searchParams.set("share", await encodeShareState(buildShareState()));
+
+  return url.toString();
+}
+
+function buildShareState(): ShareState {
+  saveCurrentSource();
+
+  return {
+    entryFileName: selectedExample?.entryFileName ?? currentFileName ?? "main.ts",
+    files: currentFiles().map((file) => ({fileName: file.fileName, source: file.source})),
+  };
+}
+
+async function sharedExampleFromLocation(): Promise<Example | undefined> {
+  const encoded = new URL(location.href).searchParams.get("share");
+
+  if (!encoded) {
+    return undefined;
+  }
+
+  const state = await decodeShareState(encoded);
+
+  if (!state || state.files.length === 0) {
+    diagnosticsText.textContent = "Could not read shared link.";
+    return undefined;
+  }
+
+  const entryFileName = state.files.some((file) => file.fileName === state.entryFileName)
+    ? state.entryFileName
+    : state.files[0]!.fileName;
+
+  return {
+    entryFileName,
+    files: state.files,
+    group: "Shared",
+    id: sharedExampleId,
+    name: "Shared snapshot",
+    outputFiles: [],
+  };
+}
+
+async function encodeShareState(state: ShareState): Promise<string> {
+  const bytes = new TextEncoder().encode(JSON.stringify(state));
+  const compressed = await pipeThroughStream(bytes, new CompressionStream("gzip"));
+
+  return base64UrlFromBytes(compressed);
+}
+
+async function decodeShareState(encoded: string): Promise<ShareState | undefined> {
+  try {
+    const compressed = bytesFromBase64Url(encoded);
+    const bytes = await pipeThroughStream(compressed, new DecompressionStream("gzip"));
+    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as ShareState;
+
+    if (!parsed || !Array.isArray(parsed.files)) {
+      return undefined;
+    }
+
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
+async function pipeThroughStream(
+  bytes: Uint8Array<ArrayBuffer>,
+  transform: GenericTransformStream,
+): Promise<Uint8Array<ArrayBuffer>> {
+  const stream = new Blob([bytes]).stream().pipeThrough(transform);
+
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+function base64UrlFromBytes(bytes: Uint8Array): string {
+  let binary = "";
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary).replace(/\+/gu, "-").replace(/\//gu, "_").replace(/=+$/u, "");
+}
+
+function bytesFromBase64Url(encoded: string): Uint8Array<ArrayBuffer> {
+  const base64 = encoded.replace(/-/gu, "+").replace(/_/gu, "/");
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+
+  return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
 }
 
 function navigateToSourceMapLocation(generatedLine: number, generatedColumn: number) {

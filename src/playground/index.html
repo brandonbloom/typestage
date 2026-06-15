@@ -12,6 +12,19 @@
       <div class="brand">TypeStage Playground</div>
       <label for="examples">Example</label>
       <select id="examples"></select>
+      <span class="hotkey-hint" title="Switch examples with the keyboard">
+        <kbd>⌥</kbd><kbd>↑</kbd>
+        <span class="hotkey-sep">/</span>
+        <kbd>⌥</kbd><kbd>↓</kbd>
+      </span>
+      <button id="shareButton" class="share-button" type="button" aria-haspopup="dialog" aria-expanded="false">Share</button>
+      <div id="sharePopover" class="share-popover" role="dialog" aria-label="Share link" hidden>
+        <p class="share-title">Shareable link</p>
+        <div class="share-row">
+          <input id="shareUrl" class="share-url" type="text" readonly aria-label="Shareable link">
+          <button id="shareCopy" class="share-copy" type="button">Copy</button>
+        </div>
+      </div>
     </header>
     <section class="workspace">
       <section class="pane source-pane">
