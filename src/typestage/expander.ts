@@ -17,6 +17,15 @@ import {
 } from "./diagnostics/index.ts";
 import {copyNodeOrigin, getNodeOrigin, setNodeOrigin, setTreeOrigin} from "./origin.ts";
 import {persistValueToExpression} from "./persistence.ts";
+import {
+  collectBindingName,
+  collectBindingsInNode,
+  collectLocalBindingNames,
+  freeReferenceNames,
+  isBindingName,
+  isReferenceIdentifier,
+  walkScopedReferences,
+} from "./residual-scope.ts";
 import {isRuntimeCode, type RuntimeCode} from "./runtime.ts";
 import {
   resolveHostTypeName,
@@ -641,7 +650,7 @@ function expandParsedFragment(
   };
 
   const hygienicReplacementNodes = (nodes: ts.Node[]): ts.Node[] => {
-    const localNames = localBindingNames(nodes);
+    const localNames = collectLocalBindingNames(nodes);
     const conflicts = Array.from(localNames)
       .filter((name) => occupiedLocalNames.has(name))
       .sort();
@@ -658,7 +667,7 @@ function expandParsedFragment(
       result = renameIdentifiers(nodes, renames);
     }
 
-    for (const name of localBindingNames(result)) {
+    for (const name of collectLocalBindingNames(result)) {
       occupiedLocalNames.add(name);
     }
 
@@ -1033,148 +1042,26 @@ function analyzeResidualReferences(
     });
   };
 
-  const visit = (node: ts.Node, scopes: readonly Set<string>[]) => {
-    if (ts.isTypeReferenceNode(node)) {
-      const name = typeReferenceIdentifier(node);
-
-      if (name && !holeNames.has(name.text) && !isNameBound(name.text, scopes)) {
+  walkScopedReferences(fragment.nodes, {
+    collectBindingName(name, names) {
+      collectBindingNameFromResidualPattern(
+        name,
+        names,
+        holeNames,
+        codeValuesByHoleName,
+      );
+    },
+    onTypeReference(node, name) {
+      if (name && !holeNames.has(name.text)) {
         typeReferences.set(node, resolveTypeReference(node));
       }
-
-      ts.forEachChild(node, (child) => visit(child, scopes));
-      return;
-    }
-
-    if (
-      ts.isIdentifier(node) &&
-      isReferenceIdentifier(node) &&
-      !holeNames.has(node.text) &&
-      !isNameBound(node.text, scopes)
-    ) {
-      identifiers.set(node, resolveValueReference(node));
-    }
-
-    if (isFunctionLikeWithBody(node)) {
-      const scope = new Set<string>();
-
-      if (ts.isFunctionExpression(node) && node.name) {
-        scope.add(node.name.text);
+    },
+    onValueReference(identifier) {
+      if (!holeNames.has(identifier.text)) {
+        identifiers.set(identifier, resolveValueReference(identifier));
       }
-
-      if (node.typeParameters) {
-        for (const parameter of node.typeParameters) {
-          scope.add(parameter.name.text);
-        }
-      }
-
-      for (const parameter of node.parameters) {
-        collectBindingNameFromResidualPattern(
-          parameter.name,
-          scope,
-          holeNames,
-          codeValuesByHoleName,
-        );
-      }
-
-      if (node.body) {
-        visitNodeList([node.body], [...scopes, scope]);
-      }
-      return;
-    }
-
-    if (ts.isTypeAliasDeclaration(node)) {
-      const scope = new Set<string>();
-
-      for (const parameter of node.typeParameters ?? []) {
-        scope.add(parameter.name.text);
-      }
-
-      visit(node.type, [...scopes, scope]);
-      return;
-    }
-
-    if (ts.isInterfaceDeclaration(node)) {
-      const scope = new Set<string>();
-
-      for (const parameter of node.typeParameters ?? []) {
-        scope.add(parameter.name.text);
-      }
-
-      for (const member of node.members) {
-        visit(member, [...scopes, scope]);
-      }
-      return;
-    }
-
-    if (ts.isForStatement(node)) {
-      const scope = new Set<string>();
-
-      if (node.initializer && ts.isVariableDeclarationList(node.initializer)) {
-        for (const declaration of node.initializer.declarations) {
-          collectBindingNameFromResidualPattern(
-            declaration.name,
-            scope,
-            holeNames,
-            codeValuesByHoleName,
-          );
-        }
-      }
-
-      ts.forEachChild(node, (child) => visit(child, [...scopes, scope]));
-      return;
-    }
-
-    if (ts.isCatchClause(node)) {
-      const scope = new Set<string>();
-
-      if (node.variableDeclaration) {
-        collectBindingNameFromResidualPattern(
-          node.variableDeclaration.name,
-          scope,
-          holeNames,
-          codeValuesByHoleName,
-        );
-      }
-
-      visit(node.block, [...scopes, scope]);
-      return;
-    }
-
-    if (ts.isConditionalTypeNode(node)) {
-      visit(node.checkType, scopes);
-      visit(node.extendsType, scopes);
-
-      const inferScope = new Set<string>();
-
-      collectInferTypeNames(node.extendsType, inferScope);
-      visit(node.trueType, inferScope.size > 0 ? [...scopes, inferScope] : scopes);
-      visit(node.falseType, scopes);
-      return;
-    }
-
-    if (ts.isBlock(node)) {
-      visitNodeList(Array.from(node.statements), scopes);
-      return;
-    }
-
-    ts.forEachChild(node, (child) => visit(child, scopes));
-  };
-
-  const visitNodeList = (nodes: readonly ts.Node[], scopes: readonly Set<string>[]) => {
-    const scope = new Set<string>();
-
-    for (const node of nodes) {
-      collectDirectBindingNames(node, scope, holeNames, codeValuesByHoleName);
-    }
-
-    const nextScopes = [...scopes, scope];
-
-    for (const node of nodes) {
-      visit(node, nextScopes);
-    }
-  };
-
-  visitNodeList(fragment.nodes, []);
+    },
+  });
 
   return {diagnostics, hostNames, residualImports, identifiers, typeReferences};
 }
@@ -1189,93 +1076,12 @@ function residualImportKey(residualImport: ResidualImport): string {
   ].join("\0");
 }
 
-function collectInferTypeNames(node: ts.Node, names: Set<string>) {
-  if (ts.isInferTypeNode(node)) {
-    names.add(node.typeParameter.name.text);
-    return;
-  }
-
-  ts.forEachChild(node, (child) => collectInferTypeNames(child, names));
-}
-
 function originWithinQuote(origin: Origin, fragment: ParsedFragment): boolean {
   return (
     origin.sourceFile === fragment.quote.origin.sourceFile &&
     origin.start >= fragment.quote.origin.start &&
     origin.end <= fragment.quote.origin.end
   );
-}
-
-function isNameBound(name: string, scopes: readonly Set<string>[]): boolean {
-  return scopes.some((scope) => scope.has(name));
-}
-
-function isFunctionLikeWithBody(node: ts.Node): node is ts.FunctionLikeDeclaration {
-  return (
-    (ts.isFunctionDeclaration(node) ||
-      ts.isFunctionExpression(node) ||
-      ts.isArrowFunction(node) ||
-      ts.isMethodDeclaration(node) ||
-      ts.isConstructorDeclaration(node)) &&
-    Boolean(node.body)
-  );
-}
-
-function collectDirectBindingNames(
-  node: ts.Node,
-  names: Set<string>,
-  holeNames: Set<string>,
-  codeValuesByHoleName: Map<string, CodeValue>,
-) {
-  if (ts.isVariableStatement(node)) {
-    for (const declaration of node.declarationList.declarations) {
-      collectBindingNameFromResidualPattern(
-        declaration.name,
-        names,
-        holeNames,
-        codeValuesByHoleName,
-      );
-    }
-    return;
-  }
-
-  if (ts.isFunctionDeclaration(node) && node.name) {
-    names.add(node.name.text);
-    return;
-  }
-
-  if (ts.isClassDeclaration(node) && node.name) {
-    names.add(node.name.text);
-    return;
-  }
-
-  if (
-    (ts.isTypeAliasDeclaration(node) ||
-      ts.isInterfaceDeclaration(node) ||
-      ts.isEnumDeclaration(node)) &&
-    node.name
-  ) {
-    names.add(node.name.text);
-    return;
-  }
-
-  if (ts.isImportDeclaration(node)) {
-    const clause = node.importClause;
-
-    if (clause?.name) {
-      names.add(clause.name.text);
-    }
-
-    const namedBindings = clause?.namedBindings;
-
-    if (namedBindings && ts.isNamespaceImport(namedBindings)) {
-      names.add(namedBindings.name.text);
-    } else if (namedBindings && ts.isNamedImports(namedBindings)) {
-      for (const specifier of namedBindings.elements) {
-        names.add(specifier.name.text);
-      }
-    }
-  }
 }
 
 function collectBindingNameFromResidualPattern(
@@ -1290,7 +1096,7 @@ function collectBindingNameFromResidualPattern(
 
     if (codeValue) {
       for (const node of codeValue.expandedNodes ?? codeValue.parsed.nodes) {
-        collectBindingNames(node, names);
+        collectBindingsInNode(node, names);
       }
     }
     return;
@@ -1370,84 +1176,6 @@ function referencedCodeValues(
   }
 
   return referenced;
-}
-
-function freeReferenceNames(nodes: ts.Node[]): Set<string> {
-  const locals = localBindingNames(nodes);
-  const free = new Set<string>();
-
-  const visit = (node: ts.Node) => {
-    if (
-      ts.isIdentifier(node) &&
-      isReferenceIdentifier(node) &&
-      !locals.has(node.text)
-    ) {
-      free.add(node.text);
-    }
-
-    ts.forEachChild(node, visit);
-  };
-
-  for (const node of nodes) {
-    visit(node);
-  }
-
-  return free;
-}
-
-function localBindingNames(nodes: ts.Node[]): Set<string> {
-  const names = new Set<string>();
-
-  for (const node of nodes) {
-    collectBindingNames(node, names);
-  }
-
-  return names;
-}
-
-function collectBindingNames(node: ts.Node, names: Set<string>) {
-  if (ts.isVariableDeclaration(node)) {
-    collectBindingName(node.name, names);
-  } else if (ts.isParameter(node)) {
-    collectBindingName(node.name, names);
-  } else if (ts.isFunctionDeclaration(node) && node.name) {
-    names.add(node.name.text);
-  } else if (ts.isFunctionExpression(node) && node.name) {
-    names.add(node.name.text);
-  } else if (ts.isClassDeclaration(node) && node.name) {
-    names.add(node.name.text);
-  } else if (ts.isClassExpression(node) && node.name) {
-    names.add(node.name.text);
-  } else if (ts.isImportClause(node)) {
-    if (node.name) {
-      names.add(node.name.text);
-    }
-  } else if (ts.isImportSpecifier(node)) {
-    names.add(node.name.text);
-  } else if (ts.isNamespaceImport(node)) {
-    names.add(node.name.text);
-  } else if (ts.isTypeParameterDeclaration(node)) {
-    names.add(node.name.text);
-  } else if (ts.isCatchClause(node) && node.variableDeclaration) {
-    collectBindingName(node.variableDeclaration.name, names);
-  }
-
-  ts.forEachChild(node, (child) => collectBindingNames(child, names));
-}
-
-function collectBindingName(name: ts.BindingName, names: Set<string>) {
-  if (ts.isIdentifier(name)) {
-    names.add(name.text);
-    return;
-  }
-
-  for (const element of name.elements) {
-    if (ts.isOmittedExpression(element)) {
-      continue;
-    }
-
-    collectBindingName(element.name, names);
-  }
 }
 
 function allIdentifierNames(nodes: ts.Node[]): Set<string> {
@@ -1730,14 +1458,6 @@ function bindingNameReplacements(
   return nodes?.every(isBindingName) ? nodes : undefined;
 }
 
-function isBindingName(node: ts.Node): node is ts.BindingName {
-  return (
-    ts.isIdentifier(node) ||
-    ts.isObjectBindingPattern(node) ||
-    ts.isArrayBindingPattern(node)
-  );
-}
-
 function cloneParameterWithName(
   parameter: ts.ParameterDeclaration,
   name: ts.BindingName,
@@ -1917,75 +1637,6 @@ function isValidIdentifierText(text: string): boolean {
       ts.isIdentifier(declaration.name) &&
       declaration.name.text === text,
   );
-}
-
-function isReferenceIdentifier(node: ts.Identifier): boolean {
-  const parent = node.parent;
-
-  if (!parent) {
-    return true;
-  }
-
-  if (ts.isPropertyAccessExpression(parent) && parent.name === node) {
-    return false;
-  }
-
-  if (ts.isTypeReferenceNode(parent) && parent.typeName === node) {
-    return false;
-  }
-
-  if (ts.isPropertyAssignment(parent) && parent.name === node) {
-    return false;
-  }
-
-  if (ts.isShorthandPropertyAssignment(parent)) {
-    return true;
-  }
-
-  if (ts.isBindingElement(parent) || ts.isVariableDeclaration(parent)) {
-    return false;
-  }
-
-  if (ts.isParameter(parent) || ts.isFunctionDeclaration(parent)) {
-    return false;
-  }
-
-  if (ts.isTypeParameterDeclaration(parent)) {
-    return false;
-  }
-
-  if (
-    ts.isTypeAliasDeclaration(parent) ||
-    ts.isInterfaceDeclaration(parent) ||
-    ts.isEnumDeclaration(parent)
-  ) {
-    return false;
-  }
-
-  if (
-    (ts.isPropertyDeclaration(parent) ||
-      ts.isPropertySignature(parent) ||
-      ts.isMethodDeclaration(parent) ||
-      ts.isMethodSignature(parent) ||
-      ts.isEnumMember(parent)) &&
-    parent.name === node
-  ) {
-    return false;
-  }
-
-  if (ts.isInferTypeNode(parent)) {
-    return false;
-  }
-
-  if (ts.isClassDeclaration(parent) || ts.isClassExpression(parent)) {
-    return false;
-  }
-
-  if (ts.isImportSpecifier(parent) || ts.isImportClause(parent)) {
-    return false;
-  }
-
-  return true;
 }
 
 /** Prints the expanded source text for a TypeStage code value. */

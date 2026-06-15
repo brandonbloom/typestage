@@ -6,6 +6,7 @@
 import * as ts from "typescript";
 import {printExpressionList, printNode, printNodes} from "./ast-print.ts";
 import {setNodeOrigin} from "./origin.ts";
+import {isBindingName} from "./residual-scope.ts";
 import type {CodeValue} from "./types.ts";
 
 /** Converts one expanded code value into residual module statements. */
@@ -123,12 +124,4 @@ function unwrapExpressionListElement(expression: ts.Expression): ts.Expression {
   return ts.isParenthesizedExpression(expression)
     ? expression.expression
     : expression;
-}
-
-function isBindingName(node: ts.Node): node is ts.BindingName {
-  return (
-    ts.isIdentifier(node) ||
-    ts.isObjectBindingPattern(node) ||
-    ts.isArrayBindingPattern(node)
-  );
 }

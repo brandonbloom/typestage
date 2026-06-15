@@ -24,6 +24,10 @@ import {
   relative as relativePath,
 } from "pathe";
 import {extractQuotes, parseHostSource} from "./quote-extractor.ts";
+import {
+  bindingNames,
+  referenceIdentifiers,
+} from "./residual-scope.ts";
 import {createSemanticContext, type SemanticContext, type SemanticHost} from "./semantic.ts";
 import {createSourceMappedOutput, type SourceMapBlock} from "./source-map.ts";
 import {evaluateBrowserStagingGraph} from "./staging-browser.ts";
@@ -926,20 +930,6 @@ function hasExportModifier(node: ts.Node): boolean {
   ));
 }
 
-function bindingNames(name: ts.BindingName): string[] {
-  if (ts.isIdentifier(name)) {
-    return [name.text];
-  }
-
-  return name.elements.flatMap((element) => {
-    if (ts.isOmittedExpression(element) || !element.name) {
-      return [];
-    }
-
-    return bindingNames(element.name);
-  });
-}
-
 function namedReexports(
   statement: ts.ExportDeclaration,
   targetPath?: string,
@@ -1104,179 +1094,6 @@ function filteredNamedBindings(
   return elements.length > 0
     ? ts.factory.updateNamedImports(bindings, elements)
     : undefined;
-}
-
-function referenceIdentifiers(statements: ts.Statement[]): Set<string> {
-  const names = new Set<string>();
-
-  const visit = (node: ts.Node, scopes: readonly Set<string>[]) => {
-    if (ts.isIdentifier(node) && isReferenceIdentifier(node)) {
-      if (!scopes.some((scope) => scope.has(node.text))) {
-        names.add(node.text);
-      }
-    }
-
-    if (isFunctionLikeWithBody(node)) {
-      const scope = new Set<string>();
-
-      if (ts.isFunctionExpression(node) && node.name) {
-        scope.add(node.name.text);
-      }
-
-      for (const parameter of node.parameters) {
-        collectBindingNames(parameter.name, scope);
-      }
-
-      if (node.body) {
-        visitNodeList([node.body], [...scopes, scope]);
-      }
-      return;
-    }
-
-    if (ts.isBlock(node)) {
-      visitNodeList(Array.from(node.statements), scopes);
-      return;
-    }
-
-    if (ts.isForStatement(node)) {
-      const scope = new Set<string>();
-
-      if (node.initializer && ts.isVariableDeclarationList(node.initializer)) {
-        for (const declaration of node.initializer.declarations) {
-          collectBindingNames(declaration.name, scope);
-        }
-      }
-
-      ts.forEachChild(node, (child) => visit(child, [...scopes, scope]));
-      return;
-    }
-
-    if (ts.isCatchClause(node)) {
-      const scope = new Set<string>();
-
-      if (node.variableDeclaration) {
-        collectBindingNames(node.variableDeclaration.name, scope);
-      }
-
-      visit(node.block, [...scopes, scope]);
-      return;
-    }
-
-    ts.forEachChild(node, (child) => visit(child, scopes));
-  };
-
-  const visitNodeList = (nodes: readonly ts.Node[], scopes: readonly Set<string>[]) => {
-    const scope = new Set<string>();
-
-    for (const node of nodes) {
-      collectDirectBindingNames(node, scope);
-    }
-
-    const nextScopes = [...scopes, scope];
-
-    for (const node of nodes) {
-      visit(node, nextScopes);
-    }
-  };
-
-  visitNodeList(statements, []);
-
-  return names;
-}
-
-function collectDirectBindingNames(node: ts.Node, names: Set<string>) {
-  if (ts.isVariableStatement(node)) {
-    for (const declaration of node.declarationList.declarations) {
-      collectBindingNames(declaration.name, names);
-    }
-    return;
-  }
-
-  if (
-    (ts.isFunctionDeclaration(node) ||
-      ts.isClassDeclaration(node) ||
-      ts.isInterfaceDeclaration(node) ||
-      ts.isTypeAliasDeclaration(node) ||
-      ts.isEnumDeclaration(node)) &&
-    node.name
-  ) {
-    names.add(node.name.text);
-    return;
-  }
-
-  if (ts.isImportDeclaration(node)) {
-    const clause = node.importClause;
-
-    if (clause?.name) {
-      names.add(clause.name.text);
-    }
-
-    if (clause?.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
-      names.add(clause.namedBindings.name.text);
-    } else if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
-      for (const specifier of clause.namedBindings.elements) {
-        names.add(specifier.name.text);
-      }
-    }
-  }
-}
-
-function collectBindingNames(name: ts.BindingName, names: Set<string>) {
-  if (ts.isIdentifier(name)) {
-    names.add(name.text);
-    return;
-  }
-
-  for (const element of name.elements) {
-    if (!ts.isOmittedExpression(element) && element.name) {
-      collectBindingNames(element.name, names);
-    }
-  }
-}
-
-function isFunctionLikeWithBody(node: ts.Node): node is ts.FunctionLikeDeclaration {
-  return (
-    (ts.isFunctionDeclaration(node) ||
-      ts.isFunctionExpression(node) ||
-      ts.isArrowFunction(node) ||
-      ts.isMethodDeclaration(node) ||
-      ts.isConstructorDeclaration(node)) &&
-    Boolean(node.body)
-  );
-}
-
-function isReferenceIdentifier(node: ts.Identifier): boolean {
-  const parent = node.parent;
-
-  if (!parent) {
-    return true;
-  }
-
-  if (ts.isPropertyAccessExpression(parent) && parent.name === node) {
-    return false;
-  }
-
-  if (ts.isPropertyAssignment(parent) && parent.name === node) {
-    return false;
-  }
-
-  if (ts.isBindingElement(parent) || ts.isVariableDeclaration(parent)) {
-    return false;
-  }
-
-  if (ts.isParameter(parent) || ts.isFunctionDeclaration(parent)) {
-    return false;
-  }
-
-  if (ts.isClassDeclaration(parent) || ts.isClassExpression(parent)) {
-    return false;
-  }
-
-  if (ts.isImportSpecifier(parent) || ts.isImportClause(parent)) {
-    return false;
-  }
-
-  return true;
 }
 
 function printStatements(statements: ts.Statement[]): string {
