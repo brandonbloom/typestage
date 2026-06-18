@@ -216,12 +216,12 @@ class ExpansionContext {
 
     this.expanding.add(value.quote.id);
 
-    const expanded = new FragmentExpansion(
+    const expanded = expandFragmentBody(
       value.parsed,
       this,
       value.runtimeValues,
       value.runtimeHostValues,
-    ).expand();
+    );
 
     this.diagnostics.push(...expanded.diagnostics);
     value.expandedNodes = expanded.nodes;
@@ -229,38 +229,6 @@ class ExpansionContext {
     this.expanding.delete(value.quote.id);
 
     return value;
-  }
-}
-
-class FragmentExpansion {
-  private readonly context: ExpansionContext;
-  private readonly fragment: ParsedFragment;
-  private readonly runtimeHostValues: Record<string, unknown> | undefined;
-  private readonly runtimeValues: unknown[] | undefined;
-
-  constructor(
-    fragment: ParsedFragment,
-    context: ExpansionContext,
-    runtimeValues: unknown[] | undefined,
-    runtimeHostValues: Record<string, unknown> | undefined,
-  ) {
-    this.context = context;
-    this.fragment = fragment;
-    this.runtimeHostValues = runtimeHostValues;
-    this.runtimeValues = runtimeValues;
-  }
-
-  expand(): {
-    diagnostics: Diagnostic[];
-    nodes: ts.Node[];
-    residualImports: ResidualImport[];
-  } {
-    return expandFragmentBody(
-      this.fragment,
-      this.context,
-      this.runtimeValues,
-      this.runtimeHostValues,
-    );
   }
 }
 
@@ -478,10 +446,6 @@ function expandFragmentBody(
     return undefined;
   };
 
-  const codeValuesForSplice = (hole: SpliceHole): CodeValue[] | undefined => {
-    return spliceEvaluator.evaluateCodeSplice(hole);
-  };
-
   const typedIdentifierBinding = (value: CodeValue): {
     name: ts.Identifier;
     type?: ts.TypeNode;
@@ -504,7 +468,7 @@ function expandFragmentBody(
     hole: SpliceHole,
     parameter: ts.ParameterDeclaration,
   ): ts.ParameterDeclaration[] | undefined => {
-    const codeValues = codeValuesForSplice(hole);
+    const codeValues = spliceEvaluator.evaluateCodeSplice(hole);
 
     if (!codeValues) {
       return undefined;
@@ -534,7 +498,7 @@ function expandFragmentBody(
     hole: SpliceHole,
     declaration: ts.VariableDeclaration,
   ): ts.VariableDeclaration | undefined => {
-    const codeValues = codeValuesForSplice(hole);
+    const codeValues = spliceEvaluator.evaluateCodeSplice(hole);
 
     if (!codeValues || codeValues.length !== 1) {
       return undefined;
