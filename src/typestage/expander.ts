@@ -57,12 +57,29 @@ type Replacement = ts.VisitResult<ts.Node> | {
   skipChildren: true;
 };
 
-type ReferenceResolution =
+type RewriteDecision =
+  | {kind: "keep"}
+  | {kind: "replace"; node: ts.Node; visitChildren: boolean}
+  | {kind: "replaceMany"; nodes: ts.Node[]}
+  | {kind: "failed"};
+
+type SyntaxPosition = {
+  kind: FragmentKind;
+  cardinality: QuoteCardinality;
+  origin: Origin;
+};
+
+type ValueBinding =
+  | {kind: "residual-local"}
   | {kind: "code"; value: CodeValue}
   | {kind: "import"; value: ResidualImport}
   | {kind: "host-value"; name: string}
   | {kind: "ambient"}
   | {kind: "unresolved"};
+
+type TypeBinding = Exclude<ValueBinding, {kind: "host-value"}>;
+
+type ReferenceResolution = Exclude<ValueBinding, {kind: "residual-local"}>;
 
 type ReferenceAnalysis = {
   diagnostics: Diagnostic[];
@@ -71,6 +88,232 @@ type ReferenceAnalysis = {
   identifiers: WeakMap<ts.Identifier, ReferenceResolution>;
   typeReferences: WeakMap<ts.TypeReferenceNode, ReferenceResolution>;
 };
+
+type SpliceValue =
+  | {kind: "code"; values: CodeValue[]}
+  | {kind: "persistent"; value: unknown}
+  | {kind: "missing"};
+
+type Placement = {
+  placeCode(value: CodeValue, position: SyntaxPosition): ts.Node[] | undefined;
+  placeHostValue(name: string, position: SyntaxPosition): ts.Expression | undefined;
+  placeSplice(
+    value: SpliceValue,
+    position: SyntaxPosition,
+    hole: SpliceHole,
+  ): ts.Node[] | undefined;
+};
+
+class Environment {
+  private readonly analysis: ReferenceAnalysis;
+
+  private constructor(analysis: ReferenceAnalysis) {
+    this.analysis = analysis;
+  }
+
+  static analyze(
+    fragment: ParsedFragment,
+    codeBindings: Map<string, CodeValue>,
+    semantic?: SemanticContext,
+    importBindings: Map<string, ResidualImport> = new Map(),
+    options: {
+      diagnoseUnresolved?: boolean;
+      onlyCurrentOrigin?: boolean;
+    } = {},
+  ): Environment {
+    return new Environment(analyzeResidualReferences(
+      fragment,
+      codeBindings,
+      semantic,
+      importBindings,
+      options,
+    ));
+  }
+
+  get diagnostics(): Diagnostic[] {
+    return this.analysis.diagnostics;
+  }
+
+  get residualImports(): Map<string, ResidualImport> {
+    return this.analysis.residualImports;
+  }
+
+  collectHostCaptures(): Set<string> {
+    return this.analysis.hostNames;
+  }
+
+  lookupValue(identifier: ts.Identifier): ValueBinding {
+    return this.analysis.identifiers.get(identifier) ?? {kind: "residual-local"};
+  }
+
+  lookupType(node: ts.TypeReferenceNode): TypeBinding {
+    const binding = this.analysis.typeReferences.get(node);
+
+    return binding && binding.kind !== "host-value"
+      ? binding
+      : {kind: "ambient"};
+  }
+}
+
+class SpliceEvaluator {
+  private readonly codeBindings: Map<string, CodeValue>;
+  private readonly context: ExpansionContext;
+  private readonly diagnostics: Diagnostic[];
+  private readonly fragment: ParsedFragment;
+  private readonly runtimeValues: unknown[] | undefined;
+
+  constructor(
+    context: ExpansionContext,
+    fragment: ParsedFragment,
+    codeBindings: Map<string, CodeValue>,
+    runtimeValues: unknown[] | undefined,
+    diagnostics: Diagnostic[],
+  ) {
+    this.codeBindings = codeBindings;
+    this.context = context;
+    this.diagnostics = diagnostics;
+    this.fragment = fragment;
+    this.runtimeValues = runtimeValues;
+  }
+
+  evaluateSplice(hole: SpliceHole): SpliceValue {
+    const captured = capturedValueForHole(
+      this.fragment,
+      hole,
+      this.context.capturedValues,
+      this.runtimeValues,
+    );
+
+    if (captured.found) {
+      return this.evaluateCapturedValue(captured.value, hole);
+    }
+
+    const value = codeValueForExpression(
+      hole.expression,
+      this.codeBindings,
+      this.context.values,
+    );
+
+    if (value) {
+      return {kind: "code", values: [value]};
+    }
+
+    this.diagnostics.push({
+      code: unresolvedExplicitSplice.code,
+      message: `explicit splice '${hole.expression.getText()}' does not resolve to a TypeStage code value`,
+      origin: hole.origin,
+    });
+    return {kind: "missing"};
+  }
+
+  private evaluateCapturedValue(value: unknown, hole: SpliceHole): SpliceValue {
+    if (isRuntimeCode(value)) {
+      const codeValue = codeValueForRuntimeCode(value, this.context.values);
+
+      if (codeValue) {
+        return {kind: "code", values: [codeValue]};
+      }
+
+      this.diagnostics.push({
+        code: unresolvedExplicitSplice.code,
+        message: `runtime code splice '${hole.expression.getText()}' does not resolve to a static TypeStage quote`,
+        origin: hole.origin,
+      });
+      return {kind: "missing"};
+    }
+
+    if (Array.isArray(value) && value.every(isRuntimeCode)) {
+      const values: CodeValue[] = [];
+
+      for (const runtimeCode of value) {
+        const codeValue = codeValueForRuntimeCode(runtimeCode, this.context.values);
+
+        if (!codeValue) {
+          this.diagnostics.push({
+            code: unresolvedExplicitSplice.code,
+            message: `runtime code splice '${hole.expression.getText()}' does not resolve to a static TypeStage quote`,
+            origin: hole.origin,
+          });
+          return {kind: "missing"};
+        }
+
+        values.push(codeValue);
+      }
+
+      return {kind: "code", values};
+    }
+
+    return {kind: "persistent", value};
+  }
+}
+
+class InsertionHygiene {
+  private occupiedLocalNames = new Set<string>();
+  private usedIdentifierNames = new Set<string>();
+  private readonly codeBindings: Map<string, CodeValue>;
+  private readonly fragment: ParsedFragment;
+  private readonly values: Map<number, CodeValue>;
+
+  constructor(
+    fragment: ParsedFragment,
+    codeBindings: Map<string, CodeValue>,
+    values: Map<number, CodeValue>,
+  ) {
+    this.codeBindings = codeBindings;
+    this.fragment = fragment;
+    this.values = values;
+  }
+
+  prepareRecipient(locals: Set<string>): ts.Node[] {
+    const captureRenames = captureAvoidanceRenames(
+      this.fragment,
+      locals,
+      this.codeBindings,
+      this.values,
+    );
+
+    return captureRenames.size > 0
+      ? renameIdentifiers(this.fragment.nodes, captureRenames)
+      : this.fragment.nodes;
+  }
+
+  beginInsertions(locals: Set<string>, sourceNodes: ts.Node[]) {
+    this.occupiedLocalNames = new Set(locals);
+    this.usedIdentifierNames = allIdentifierNames(sourceNodes);
+  }
+
+  insert(nodes: ts.Node[]): ts.Node[] {
+    const localNames = collectLocalBindingNames(nodes);
+    const conflicts = Array.from(localNames)
+      .filter((name) => this.occupiedLocalNames.has(name))
+      .sort();
+    const used = new Set([
+      ...this.usedIdentifierNames,
+      ...allIdentifierNames(nodes),
+    ]);
+    let result = nodes;
+
+    if (conflicts.length > 0) {
+      const renames = new Map<string, string>();
+
+      for (const name of conflicts) {
+        renames.set(name, freshIdentifierName(name, used));
+      }
+
+      result = renameIdentifiers(nodes, renames);
+    }
+
+    for (const name of collectLocalBindingNames(result)) {
+      this.occupiedLocalNames.add(name);
+    }
+
+    for (const name of allIdentifierNames(result)) {
+      this.usedIdentifierNames.add(name);
+    }
+
+    return result;
+  }
+}
 
 /** Collects host value names that staging must capture before expansion. */
 export function collectHostCaptureNames(
@@ -90,17 +333,19 @@ export function collectHostCaptureNames(
   const hostCaptureNames = new Map<number, Set<string>>();
 
   for (const fragment of fragments) {
-    const analysis = analyzeResidualReferences(
+    const environment = Environment.analyze(
       fragment,
       bindingResolver(fragment),
       semantic,
       importResolver(fragment),
     );
 
-    diagnostics.push(...analysis.diagnostics);
+    diagnostics.push(...environment.diagnostics);
 
-    if (analysis.hostNames.size > 0) {
-      hostCaptureNames.set(fragment.quote.id, analysis.hostNames);
+    const hostNames = environment.collectHostCaptures();
+
+    if (hostNames.size > 0) {
+      hostCaptureNames.set(fragment.quote.id, hostNames);
     }
   }
 
@@ -122,6 +367,15 @@ export function expandFragments(
     codeBindings instanceof Map ? () => codeBindings : codeBindings;
   const importResolver =
     importBindings instanceof Map ? () => importBindings : importBindings;
+  const context = new ExpansionContext({
+    bindingResolver,
+    capturedHostValues,
+    capturedValues,
+    diagnostics,
+    importResolver,
+    semantic,
+    values,
+  });
 
   for (const fragment of fragments) {
     values.set(fragment.quote.id, {
@@ -132,48 +386,9 @@ export function expandFragments(
     });
   }
 
-  const expanding = new Set<number>();
-
-  const expandValue = (value: CodeValue): CodeValue => {
-    if (value.expandedNodes) {
-      return value;
-    }
-
-    if (expanding.has(value.quote.id)) {
-      diagnostics.push({
-        code: recursiveImplicitUnquote.code,
-        message: `recursive code binding '${value.quote.bindingName ?? "<anonymous>"}' cannot be implicitly unquoted`,
-        origin: value.quote.origin,
-      });
-      value.expandedNodes = value.parsed.nodes;
-      return value;
-    }
-
-    expanding.add(value.quote.id);
-    const expanded = expandParsedFragment(
-      value.parsed,
-      bindingResolver(value.parsed),
-      capturedValues,
-      capturedHostValues,
-      value.runtimeValues,
-      value.runtimeHostValues,
-      values,
-      semantic,
-      importResolver(value.parsed),
-      expandValue,
-      (candidate) => expanding.has(candidate.quote.id),
-    );
-    diagnostics.push(...expanded.diagnostics);
-    value.expandedNodes = expanded.nodes;
-    value.residualImports = expanded.residualImports;
-    expanding.delete(value.quote.id);
-
-    return value;
-  };
-
   for (const value of values.values()) {
     if (shouldEagerlyExpand(value)) {
-      expandValue(value);
+      context.expandValue(value);
     }
   }
 
@@ -184,48 +399,141 @@ function shouldEagerlyExpand(value: CodeValue): boolean {
   return Boolean(value.quote.bindingName || value.quote.exported);
 }
 
-function expandParsedFragment(
+class ExpansionContext {
+  readonly bindingResolver: CodeBindingResolver;
+  readonly capturedHostValues: Map<number, Record<string, unknown>>;
+  readonly capturedValues: Map<number, unknown[]>;
+  readonly diagnostics: Diagnostic[];
+  readonly importResolver: ImportBindingResolver;
+  readonly semantic: SemanticContext | undefined;
+  readonly values: Map<number, CodeValue>;
+  private readonly expanding = new Set<number>();
+
+  constructor(options: {
+    bindingResolver: CodeBindingResolver;
+    capturedHostValues: Map<number, Record<string, unknown>>;
+    capturedValues: Map<number, unknown[]>;
+    diagnostics: Diagnostic[];
+    importResolver: ImportBindingResolver;
+    semantic: SemanticContext | undefined;
+    values: Map<number, CodeValue>;
+  }) {
+    this.bindingResolver = options.bindingResolver;
+    this.capturedHostValues = options.capturedHostValues;
+    this.capturedValues = options.capturedValues;
+    this.diagnostics = options.diagnostics;
+    this.importResolver = options.importResolver;
+    this.semantic = options.semantic;
+    this.values = options.values;
+  }
+
+  codeBindings(fragment: ParsedFragment): Map<string, CodeValue> {
+    return this.bindingResolver(fragment);
+  }
+
+  importBindings(fragment: ParsedFragment): Map<string, ResidualImport> {
+    return this.importResolver(fragment);
+  }
+
+  isExpanding(value: CodeValue): boolean {
+    return this.expanding.has(value.quote.id);
+  }
+
+  expandValue(value: CodeValue): CodeValue {
+    if (value.expandedNodes) {
+      return value;
+    }
+
+    if (this.expanding.has(value.quote.id)) {
+      this.diagnostics.push({
+        code: recursiveImplicitUnquote.code,
+        message: `recursive code binding '${value.quote.bindingName ?? "<anonymous>"}' cannot be implicitly unquoted`,
+        origin: value.quote.origin,
+      });
+      value.expandedNodes = value.parsed.nodes;
+      return value;
+    }
+
+    this.expanding.add(value.quote.id);
+
+    const expanded = new FragmentExpansion(
+      value.parsed,
+      this,
+      value.runtimeValues,
+      value.runtimeHostValues,
+    ).expand();
+
+    this.diagnostics.push(...expanded.diagnostics);
+    value.expandedNodes = expanded.nodes;
+    value.residualImports = expanded.residualImports;
+    this.expanding.delete(value.quote.id);
+
+    return value;
+  }
+}
+
+class FragmentExpansion {
+  private readonly context: ExpansionContext;
+  private readonly fragment: ParsedFragment;
+  private readonly runtimeHostValues: Record<string, unknown> | undefined;
+  private readonly runtimeValues: unknown[] | undefined;
+
+  constructor(
+    fragment: ParsedFragment,
+    context: ExpansionContext,
+    runtimeValues: unknown[] | undefined,
+    runtimeHostValues: Record<string, unknown> | undefined,
+  ) {
+    this.context = context;
+    this.fragment = fragment;
+    this.runtimeHostValues = runtimeHostValues;
+    this.runtimeValues = runtimeValues;
+  }
+
+  expand(): {
+    diagnostics: Diagnostic[];
+    nodes: ts.Node[];
+    residualImports: ResidualImport[];
+  } {
+    return expandFragmentBody(
+      this.fragment,
+      this.context,
+      this.runtimeValues,
+      this.runtimeHostValues,
+    );
+  }
+}
+
+function expandFragmentBody(
   fragment: ParsedFragment,
-  codeBindings: Map<string, CodeValue>,
-  capturedValues: Map<number, unknown[]>,
-  capturedHostValues: Map<number, Record<string, unknown>>,
+  context: ExpansionContext,
   runtimeValues: unknown[] | undefined,
   runtimeHostValues: Record<string, unknown> | undefined,
-  values: Map<number, CodeValue>,
-  semantic: SemanticContext | undefined,
-  importBindings: Map<string, ResidualImport>,
-  expandValue: (value: CodeValue) => CodeValue,
-  isExpanding: (value: CodeValue) => boolean,
 ): {
   diagnostics: Diagnostic[];
   nodes: ts.Node[];
   residualImports: ResidualImport[];
 } {
   const diagnostics: Diagnostic[] = [];
+  const codeBindings = context.codeBindings(fragment);
+  const importBindings = context.importBindings(fragment);
+  const values = context.values;
+  const hygiene = new InsertionHygiene(fragment, codeBindings, values);
   annotateFragmentNodeOrigins(fragment);
   const initialLocals = collectLocalBindings(fragment);
-  const captureRenames = captureAvoidanceRenames(
-    fragment,
-    initialLocals,
-    codeBindings,
-    values,
-  );
-  const sourceNodes =
-    captureRenames.size > 0
-      ? renameIdentifiers(fragment.nodes, captureRenames)
-      : fragment.nodes;
+  const sourceNodes = hygiene.prepareRecipient(initialLocals);
   const renamedFragment =
     sourceNodes === fragment.nodes ? fragment : {...fragment, nodes: sourceNodes};
   const locals = collectLocalBindings(renamedFragment);
-  const referenceAnalysis = analyzeResidualReferences(
+  const environment = Environment.analyze(
     renamedFragment,
     codeBindings,
-    semantic,
+    context.semantic,
     importBindings,
     {diagnoseUnresolved: true},
   );
-  diagnostics.push(...referenceAnalysis.diagnostics);
-  const residualImports = new Map(referenceAnalysis.residualImports);
+  diagnostics.push(...environment.diagnostics);
+  const residualImports = new Map(environment.residualImports);
 
   const addResidualImports = (imports: readonly ResidualImport[] | undefined) => {
     for (const residualImport of imports ?? []) {
@@ -233,85 +541,55 @@ function expandParsedFragment(
     }
   };
 
-  const occupiedLocalNames = new Set(locals);
-  const usedIdentifierNames = allIdentifierNames(sourceNodes);
+  hygiene.beginInsertions(locals, sourceNodes);
   const holes = new Map(fragment.quote.holes.map((hole) => [hole.placeholder, hole]));
+  const spliceEvaluator = new SpliceEvaluator(
+    context,
+    fragment,
+    codeBindings,
+    runtimeValues,
+    diagnostics,
+  );
 
   const expandSpliceExpression = (
     hole: SpliceHole,
     expected: FragmentKind,
     expectedCardinality: QuoteCardinality = "one",
   ): ts.Node[] | undefined => {
-    const captured = capturedValueForHole(
-      fragment,
+    return placement.placeSplice(
+      spliceEvaluator.evaluateSplice(hole),
+      {
+        cardinality: expectedCardinality,
+        kind: expected,
+        origin: hole.origin,
+      },
       hole,
-      capturedValues,
-      runtimeValues,
     );
-
-    if (captured.found) {
-      return expandCapturedValue(
-        captured.value,
-        expected,
-        expectedCardinality,
-        hole,
-      );
-    }
-
-    const value = codeValueForExpression(hole.expression, codeBindings, values);
-
-    if (value) {
-      return expandCodeValue(value, expected, expectedCardinality, hole.origin);
-    }
-
-    diagnostics.push({
-      code: unresolvedExplicitSplice.code,
-      message: `explicit splice '${hole.expression.getText()}' does not resolve to a TypeStage code value`,
-      origin: hole.origin,
-    });
-    return undefined;
   };
 
-  const expandCapturedValue = (
-    value: unknown,
-    expected: FragmentKind,
-    expectedCardinality: QuoteCardinality,
+  const placeSpliceValue = (
+    value: SpliceValue,
+    position: SyntaxPosition,
     hole: SpliceHole,
   ): ts.Node[] | undefined => {
-    if (isRuntimeCode(value)) {
-      const codeValue = codeValueForRuntimeCode(value, values);
-
-      if (codeValue) {
-        return expandCodeValue(codeValue, expected, expectedCardinality, hole.origin);
-      }
-
-      diagnostics.push({
-        code: unresolvedExplicitSplice.code,
-        message: `runtime code splice '${hole.expression.getText()}' does not resolve to a static TypeStage quote`,
-        origin: hole.origin,
-      });
+    if (value.kind === "missing") {
       return undefined;
     }
 
-    if (Array.isArray(value) && value.every(isRuntimeCode)) {
-      return expandRuntimeCodeArray(
-        value,
-        expected,
-        expectedCardinality,
-        hole,
-      );
+    if (value.kind === "code") {
+      return expandCodeValues(value.values, position, hole);
     }
 
-    if (expected !== "expr") {
+    if (position.kind !== "expr") {
       diagnostics.push({
         code: incompatibleSplice.code,
-        message: `cannot splice persistent value '${hole.expression.getText()}' into ${expected} position`,
+        message: `cannot splice persistent value '${hole.expression.getText()}' into ${position.kind} position`,
         origin: hole.origin,
       });
       return undefined;
     }
 
-    const persisted = persistValueToExpression(value);
+    const persisted = persistValueToExpression(value.value);
 
     if (!persisted.ok) {
       diagnostics.push({
@@ -322,14 +600,15 @@ function expandParsedFragment(
       return undefined;
     }
 
-    return hygienicReplacementNodes([setTreeOrigin(persisted.expression, hole.origin)]);
+    return hygiene.insert([setTreeOrigin(persisted.expression, hole.origin)]);
   };
 
   const expandCapturedHostReference = (
     name: string,
     origin: Origin,
   ): ts.Expression | undefined => {
-    const hostValues = runtimeHostValues ?? capturedHostValues.get(fragment.quote.id);
+    const hostValues = runtimeHostValues ??
+      context.capturedHostValues.get(fragment.quote.id);
 
     if (!hostValues || !(name in hostValues)) {
       diagnostics.push({
@@ -360,7 +639,7 @@ function expandParsedFragment(
     const captured = capturedValueForHole(
       fragment,
       hole,
-      capturedValues,
+      context.capturedValues,
       runtimeValues,
     );
 
@@ -392,27 +671,26 @@ function expandParsedFragment(
     );
   };
 
-  const expandRuntimeCodeArray = (
-    runtimeCodes: RuntimeCode[],
-    expected: FragmentKind,
-    expectedCardinality: QuoteCardinality,
+  const expandCodeValues = (
+    codeValues: CodeValue[],
+    position: SyntaxPosition,
     hole: SpliceHole,
   ): ts.Node[] | undefined => {
+    if (codeValues.length === 1) {
+      return placement.placeCode(codeValues[0]!, position);
+    }
+
     const replacements: ts.Node[] = [];
 
-    for (const runtimeCode of runtimeCodes) {
-      const codeValue = codeValueForRuntimeCode(runtimeCode, values);
-
-      if (!codeValue) {
-        diagnostics.push({
-          code: unresolvedExplicitSplice.code,
-          message: `runtime code splice '${hole.expression.getText()}' does not resolve to a static TypeStage quote`,
-          origin: hole.origin,
-        });
-        return undefined;
-      }
-
-      const expanded = expandCodeValue(codeValue, expected, "one", hole.origin);
+    for (const codeValue of codeValues) {
+      const expanded = placement.placeCode(
+        codeValue,
+        {
+          cardinality: "one",
+          kind: position.kind,
+          origin: position.origin,
+        },
+      );
 
       if (!expanded) {
         return undefined;
@@ -421,7 +699,7 @@ function expandParsedFragment(
       replacements.push(...expanded);
     }
 
-    if (expectedCardinality === "many") {
+    if (position.cardinality === "many") {
       return replacements;
     }
 
@@ -431,7 +709,7 @@ function expandParsedFragment(
 
     diagnostics.push({
       code: incompatibleSplice.code,
-      message: `cannot splice ${replacements.length} ${expected} nodes into ${expected} position`,
+      message: `cannot splice ${replacements.length} ${position.kind} nodes into ${position.kind} position`,
       origin: hole.origin,
     });
     return undefined;
@@ -441,7 +719,7 @@ function expandParsedFragment(
     const captured = capturedValueForHole(
       fragment,
       hole,
-      capturedValues,
+      context.capturedValues,
       runtimeValues,
     );
 
@@ -484,7 +762,7 @@ function expandParsedFragment(
     name: ts.Identifier;
     type?: ts.TypeNode;
   } | undefined => {
-    const expanded = expandValue(value);
+    const expanded = context.expandValue(value);
 
     if (expanded.kind !== "ident") {
       return undefined;
@@ -524,7 +802,7 @@ function expandParsedFragment(
       ));
     }
 
-    return hygienicReplacementNodes(replacements)
+    return hygiene.insert(replacements)
       .filter(ts.isParameter);
   };
 
@@ -544,7 +822,7 @@ function expandParsedFragment(
       return undefined;
     }
 
-    const replacements = hygienicReplacementNodes([
+    const replacements = hygiene.insert([
       copyNodeOrigin(
         ts.factory.updateVariableDeclaration(
           declaration,
@@ -569,12 +847,12 @@ function expandParsedFragment(
     expectedCardinality: QuoteCardinality,
     origin: Origin,
   ): ts.Node[] | undefined => {
-    if (isExpanding(value)) {
-      expandValue(value);
+    if (context.isExpanding(value)) {
+      context.expandValue(value);
       return undefined;
     }
 
-    const expanded = expandValue(value);
+    const expanded = context.expandValue(value);
 
     if (expanded.runtimeValues || expanded.runtimeHostValues) {
       values.set(expanded.quote.id, expanded);
@@ -588,7 +866,7 @@ function expandParsedFragment(
       const replacements = identifierReplacementNodes(expandedNodes, expected);
 
       if (replacements) {
-        return hygienicReplacementNodes(replacements);
+        return hygiene.insert(replacements);
       }
     }
 
@@ -607,11 +885,11 @@ function expandParsedFragment(
       }
 
       if (expectedCardinality === "many") {
-        return hygienicReplacementNodes(replacements);
+        return hygiene.insert(replacements);
       }
 
       if (replacements.length === 1) {
-        return hygienicReplacementNodes(replacements);
+        return hygiene.insert(replacements);
       }
 
       diagnostics.push({
@@ -634,7 +912,7 @@ function expandParsedFragment(
         return undefined;
       }
 
-      return hygienicReplacementNodes([adapted.expression]);
+      return hygiene.insert([adapted.expression]);
     }
 
     if (!isCompatible(expanded.kind, expected)) {
@@ -646,36 +924,218 @@ function expandParsedFragment(
       return undefined;
     }
 
-    return hygienicReplacementNodes(expandedNodes);
+    return hygiene.insert(expandedNodes);
   };
 
-  const hygienicReplacementNodes = (nodes: ts.Node[]): ts.Node[] => {
-    const localNames = collectLocalBindingNames(nodes);
-    const conflicts = Array.from(localNames)
-      .filter((name) => occupiedLocalNames.has(name))
-      .sort();
-    const used = new Set([...usedIdentifierNames, ...allIdentifierNames(nodes)]);
-    let result = nodes;
+  const placement: Placement = {
+    placeCode(value, position) {
+      return expandCodeValue(
+        value,
+        position.kind,
+        position.cardinality,
+        position.origin,
+      );
+    },
+    placeHostValue(name, position) {
+      return expandCapturedHostReference(name, position.origin);
+    },
+    placeSplice: placeSpliceValue,
+  };
 
-    if (conflicts.length > 0) {
-      const renames = new Map<string, string>();
+  const rewriteCandidate = (candidate: ts.Node): RewriteDecision => {
+    if (ts.isTypeReferenceNode(candidate)) {
+      const name = typeReferenceIdentifier(candidate);
 
-      for (const name of conflicts) {
-        renames.set(name, freshIdentifierName(name, used));
+      if (name) {
+        const hole = holes.get(name.text);
+        const expectedCardinality = isTypeListPosition(candidate) ? "many" : "one";
+
+        if (hole) {
+          const replacements = expandSpliceExpression(
+            hole,
+            "type",
+            expectedCardinality,
+          );
+
+          return decisionFromTypeReplacement(expectedCardinality, replacements) ??
+            {kind: "failed"};
+        }
+
+        const resolved = environment.lookupType(candidate);
+
+        if (
+          resolved.kind === "code" &&
+          codeBindingMatchesPosition(resolved.value.kind, "type")
+        ) {
+          const replacements = placement.placeCode(
+            resolved.value,
+            {
+              cardinality: expectedCardinality,
+              kind: "type",
+              origin: originForNode(fragment, candidate),
+            },
+          );
+
+          return decisionFromTypeReplacement(expectedCardinality, replacements) ??
+            {kind: "keep"};
+        }
+      }
+    }
+
+    if (
+      ts.isVariableDeclaration(candidate) &&
+      ts.isIdentifier(candidate.name)
+    ) {
+      const hole = holes.get(candidate.name.text);
+
+      if (hole) {
+        const replacement = variableDeclarationReplacementForSplice(hole, candidate);
+
+        return replacement
+          ? {kind: "replace", node: replacement, visitChildren: true}
+          : {kind: "keep"};
+      }
+    }
+
+    if (ts.isParameter(candidate) && ts.isIdentifier(candidate.name)) {
+      const hole = holes.get(candidate.name.text);
+
+      if (hole) {
+        const typedReplacements = parameterReplacementsForSplice(hole, candidate);
+
+        if (typedReplacements) {
+          return {kind: "replaceMany", nodes: typedReplacements};
+        }
+
+        const replacements = expandSpliceExpression(hole, "pattern", "many");
+        const bindingNames = bindingNameReplacements(replacements);
+
+        return bindingNames
+          ? {
+              kind: "replaceMany",
+              nodes: bindingNames.map((name) => cloneParameterWithName(candidate, name)),
+            }
+          : {kind: "failed"};
+      }
+    }
+
+    if (
+      ts.isExpressionStatement(candidate) &&
+      ts.isIdentifier(candidate.expression)
+    ) {
+      const hole = holes.get(candidate.expression.text);
+
+      if (hole) {
+        const replacements = expandSpliceExpression(
+          hole,
+          "stmt",
+          fragment.quote.cardinality,
+        );
+
+        return replacements
+          ? {kind: "replaceMany", nodes: replacements}
+          : {kind: "keep"};
+      }
+    }
+
+    if (ts.isIdentifier(candidate)) {
+      const hole = holes.get(candidate.text);
+
+      if (hole) {
+        if (fragment.quote.kind === "ident") {
+          const replacement = expandCapturedIdentifier(hole);
+
+          return replacement
+            ? {kind: "replace", node: replacement, visitChildren: false}
+            : {kind: "keep"};
+        }
+
+        if (isExpressionListPosition(candidate)) {
+          const replacements = expandSpliceExpression(hole, "expr", "many");
+
+          return replacements && replacements.every(ts.isExpression)
+            ? {kind: "replaceMany", nodes: replacements}
+            : {kind: "keep"};
+        }
+
+        const replacement = expandSpliceExpression(hole, "expr")?.[0];
+
+        return replacement && ts.isExpression(replacement)
+          ? {
+              kind: "replace",
+              node: parenthesizeIfNeeded(replacement),
+              visitChildren: false,
+            }
+          : {kind: "keep"};
       }
 
-      result = renameIdentifiers(nodes, renames);
+      const resolved = environment.lookupValue(candidate);
+
+      if (
+        resolved.kind === "code" &&
+        codeBindingMatchesPosition(resolved.value.kind, "expr")
+      ) {
+        if (isExpressionListPosition(candidate)) {
+          const replacements = placement.placeCode(
+            resolved.value,
+            {
+              cardinality: "many",
+              kind: "expr",
+              origin: originForNode(fragment, candidate),
+            },
+          );
+
+          return replacements && replacements.every(ts.isExpression)
+            ? {kind: "replaceMany", nodes: replacements}
+            : {kind: "keep"};
+        }
+
+        const replacement = placement.placeCode(
+          resolved.value,
+          {
+            cardinality: "one",
+            kind: "expr",
+            origin: originForNode(fragment, candidate),
+          },
+        )?.[0];
+
+        return replacement && ts.isExpression(replacement)
+          ? {
+              kind: "replace",
+              node: parenthesizeIfNeeded(replacement),
+              visitChildren: false,
+            }
+          : {kind: "keep"};
+      }
+
+      if (
+        resolved.kind === "host-value" &&
+        isReferenceIdentifier(candidate)
+      ) {
+        const replacement = placement.placeHostValue(
+          resolved.name,
+          {
+            cardinality: isExpressionListPosition(candidate) ? "many" : "one",
+            kind: "expr",
+            origin: originForNode(fragment, candidate),
+          },
+        );
+
+        if (replacement && isExpressionListPosition(candidate)) {
+          return {kind: "replace", node: replacement, visitChildren: false};
+        }
+
+        return replacement
+          ? {
+              kind: "replace",
+              node: parenthesizeIfNeeded(replacement),
+              visitChildren: false,
+            }
+          : {kind: "keep"};
+      }
     }
 
-    for (const name of collectLocalBindingNames(result)) {
-      occupiedLocalNames.add(name);
-    }
-
-    for (const name of allIdentifierNames(result)) {
-      usedIdentifierNames.add(name);
-    }
-
-    return result;
+    return {kind: "keep"};
   };
 
   const expandedNodes = sourceNodes
@@ -695,168 +1155,13 @@ function expandParsedFragment(
         }
       }
 
-      const transformed = transformNode(node, (candidate) => {
-        if (ts.isTypeReferenceNode(candidate)) {
-          const name = typeReferenceIdentifier(candidate);
-
-          if (name) {
-            const hole = holes.get(name.text);
-            const expectedCardinality = isTypeListPosition(candidate) ? "many" : "one";
-
-            if (hole) {
-              const replacements = expandSpliceExpression(
-                hole,
-                "type",
-                expectedCardinality,
-              );
-
-              return typeReplacementResult(expectedCardinality, replacements) ??
-                completedReplacement(candidate);
-            }
-
-            const resolved = referenceAnalysis.typeReferences.get(candidate);
-
-            if (
-              resolved?.kind === "code" &&
-              codeBindingMatchesPosition(resolved.value.kind, "type")
-            ) {
-              const replacements = expandCodeValue(
-                resolved.value,
-                "type",
-                expectedCardinality,
-                originForNode(fragment, candidate),
-              );
-
-              return typeReplacementResult(expectedCardinality, replacements) ?? candidate;
-            }
-          }
-        }
-
-        if (
-          ts.isVariableDeclaration(candidate) &&
-          ts.isIdentifier(candidate.name)
-        ) {
-          const hole = holes.get(candidate.name.text);
-
-          if (hole) {
-            return variableDeclarationReplacementForSplice(hole, candidate) ??
-              candidate;
-          }
-        }
-
-        if (ts.isParameter(candidate) && ts.isIdentifier(candidate.name)) {
-          const hole = holes.get(candidate.name.text);
-
-          if (hole) {
-            const typedReplacements = parameterReplacementsForSplice(hole, candidate);
-
-            if (typedReplacements) {
-              return typedReplacements;
-            }
-
-            const replacements = expandSpliceExpression(hole, "pattern", "many");
-            const bindingNames = bindingNameReplacements(replacements);
-
-            return bindingNames
-              ? bindingNames.map((name) => cloneParameterWithName(candidate, name))
-              : completedReplacement(candidate);
-          }
-        }
-
-        if (
-          ts.isExpressionStatement(candidate) &&
-          ts.isIdentifier(candidate.expression)
-        ) {
-          const hole = holes.get(candidate.expression.text);
-
-          if (hole) {
-            return expandSpliceExpression(
-              hole,
-              "stmt",
-              fragment.quote.cardinality,
-            ) ?? candidate;
-          }
-        }
-
-        if (ts.isIdentifier(candidate)) {
-          const hole = holes.get(candidate.text);
-
-          if (hole) {
-            if (fragment.quote.kind === "ident") {
-              const replacement = expandCapturedIdentifier(hole);
-
-              return replacement
-                ? completedReplacement(replacement)
-                : candidate;
-            }
-
-            if (isExpressionListPosition(candidate)) {
-              const replacements = expandSpliceExpression(hole, "expr", "many");
-
-              return replacements && replacements.every(ts.isExpression)
-                ? replacements
-                : candidate;
-            }
-
-            const replacement = expandSpliceExpression(hole, "expr")?.[0];
-
-            return replacement && ts.isExpression(replacement)
-              ? completedReplacement(parenthesizeIfNeeded(replacement))
-              : candidate;
-          }
-
-          const resolved = referenceAnalysis.identifiers.get(candidate);
-
-          if (
-            resolved?.kind === "code" &&
-            codeBindingMatchesPosition(resolved.value.kind, "expr")
-          ) {
-            if (isExpressionListPosition(candidate)) {
-              const replacements = expandCodeValue(
-                resolved.value,
-                "expr",
-                "many",
-                originForNode(fragment, candidate),
-              );
-
-              return replacements && replacements.every(ts.isExpression)
-                ? replacements
-                : candidate;
-            }
-
-            const replacement = expandCodeValue(
-              resolved.value,
-              "expr",
-              "one",
-              originForNode(fragment, candidate),
-            )?.[0];
-
-            return replacement && ts.isExpression(replacement)
-              ? completedReplacement(parenthesizeIfNeeded(replacement))
-              : candidate;
-          }
-
-          if (
-            resolved?.kind === "host-value" &&
-            isReferenceIdentifier(candidate)
-          ) {
-            const replacement = expandCapturedHostReference(
-              resolved.name,
-              originForNode(fragment, candidate),
-            );
-
-            if (replacement && isExpressionListPosition(candidate)) {
-              return completedReplacement(replacement);
-            }
-
-            return replacement
-              ? completedReplacement(parenthesizeIfNeeded(replacement))
-              : candidate;
-          }
-        }
-
-        return candidate;
-      });
+      const transformed = transformNode(
+        node,
+        (candidate) => replacementFromRewriteDecision(
+          rewriteCandidate(candidate),
+          candidate,
+        ),
+      );
 
       return Array.isArray(transformed) ? transformed : [transformed];
     })
@@ -1433,10 +1738,10 @@ function typeReplacements(nodes: ts.Node[] | undefined): ts.TypeNode[] | undefin
   return nodes?.every(ts.isTypeNode) ? nodes : undefined;
 }
 
-function typeReplacementResult(
+function decisionFromTypeReplacement(
   expectedCardinality: QuoteCardinality,
   nodes: ts.Node[] | undefined,
-): Replacement | undefined {
+): RewriteDecision | undefined {
   const replacements = typeReplacements(nodes);
 
   if (!replacements) {
@@ -1444,12 +1749,14 @@ function typeReplacementResult(
   }
 
   if (expectedCardinality === "many") {
-    return replacements;
+    return {kind: "replaceMany", nodes: replacements};
   }
 
   const replacement = replacements[0];
 
-  return replacement ? completedReplacement(replacement) : undefined;
+  return replacement
+    ? {kind: "replace", node: replacement, visitChildren: false}
+    : undefined;
 }
 
 function bindingNameReplacements(
@@ -1689,6 +1996,27 @@ function transformNode(
   transformed.dispose();
 
   return synthesizeNode(result);
+}
+
+function replacementFromRewriteDecision(
+  decision: RewriteDecision,
+  original: ts.Node,
+): Replacement {
+  switch (decision.kind) {
+    case "keep":
+      return original;
+
+    case "replace":
+      return decision.visitChildren
+        ? decision.node
+        : completedReplacement(decision.node);
+
+    case "replaceMany":
+      return decision.nodes;
+
+    case "failed":
+      return completedReplacement(original);
+  }
 }
 
 function completedReplacement(node: ts.Node): Replacement {
