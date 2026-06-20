@@ -56,7 +56,7 @@
       "quoteId": 1,
       "moduleId": "main.ts",
       "kind": "expr",
-      "text": "__typestage_hole_1_0"
+      "text": "body"
     }
   ],
   "diagnostics": [
@@ -65,8 +65,8 @@
       "message": "cannot adapt block containing break, continue, yield, or await into expression position",
       "origin": {
         "sourceFile": "tests/fixtures/pass/block-to-expression-unsafe/input/main.ts",
-        "start": 230,
-        "end": 234
+        "start": 228,
+        "end": 232
       }
     }
   ],

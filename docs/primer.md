@@ -384,7 +384,7 @@ const body = q.block`
 `;
 
 export const expr = q.expr`
-  ${body} * 2
+  body * 2
 `;
 ```
 

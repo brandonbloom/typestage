@@ -265,7 +265,7 @@ function collectBindingNameFromResidualPattern(
 
 function codeBindingMatchesPosition(kind: CodeValue["kind"], expected: "expr" | "type") {
   return (
-    (expected === "expr" && (kind === "expr" || kind === "ident")) ||
+    (expected === "expr" && (kind === "expr" || kind === "ident" || kind === "block")) ||
     (expected === "type" && (kind === "type" || kind === "ident"))
   );
 }

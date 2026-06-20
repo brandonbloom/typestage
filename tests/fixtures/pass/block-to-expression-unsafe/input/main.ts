@@ -9,5 +9,5 @@ const body = q.block`
 
 // Intentional diagnostic: blocks containing await cannot adapt into expression positions.
 export const expr = q.expr`
-  ${body}
+  body
 `;

@@ -908,6 +908,7 @@ function syntaxFamilyForKind(kind: FragmentKind): SyntaxFamily | undefined {
 
 function codeBindingMatchesPosition(kind: FragmentKind, expected: SyntaxFamily): boolean {
   return syntaxFamilyForKind(kind) === expected ||
+    (kind === "block" && expected === "expr") ||
     (kind === "ident" && (expected === "expr" || expected === "type"));
 }
 
