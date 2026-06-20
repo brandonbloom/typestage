@@ -178,10 +178,10 @@ In statically compiled TypeStage source, prefer implicit unquoting for a plain
 identifier whose code-valued binding is statically known and compatible with the
 quoted position. Reserve explicit `${...}` splices for cases where the host side
 is doing real work: indexing or calling a host expression, splicing into a
-binding or sequence position, forcing persistence of a host value, handling a
-runtime value whose code-valuedness is not statically visible, or demonstrating
-explicit-splice behavior. In ordinary expression and type positions,
-`${fragment}` is usually noisier than `fragment`.
+binding or sequence position, persisting a host expression that is not a plain
+identifier, handling a runtime value whose code-valuedness is not statically
+visible, or demonstrating explicit-splice behavior. In ordinary expression and
+type positions, `${fragment}` is usually noisier than `fragment`.
 
 ## 5. Persistent Values
 

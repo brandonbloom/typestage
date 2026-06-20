@@ -6,6 +6,7 @@ import {
   walkScopedReferences,
 } from "./residual-scope.ts";
 import {
+  hostValueNameIsCallableOrConstructable,
   resolveHostTypeName,
   resolveHostValueName,
   type SemanticContext,
@@ -122,13 +123,29 @@ function analyzeResidualReferences(
     }
 
     const imported = importBindings.get(identifier.text);
+    const hostSymbol = resolveHostValueName(
+      semantic,
+      fragment,
+      identifier.text,
+      true,
+    );
 
-    if (imported && !imported.isTypeOnly) {
+    if (
+      imported &&
+      !imported.isTypeOnly &&
+      (!hostSymbol ||
+        hostValueNameIsCallableOrConstructable(
+          semantic,
+          fragment,
+          identifier.text,
+          true,
+        ))
+    ) {
       residualImports.set(residualImportKey(imported), imported);
       return {kind: "import", value: imported};
     }
 
-    if (resolveHostValueName(semantic, fragment, identifier.text, true)) {
+    if (hostSymbol) {
       hostNames.add(identifier.text);
       return {kind: "host-value", name: identifier.text};
     }

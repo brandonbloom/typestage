@@ -147,23 +147,25 @@ Resolution order inside quotes:
 2. Resolve against enclosing quoted bindings.
 3. If unresolved in the residual environment, check enclosing host bindings.
 4. If a matching host binding is code-valued and compatible with the current syntactic position, implicitly unquote it.
-5. If a matching host binding is an import, capture it as a residual import dependency.
-6. If a matching host binding is value-valued, persist its staging-time value.
+5. If a matching imported host binding is callable or constructable, capture it as a residual import dependency.
+6. If a matching host binding is a non-code value, persist its staging-time value.
 7. If TypeScript resolves the name as an ambient value or type from the configured `lib`, `types`, or `.d.ts` environment, leave it as a residual reference.
 8. Otherwise report an unresolved residual reference.
 
-Imported values are residual names by default. If residual code references an
-imported function or value, TypeStage emits the corresponding import with the
-generated code, even when the quote is imported and emitted from another module.
-Use an explicit splice such as `${settings}` when you want the staging-time
-snapshot of an imported value instead.
+Imported callable and constructable values are residual names by default. If
+residual code references an imported function or class, TypeStage emits the
+corresponding import with the generated code, even when the quote is imported
+and emitted from another module. Imported non-callable values are staging-time
+snapshots when persisted; import live-binding semantics are not preserved across
+that phase boundary.
 
 Style rule: in statically compiled TypeStage source, when a statically known
 code-valued host binding can be referenced as a plain identifier in the quote,
 prefer implicit unquoting. Explicit `${...}` is for host expressions that are
-not plain identifiers, binding and sequence splices, intentional persistence,
-runtime values whose code-valuedness is not statically visible, and examples or
-tests that are specifically about explicit splicing. Runtime `RuntimeCode`
+not plain identifiers, binding and sequence splices, persistence in non-plain
+expression forms, runtime values whose code-valuedness is not statically
+visible, and examples or tests that are specifically about explicit splicing.
+Runtime `RuntimeCode`
 construction cannot rely on implicit unquoting because there is no static quote
 site whose lexical environment can be analyzed.
 

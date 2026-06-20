@@ -176,6 +176,28 @@ export function resolveHostValueName(
   );
 }
 
+/** Returns true when a host value-space name has callable or constructable type. */
+export function hostValueNameIsCallableOrConstructable(
+  semantic: SemanticContext | undefined,
+  fragment: ParsedFragment,
+  name: string,
+  excludeGlobals: boolean,
+): boolean {
+  const symbol = resolveHostValueName(semantic, fragment, name, excludeGlobals);
+
+  if (!semantic || !symbol) {
+    return false;
+  }
+
+  const type = semantic.checker.getTypeOfSymbolAtLocation(
+    symbol,
+    semantic.lookupNode ?? fragment.quote.node,
+  );
+
+  return type.getCallSignatures().length > 0 ||
+    type.getConstructSignatures().length > 0;
+}
+
 /** Resolves a type-space name at the host quote site. */
 export function resolveHostTypeName(
   semantic: SemanticContext | undefined,
