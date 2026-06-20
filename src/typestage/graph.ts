@@ -36,7 +36,11 @@ import {
 } from "pathe";
 import {extractQuotes, parseHostSource} from "./quote-extractor.ts";
 import {referenceIdentifiers} from "./residual-scope.ts";
-import {createSemanticContext, type SemanticContext, type SemanticHost} from "./semantic.ts";
+import {
+  createSemanticContext,
+  type SemanticContext,
+  type SemanticHost,
+} from "./semantic.ts";
 import {createSourceMappedOutput, type SourceMapBlock} from "./source-map.ts";
 import {evaluateBrowserStagingGraph} from "./staging-browser.ts";
 import type {StagingEvaluator} from "./staging.ts";
@@ -989,48 +993,19 @@ function virtualSourceHost(
   currentDirectory: string,
   sourceFiles: Map<string, string>,
 ): GraphSourceHost {
-  const declarationFiles = new Map([
-    [resolvePath(currentDirectory, "lib.d.ts"), ambientDeclarations()],
-  ]);
-  const allFiles = new Map([...declarationFiles, ...sourceFiles]);
-
   return {
     currentDirectory,
-    fileExists: (path) => allFiles.has(resolvePath(currentDirectory, path)),
-    isFile: (path) => allFiles.has(resolvePath(currentDirectory, path)),
+    fileExists: (path) => sourceFiles.has(resolvePath(currentDirectory, path)),
+    isFile: (path) => sourceFiles.has(resolvePath(currentDirectory, path)),
     readDirectory: (path) => {
       const root = resolvePath(currentDirectory, path);
 
-      return Array.from(allFiles.keys()).filter((fileName) =>
+      return Array.from(sourceFiles.keys()).filter((fileName) =>
         fileName.startsWith(root === "/" ? "/" : `${root}/`)
       );
     },
-    readFile: (path) => allFiles.get(resolvePath(currentDirectory, path)),
+    readFile: (path) => sourceFiles.get(resolvePath(currentDirectory, path)),
   };
-}
-
-function ambientDeclarations(): string {
-  return `
-declare const console: { log(...values: unknown[]): void; error(...values: unknown[]): void; warn(...values: unknown[]): void };
-declare const Infinity: number;
-declare const NaN: number;
-declare const Symbol: { for(key: string): symbol; keyFor(symbol: symbol): string | undefined; (description?: string): symbol };
-declare const JSON: { stringify(value: unknown): string; parse(text: string): unknown };
-declare class Date { constructor(value?: string | number); toISOString(): string; }
-declare class Map<K, V> { constructor(entries?: readonly (readonly [K, V])[]); }
-declare class Set<T> { constructor(values?: readonly T[]); }
-declare class RegExp { constructor(pattern: string, flags?: string); }
-declare interface Array<T> { length: number; [index: number]: T; map<U>(callback: (value: T, index: number) => U): U[]; filter(callback: (value: T, index: number) => boolean): T[]; join(separator?: string): string; }
-declare interface ReadonlyArray<T> { readonly length: number; readonly [index: number]: T; map<U>(callback: (value: T, index: number) => U): U[]; filter(callback: (value: T, index: number) => boolean): T[]; join(separator?: string): string; }
-declare interface String { length: number; slice(start?: number, end?: number): string; replace(pattern: RegExp | string, replacement: string): string; startsWith(search: string): boolean; endsWith(search: string): boolean; split(separator: string | RegExp): string[]; }
-declare interface Number {}
-declare interface Boolean {}
-declare interface Object {}
-declare interface Function {}
-declare interface CallableFunction extends Function {}
-declare interface NewableFunction extends Function {}
-declare interface IArguments {}
-`.trimStart();
 }
 
 /** Formats graph diagnostics against their original source files. */

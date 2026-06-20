@@ -1,5 +1,6 @@
 import * as ts from "typescript";
 import {
+  basename as basenamePath,
   dirname as dirnamePath,
   isAbsolute as isAbsolutePath,
   join as joinPath,
@@ -25,6 +26,15 @@ export type SemanticHost = {
   useCaseSensitiveFileNames?: boolean;
 };
 
+type SemanticEnvironment = {
+  compilerHost?: ts.CompilerHost;
+  compilerOptions: ts.CompilerOptions;
+  currentDirectory: string;
+  lookupPath?: string;
+  rootNames: readonly string[];
+  sourcePaths: readonly string[];
+};
+
 /** Builds a TypeScript program using tsconfig options plus graph source roots. */
 export function createSemanticContext(
   entryPath: string,
@@ -33,37 +43,26 @@ export function createSemanticContext(
   host?: SemanticHost,
   compilerOptions?: ts.CompilerOptions,
 ): SemanticContext {
+  const currentDirectory = host?.currentDirectory ??
+    ts.sys?.getCurrentDirectory?.() ??
+    "/";
   const parsed = host
     ? {...defaultConfig(), options: compilerOptions ?? defaultConfig().options}
     : parsedNodeConfig(entryPath);
-  const rootNames = uniquePaths([
+  const sourcePaths = uniquePaths(graphPaths, currentDirectory);
+  const rootNames = [
     ...parsed.fileNames,
-    ...graphPaths,
+    ...sourcePaths,
     ...declarationFilesUnder(sourceRoot, host),
-  ], host?.currentDirectory);
-  const compilerHost = host
-    ? virtualCompilerHost(host)
-    : undefined;
-  const program = ts.createProgram({
+  ];
+
+  return createSemanticContextForEnvironment({
+    compilerHost: host ? compilerHostForSemanticHost(host, parsed.options) : undefined,
+    compilerOptions: parsed.options,
+    currentDirectory,
     rootNames,
-    options: parsed.options,
-    host: compilerHost,
+    sourcePaths,
   });
-  const sourceFilesByPath = new Map<string, ts.SourceFile>();
-
-  for (const sourceFile of program.getSourceFiles()) {
-    const fileName = resolveSemanticPath(sourceFile.fileName, host?.currentDirectory);
-
-    if (!sourceFile.isDeclarationFile || graphPaths.includes(fileName)) {
-      sourceFilesByPath.set(fileName, sourceFile);
-    }
-  }
-
-  return {
-    checker: program.getTypeChecker(),
-    program,
-    sourceFilesByPath,
-  };
 }
 
 /** Builds a TypeScript program for runtime-created fragments. */
@@ -74,69 +73,92 @@ export function createRuntimeSemanticContext(
 ): SemanticContext {
   const currentDirectory = ts.sys?.getCurrentDirectory?.() ?? "/";
   const virtualPath = resolveSemanticPath(sourceFileName, currentDirectory);
-  const configPath = ts.sys
-    ? ts.findConfigFile(dirnamePath(virtualPath), ts.sys.fileExists) ??
-      ts.findConfigFile(currentDirectory, ts.sys.fileExists)
-    : undefined;
-  const parsed = configPath ? readTsConfig(configPath) : defaultConfig();
-  const rootNames = uniquePaths([
+  const parsed = parsedNodeConfig(virtualPath);
+  const rootNames = [
     ...parsed.fileNames,
     virtualPath,
     ...declarationFilesUnder(sourceRoot),
-  ], currentDirectory);
-  const host = ts.createCompilerHost(parsed.options);
-  const readFile = host.readFile.bind(host);
-  const fileExists = host.fileExists.bind(host);
-  const getSourceFile = host.getSourceFile.bind(host);
+  ];
 
-  host.fileExists = (fileName) =>
-    resolveSemanticPath(fileName, currentDirectory) === virtualPath || fileExists(fileName);
-  host.readFile = (fileName) =>
-    resolveSemanticPath(fileName, currentDirectory) === virtualPath ? sourceText : readFile(fileName);
-  host.getSourceFile = (
-    fileName,
-    languageVersion,
-    onError,
-    shouldCreateNewSourceFile,
-  ) =>
-    resolveSemanticPath(fileName, currentDirectory) === virtualPath
-      ? ts.createSourceFile(
-          fileName,
-          sourceText,
-          languageVersion,
-          true,
-          ts.ScriptKind.TS,
-        )
-      : getSourceFile(
-          fileName,
-          languageVersion,
-          onError,
-          shouldCreateNewSourceFile,
-        );
-
-  const program = ts.createProgram({
-    host,
+  return createSemanticContextForEnvironment({
+    compilerHost: overlayCompilerHost(
+      parsed.options,
+      currentDirectory,
+      new Map([[virtualPath, sourceText]]),
+    ),
+    compilerOptions: parsed.options,
+    currentDirectory,
+    lookupPath: virtualPath,
     rootNames,
-    options: parsed.options,
+    sourcePaths: [virtualPath],
+  });
+}
+
+function createSemanticContextForEnvironment(
+  environment: SemanticEnvironment,
+): SemanticContext {
+  const rootNames = uniquePaths(
+    environment.rootNames,
+    environment.currentDirectory,
+  );
+  const sourcePaths = new Set(uniquePaths(
+    environment.sourcePaths,
+    environment.currentDirectory,
+  ));
+  const lookupPath = environment.lookupPath
+    ? resolveSemanticPath(environment.lookupPath, environment.currentDirectory)
+    : undefined;
+  const program = ts.createProgram({
+    host: environment.compilerHost,
+    options: environment.compilerOptions,
+    rootNames,
   });
   const sourceFilesByPath = new Map<string, ts.SourceFile>();
 
   for (const sourceFile of program.getSourceFiles()) {
-    const fileName = resolveSemanticPath(sourceFile.fileName, currentDirectory);
+    const fileName = resolveSemanticPath(
+      sourceFile.fileName,
+      environment.currentDirectory,
+    );
 
-    if (!sourceFile.isDeclarationFile || fileName === virtualPath) {
+    if (!sourceFile.isDeclarationFile || sourcePaths.has(fileName)) {
       sourceFilesByPath.set(fileName, sourceFile);
     }
   }
 
-  const virtualSourceFile = program.getSourceFile(virtualPath);
+  const lookupSourceFile = lookupPath ? program.getSourceFile(lookupPath) : undefined;
 
   return {
     checker: program.getTypeChecker(),
-    lookupNode: virtualSourceFile?.statements[0],
+    lookupNode: lookupSourceFile?.statements[0],
     program,
     sourceFilesByPath,
   };
+}
+
+function fallbackAmbientDeclarations(): string {
+  return `
+declare const console: { log(...values: unknown[]): void; error(...values: unknown[]): void; warn(...values: unknown[]): void };
+declare const Infinity: number;
+declare const NaN: number;
+declare const Symbol: { for(key: string): symbol; keyFor(symbol: symbol): string | undefined; (description?: string): symbol };
+declare const JSON: { stringify(value: unknown): string; parse(text: string): unknown };
+declare class Date { constructor(value?: string | number); static now(): number; toISOString(): string; }
+declare class Promise<T> { static resolve<T>(value: T): Promise<T>; }
+declare class Map<K, V> { constructor(entries?: readonly (readonly [K, V])[]); }
+declare class Set<T> { constructor(values?: readonly T[]); }
+declare class RegExp { constructor(pattern: string, flags?: string); }
+declare interface Array<T> { length: number; [index: number]: T; map<U>(callback: (value: T, index: number) => U): U[]; filter(callback: (value: T, index: number) => boolean): T[]; join(separator?: string): string; }
+declare interface ReadonlyArray<T> { readonly length: number; readonly [index: number]: T; map<U>(callback: (value: T, index: number) => U): U[]; filter(callback: (value: T, index: number) => boolean): T[]; join(separator?: string): string; }
+declare interface String { length: number; slice(start?: number, end?: number): string; replace(pattern: RegExp | string, replacement: string): string; startsWith(search: string): boolean; endsWith(search: string): boolean; split(separator: string | RegExp): string[]; }
+declare interface Number {}
+declare interface Boolean {}
+declare interface Object {}
+declare interface Function {}
+declare interface CallableFunction extends Function {}
+declare interface NewableFunction extends Function {}
+declare interface IArguments {}
+`.trimStart();
 }
 
 /** Resolves a value-space name at the host quote site. */
@@ -240,8 +262,19 @@ function resolvePath(currentDirectory: string, ...parts: string[]): string {
   return resolved;
 }
 
-function virtualCompilerHost(host: SemanticHost): ts.CompilerHost {
+function compilerHostForSemanticHost(
+  host: SemanticHost,
+  compilerOptions: ts.CompilerOptions,
+): ts.CompilerHost {
   const sourceFiles = new Map<string, ts.SourceFile>();
+  const defaultLibFileName = defaultLibFileNameForCompilerHost(compilerOptions);
+  const readFileText = (fileName: string): string | undefined => {
+    const resolved = resolveSemanticPath(fileName, host.currentDirectory);
+
+    return host.readFile(resolved) ??
+      readTypeScriptLibFile(fileName, compilerOptions) ??
+      fallbackAmbientFile(fileName, defaultLibFileName);
+  };
   const getSourceFile = (fileName: string, languageVersion: ts.ScriptTarget) => {
     const resolved = resolveSemanticPath(fileName, host.currentDirectory);
     const existing = sourceFiles.get(resolved) ?? host.getSourceFile?.(resolved);
@@ -251,7 +284,7 @@ function virtualCompilerHost(host: SemanticHost): ts.CompilerHost {
       return existing;
     }
 
-    const text = host.readFile(resolved);
+    const text = readFileText(fileName);
 
     if (text === undefined) {
       return undefined;
@@ -271,18 +304,129 @@ function virtualCompilerHost(host: SemanticHost): ts.CompilerHost {
   };
 
   return {
-    fileExists: (fileName) => host.fileExists(resolveSemanticPath(fileName, host.currentDirectory)),
+    fileExists: (fileName) =>
+      host.fileExists(resolveSemanticPath(fileName, host.currentDirectory)) ||
+      readTypeScriptLibFile(fileName, compilerOptions) !== undefined ||
+      fallbackAmbientFile(fileName, defaultLibFileName) !== undefined,
     getCanonicalFileName: (fileName) =>
       host.useCaseSensitiveFileNames === false ? fileName.toLowerCase() : fileName,
     getCurrentDirectory: () => host.currentDirectory,
-    getDefaultLibFileName: () => "lib.d.ts",
+    getDefaultLibFileName: () => defaultLibFileName,
     getDirectories: () => [],
     getNewLine: () => "\n",
     getSourceFile,
-    readFile: (fileName) => host.readFile(resolveSemanticPath(fileName, host.currentDirectory)),
+    readFile: readFileText,
     useCaseSensitiveFileNames: () => host.useCaseSensitiveFileNames ?? true,
     writeFile: () => {},
   };
+}
+
+function defaultLibFileNameForCompilerHost(
+  compilerOptions: ts.CompilerOptions,
+): string {
+  if (ts.sys) {
+    try {
+      return normalizePath(ts.getDefaultLibFilePath(compilerOptions));
+    } catch {
+      // Fall through to TypeScript's portable lib file name.
+    }
+  }
+
+  return ts.getDefaultLibFileName(compilerOptions);
+}
+
+function readTypeScriptLibFile(
+  fileName: string,
+  compilerOptions: ts.CompilerOptions,
+): string | undefined {
+  const sys = ts.sys;
+
+  if (!sys) {
+    return undefined;
+  }
+
+  if (sys.fileExists(fileName)) {
+    return sys.readFile(fileName);
+  }
+
+  try {
+    const libDirectory = dirnamePath(ts.getDefaultLibFilePath(compilerOptions));
+    const candidate = joinPath(libDirectory, basenamePath(fileName));
+
+    return sys.fileExists(candidate) ? sys.readFile(candidate) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function fallbackAmbientFile(
+  fileName: string,
+  defaultLibFileName: string,
+): string | undefined {
+  return basenamePath(fileName) === basenamePath(defaultLibFileName)
+    ? fallbackAmbientDeclarations()
+    : undefined;
+}
+
+function overlayCompilerHost(
+  compilerOptions: ts.CompilerOptions,
+  currentDirectory: string,
+  sourceFiles: Map<string, string>,
+): ts.CompilerHost {
+  const host = ts.createCompilerHost(compilerOptions);
+  const readFile = host.readFile.bind(host);
+  const fileExists = host.fileExists.bind(host);
+  const getSourceFile = host.getSourceFile.bind(host);
+  const parsedSourceFiles = new Map<string, ts.SourceFile>();
+
+  host.fileExists = (fileName) => {
+    const resolved = resolveSemanticPath(fileName, currentDirectory);
+
+    return sourceFiles.has(resolved) || fileExists(fileName);
+  };
+  host.readFile = (fileName) => {
+    const resolved = resolveSemanticPath(fileName, currentDirectory);
+
+    return sourceFiles.get(resolved) ?? readFile(fileName);
+  };
+  host.getSourceFile = (
+    fileName,
+    languageVersion,
+    onError,
+    shouldCreateNewSourceFile,
+  ) => {
+    const resolved = resolveSemanticPath(fileName, currentDirectory);
+    const sourceText = sourceFiles.get(resolved);
+
+    if (sourceText === undefined) {
+      return getSourceFile(
+        fileName,
+        languageVersion,
+        onError,
+        shouldCreateNewSourceFile,
+      );
+    }
+
+    const existing = parsedSourceFiles.get(resolved);
+
+    if (existing) {
+      return existing;
+    }
+
+    const sourceFile = ts.createSourceFile(
+      resolved,
+      sourceText,
+      languageVersion,
+      true,
+      fileKind(resolved),
+    );
+
+    parsedSourceFiles.set(resolved, sourceFile);
+
+    return sourceFile;
+  };
+
+  return host;
 }
 
 function fileKind(path: string): ts.ScriptKind {
