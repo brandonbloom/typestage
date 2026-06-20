@@ -98,10 +98,12 @@ null
 
 Use `:q` or `:quit` to exit.
 
-## Throw And Block Adaptation
+## Blocks And Expression Adaptation
 
-`(throw expr)` is intentionally expression-shaped in Lisp, even though
-TypeScript `throw` is a statement. The compiler lowers it to a `q.block`:
+`(do statements... result)` and `(throw expr)` are intentionally
+expression-shaped in Lisp, even though their TypeScript lowerings are
+statement-shaped. The compiler lowers them to `q.block` fragments. For example,
+`throw` lowers to:
 
 ```ts
 q.block`
@@ -111,8 +113,8 @@ q.block`
 `
 ```
 
-When the throw form appears where an expression is required, TypeStage adapts
-the block through an IIFE:
+When one of those block forms appears where an expression is required, TypeStage
+adapts the block through an IIFE:
 
 ```ts
 return (() => {

@@ -601,9 +601,9 @@ function compileDoBlock(
     return undefined;
   }
 
-  return q.expr`(() => {
+  return q.block`{
     ${q.stmts`${statements}`}
-  })()`;
+  }`;
 }
 
 function compileArithmetic(
