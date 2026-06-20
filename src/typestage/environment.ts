@@ -114,11 +114,7 @@ function analyzeResidualReferences(
   const resolveValueReference = (identifier: ts.Identifier): ReferenceResolution => {
     const binding = codeBindings.get(identifier.text);
 
-    if (
-      binding &&
-      binding.quote.id !== fragment.quote.id &&
-      codeBindingMatchesPosition(binding.kind, "expr")
-    ) {
+    if (binding && binding.quote.id !== fragment.quote.id) {
       return {kind: "code", value: binding};
     }
 
@@ -170,11 +166,7 @@ function analyzeResidualReferences(
 
     const binding = codeBindings.get(name.text);
 
-    if (
-      binding &&
-      binding.quote.id !== fragment.quote.id &&
-      codeBindingMatchesPosition(binding.kind, "type")
-    ) {
+    if (binding && binding.quote.id !== fragment.quote.id) {
       return {kind: "code", value: binding};
     }
 
@@ -278,13 +270,6 @@ function collectBindingNameFromResidualPattern(
   }
 
   collectBindingName(name, names);
-}
-
-function codeBindingMatchesPosition(kind: CodeValue["kind"], expected: "expr" | "type") {
-  return (
-    (expected === "expr" && (kind === "expr" || kind === "ident" || kind === "block")) ||
-    (expected === "type" && (kind === "type" || kind === "ident"))
-  );
 }
 
 function typeReferenceIdentifier(node: ts.TypeReferenceNode): ts.Identifier | undefined {

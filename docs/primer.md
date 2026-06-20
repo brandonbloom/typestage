@@ -178,10 +178,10 @@ In statically compiled TypeStage source, prefer implicit unquoting for a plain
 identifier whose code-valued binding is statically known and compatible with the
 quoted position. Reserve explicit `${...}` splices for cases where the host side
 is doing real work: indexing or calling a host expression, splicing into a
-binding or sequence position, persisting a host expression that is not a plain
-identifier, handling a runtime value whose code-valuedness is not statically
-visible, or demonstrating explicit-splice behavior. In ordinary expression and
-type positions, `${fragment}` is usually noisier than `fragment`.
+binding position, persisting a host expression that is not a plain identifier,
+handling a runtime value whose code-valuedness is not statically visible, or
+demonstrating explicit-splice behavior. In ordinary expression, sequence,
+statement, and type positions, `${fragment}` is usually noisier than `fragment`.
 
 ## 5. Persistent Values
 
@@ -253,7 +253,7 @@ const args = q.exprs`a, b`;
 const suffix = q.expr`c`;
 
 export const callExpr = q.expr`
-  fn(0, ${args}, suffix, 3)
+  fn(0, args, suffix, 3)
 `;
 ```
 
@@ -269,8 +269,8 @@ single expression position. TypeScript has a comma operator, but TypeStage does
 not reinterpret a sequence splice as a comma expression because that would change
 meaning in ways that are too subtle for a code generator substrate.
 
-In the example above, `${args}` is explicit because it expands to a sequence.
-The singleton expression fragment `suffix` can use implicit unquoting.
+In the example above, `args` expands in an argument-list position. The singleton
+expression fragment `suffix` uses the same implicit unquoting rule.
 
 ## 7. Types and Patterns
 
@@ -290,8 +290,8 @@ const Result = q.type`Date`;
 
 export const decl = q.decl`
   export type Box = Array<Element>;
-  export type Tuple = [${Params}];
-  export type Handler = Fn<${Params}, Result>;
+  export type Tuple = [Params];
+  export type Handler = Fn<Params, Result>;
 `;
 ```
 
@@ -352,7 +352,7 @@ const body = q.stmt`
 
 export const fn = q.decl`
   export function f() {
-    ${body}
+    body
   }
 `;
 ```

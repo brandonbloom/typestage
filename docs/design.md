@@ -15,7 +15,7 @@ const expr = q.expr`x + 1`;
 
 const stmt = q.stmt`
   if (test) {
-    ${body}
+    body
   }
 `;
 ```
@@ -58,11 +58,11 @@ import { q } from "typestage";
 
 q.expr`x + y`
 q.stmt`return expr;`
-q.block`{ ${stmts} }`
+q.block`{ stmts }`
 q.decl`const x = init;`
 q.module`
   import { foo } from "foo";
-  ${decls}
+  decls
 `
 q.type`Array<T>`
 q.pattern`{ x, y }`
@@ -162,9 +162,9 @@ that phase boundary.
 Style rule: in statically compiled TypeStage source, when a statically known
 code-valued host binding can be referenced as a plain identifier in the quote,
 prefer implicit unquoting. Explicit `${...}` is for host expressions that are
-not plain identifiers, binding and sequence splices, persistence in non-plain
-expression forms, runtime values whose code-valuedness is not statically
-visible, and examples or tests that are specifically about explicit splicing.
+not plain identifiers, binding positions, persistence in non-plain expression
+forms, runtime values whose code-valuedness is not statically visible, and
+examples or tests that are specifically about explicit splicing.
 Runtime `RuntimeCode`
 construction cannot rely on implicit unquoting because there is no static quote
 site whose lexical environment can be analyzed.
@@ -349,7 +349,7 @@ const stmts = q.stmts`
 
 q.block`
   {
-    ${stmts}
+    stmts
     return x + y;
   }
 `;

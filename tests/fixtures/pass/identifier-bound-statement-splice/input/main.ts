@@ -8,6 +8,6 @@ const body = q.stmt`
 
 export const fn = q.decl`
   export function f(${x}: number) {
-    ${body}
+    body
   }
 `;

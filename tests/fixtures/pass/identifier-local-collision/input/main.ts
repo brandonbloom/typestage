@@ -10,7 +10,7 @@ const setup = q.stmt`
 export const fn = q.decl`
   export function run() {
     const tmp = "outer";
-    ${setup}
+    setup
     return tmp;
   }
 `;

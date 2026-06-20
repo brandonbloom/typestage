@@ -83,7 +83,7 @@
       "quoteId": 2,
       "moduleId": "main.ts",
       "kind": "decl",
-      "text": "export function run() {\n    const tmp_1 = \"outer\";\n    const tmp = \"inner\";\n    String(tmp);\n    return tmp_1;\n}"
+      "text": "export function run() {\n    const tmp = \"outer\";\n    const tmp_1 = \"inner\";\n    String(tmp_1);\n    return tmp;\n}"
     }
   ],
   "diagnostics": [],

@@ -1,0 +1,73 @@
+{
+  "modules": [
+    {
+      "inputPath": "tests/fixtures/pass/implicit-block-statement-splice/input/main.ts",
+      "outputPath": "main.ts",
+      "quotes": [
+        {
+          "id": 0,
+          "moduleId": "main.ts",
+          "kind": "block",
+          "bindingName": "body",
+          "exported": false
+        },
+        {
+          "id": 1,
+          "moduleId": "main.ts",
+          "kind": "decl",
+          "bindingName": "fn",
+          "exported": true
+        }
+      ],
+      "bindings": {
+        "codeBindings": [
+          {
+            "name": "body",
+            "kind": "block",
+            "quoteId": 0
+          },
+          {
+            "name": "fn",
+            "kind": "decl",
+            "quoteId": 1
+          }
+        ],
+        "localBindingsByQuote": [
+          {
+            "quoteId": 0,
+            "names": [
+              "value"
+            ]
+          },
+          {
+            "quoteId": 1,
+            "names": [
+              "f"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "expanded": [
+    {
+      "quoteId": 0,
+      "moduleId": "main.ts",
+      "kind": "block",
+      "text": "{\n    const value = 1;\n    return value;\n}"
+    },
+    {
+      "quoteId": 1,
+      "moduleId": "main.ts",
+      "kind": "decl",
+      "text": "export function f() {\n    {\n        const value = 1;\n        return value;\n    }\n}"
+    }
+  ],
+  "diagnostics": [],
+  "files": [
+    {
+      "inputPath": "tests/fixtures/pass/implicit-block-statement-splice/input/main.ts",
+      "outputPath": "main.ts"
+    }
+  ]
+}

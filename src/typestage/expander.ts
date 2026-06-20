@@ -641,6 +641,42 @@ function expandFragmentBody(
     placeSplice: placeSpliceValue,
   };
 
+  const expressionStatementReplacements = (
+    statement: ts.ExpressionStatement,
+  ): ts.Node[] | undefined => {
+    if (!ts.isIdentifier(statement.expression)) {
+      return undefined;
+    }
+
+    const hole = holes.get(statement.expression.text);
+
+    if (hole) {
+      return expandSpliceExpression(
+        hole,
+        "stmt",
+        fragment.quote.cardinality,
+      );
+    }
+
+    const resolved = environment.lookupValue(statement.expression);
+
+    if (
+      resolved.kind !== "code" ||
+      !canImplicitlyPlaceAsStatement(resolved.value.kind)
+    ) {
+      return undefined;
+    }
+
+    return placement.placeCode(
+      resolved.value,
+      {
+        cardinality: fragment.quote.cardinality,
+        kind: "stmt",
+        origin: originForNode(fragment, statement.expression),
+      },
+    );
+  };
+
   const rewriteCandidate = (candidate: ts.Node): RewriteDecision => {
     if (ts.isTypeReferenceNode(candidate)) {
       const name = typeReferenceIdentifier(candidate);
@@ -662,10 +698,7 @@ function expandFragmentBody(
 
         const resolved = environment.lookupType(candidate);
 
-        if (
-          resolved.kind === "code" &&
-          codeBindingMatchesPosition(resolved.value.kind, "type")
-        ) {
+        if (resolved.kind === "code") {
           const replacements = placement.placeCode(
             resolved.value,
             {
@@ -722,19 +755,11 @@ function expandFragmentBody(
       ts.isExpressionStatement(candidate) &&
       ts.isIdentifier(candidate.expression)
     ) {
-      const hole = holes.get(candidate.expression.text);
+      const replacements = expressionStatementReplacements(candidate);
 
-      if (hole) {
-        const replacements = expandSpliceExpression(
-          hole,
-          "stmt",
-          fragment.quote.cardinality,
-        );
-
-        return replacements
-          ? {kind: "replaceMany", nodes: replacements}
-          : {kind: "keep"};
-      }
+      return replacements
+        ? {kind: "replaceMany", nodes: replacements}
+        : {kind: "keep"};
     }
 
     if (ts.isIdentifier(candidate)) {
@@ -770,10 +795,7 @@ function expandFragmentBody(
 
       const resolved = environment.lookupValue(candidate);
 
-      if (
-        resolved.kind === "code" &&
-        codeBindingMatchesPosition(resolved.value.kind, "expr")
-      ) {
+      if (resolved.kind === "code") {
         if (isExpressionListPosition(candidate)) {
           const replacements = placement.placeCode(
             resolved.value,
@@ -843,14 +865,10 @@ function expandFragmentBody(
         ts.isExpressionStatement(node) &&
         ts.isIdentifier(node.expression)
       ) {
-        const hole = holes.get(node.expression.text);
+        const replacements = expressionStatementReplacements(node);
 
-        if (hole) {
-          return expandSpliceExpression(
-            hole,
-            "stmt",
-            fragment.quote.cardinality,
-          ) ?? [node];
+        if (replacements) {
+          return replacements;
         }
       }
 
@@ -906,10 +924,8 @@ function syntaxFamilyForKind(kind: FragmentKind): SyntaxFamily | undefined {
   }
 }
 
-function codeBindingMatchesPosition(kind: FragmentKind, expected: SyntaxFamily): boolean {
-  return syntaxFamilyForKind(kind) === expected ||
-    (kind === "block" && expected === "expr") ||
-    (kind === "ident" && (expected === "expr" || expected === "type"));
+function canImplicitlyPlaceAsStatement(kind: FragmentKind): boolean {
+  return kind === "stmt" || kind === "block" || kind === "decl";
 }
 
 function identifierReplacementNodes(

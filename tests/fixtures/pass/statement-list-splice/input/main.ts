@@ -14,6 +14,6 @@ const body = q.stmts`
 
 export const fn = q.decl`
   export function sum() {
-    ${body}
+    body
   }
 `;
