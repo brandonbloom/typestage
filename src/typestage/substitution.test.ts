@@ -1,32 +1,35 @@
 import {describe, expect, test} from "bun:test";
 import * as ts from "typescript";
 import {printNodes} from "./ast-print.ts";
-import {InsertionHygiene} from "./insertion-hygiene.ts";
 import {q} from "./runtime.ts";
+import {
+  allIdentifierNames,
+  prepareSubstitutionRecipient,
+  Substitution,
+} from "./substitution.ts";
 import type {CodeValue, ParsedFragment, QuoteForm} from "./types.ts";
 
-describe("InsertionHygiene", () => {
+describe("Substitution", () => {
   test("renames recipient locals that would capture inserted free references", () => {
     const fragment = fragmentFromStatements(1, "snippet;\nconst x = 0;");
     const snippet = codeValue(2, "expr", [expressionNode("x + 1")]);
-    const hygiene = new InsertionHygiene(
+    const prepared = prepareSubstitutionRecipient({
       fragment,
-      new Map([["snippet", snippet]]),
-      new Map([[snippet.quote.id, snippet]]),
-    );
-
-    const prepared = hygiene.prepareRecipient(new Set(["x"]));
+      locals: new Set(["x"]),
+      codeBindings: new Map([["snippet", snippet]]),
+      values: new Map([[snippet.quote.id, snippet]]),
+    });
 
     expect(printNodes(prepared)).toEqual("snippet;\nconst x_1 = 0;");
   });
 
   test("renames inserted locals that collide with occupied recipient names", () => {
     const fragment = fragmentFromStatements(1, "const x = 0;");
-    const hygiene = new InsertionHygiene(fragment, new Map(), new Map());
-
-    hygiene.beginInsertions(new Set(["x"]), fragment.nodes);
-
-    const inserted = hygiene.insert(statementNodes("const x = 1;"));
+    const substitution = new Substitution({
+      occupiedNames: new Set(["x"]),
+      usedNames: allIdentifierNames(fragment.nodes),
+    });
+    const inserted = substitution.apply(statementNodes("const x = 1;"));
 
     expect(printNodes(inserted)).toEqual("const x_1 = 1;");
   });

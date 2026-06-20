@@ -20,13 +20,17 @@ import {
   isBindingName,
   isReferenceIdentifier,
 } from "./residual-scope.ts";
-import {InsertionHygiene} from "./insertion-hygiene.ts";
 import {type SemanticContext} from "./semantic.ts";
 import {
   capturedValueForHole,
   SpliceEvaluator,
   type SpliceValue,
 } from "./splice-evaluator.ts";
+import {
+  allIdentifierNames,
+  prepareSubstitutionRecipient,
+  Substitution,
+} from "./substitution.ts";
 import {Environment, residualImportKey} from "./environment.ts";
 import type {
   CodeValue,
@@ -246,10 +250,14 @@ function expandFragmentBody(
   const codeBindings = context.codeBindings(fragment);
   const importBindings = context.importBindings(fragment);
   const values = context.values;
-  const hygiene = new InsertionHygiene(fragment, codeBindings, values);
   annotateFragmentNodeOrigins(fragment);
   const initialLocals = collectLocalBindings(fragment);
-  const sourceNodes = hygiene.prepareRecipient(initialLocals);
+  const sourceNodes = prepareSubstitutionRecipient({
+    fragment,
+    locals: initialLocals,
+    codeBindings,
+    values,
+  });
   const renamedFragment =
     sourceNodes === fragment.nodes ? fragment : {...fragment, nodes: sourceNodes};
   const locals = collectLocalBindings(renamedFragment);
@@ -272,7 +280,10 @@ function expandFragmentBody(
     }
   };
 
-  hygiene.beginInsertions(locals, sourceNodes);
+  const substitution = new Substitution({
+    occupiedNames: locals,
+    usedNames: allIdentifierNames(sourceNodes),
+  });
   const holes = new Map(fragment.quote.holes.map((hole) => [hole.placeholder, hole]));
   const spliceEvaluator = new SpliceEvaluator(
     context,
@@ -331,7 +342,7 @@ function expandFragmentBody(
       return undefined;
     }
 
-    return hygiene.insert([setTreeOrigin(persisted.expression, hole.origin)]);
+    return substitution.apply([setTreeOrigin(persisted.expression, hole.origin)]);
   };
 
   const expandCapturedHostReference = (
@@ -490,7 +501,7 @@ function expandFragmentBody(
       ));
     }
 
-    return hygiene.insert(replacements)
+    return substitution.apply(replacements)
       .filter(ts.isParameter);
   };
 
@@ -510,7 +521,7 @@ function expandFragmentBody(
       return undefined;
     }
 
-    const replacements = hygiene.insert([
+    const replacements = substitution.apply([
       copyNodeOrigin(
         ts.factory.updateVariableDeclaration(
           declaration,
@@ -554,7 +565,7 @@ function expandFragmentBody(
       const replacements = identifierReplacementNodes(expandedNodes, expected);
 
       if (replacements) {
-        return hygiene.insert(replacements);
+        return substitution.apply(replacements);
       }
     }
 
@@ -573,11 +584,11 @@ function expandFragmentBody(
       }
 
       if (expectedCardinality === "many") {
-        return hygiene.insert(replacements);
+        return substitution.apply(replacements);
       }
 
       if (replacements.length === 1) {
-        return hygiene.insert(replacements);
+        return substitution.apply(replacements);
       }
 
       diagnostics.push({
@@ -600,7 +611,7 @@ function expandFragmentBody(
         return undefined;
       }
 
-      return hygiene.insert([adapted.expression]);
+      return substitution.apply([adapted.expression]);
     }
 
     if (!isCompatible(expanded.kind, expected)) {
@@ -612,7 +623,7 @@ function expandFragmentBody(
       return undefined;
     }
 
-    return hygiene.insert(expandedNodes);
+    return substitution.apply(expandedNodes);
   };
 
   const placement: Placement = {

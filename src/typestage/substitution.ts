@@ -8,48 +8,51 @@ import {
 import {codeValueForExpression} from "./splice-evaluator.ts";
 import type {CodeValue, ParsedFragment} from "./types.ts";
 
-export class InsertionHygiene {
-  private occupiedLocalNames = new Set<string>();
-  private usedIdentifierNames = new Set<string>();
-  private readonly codeBindings: Map<string, CodeValue>;
-  private readonly fragment: ParsedFragment;
-  private readonly values: Map<number, CodeValue>;
+export type PrepareSubstitutionRecipientOptions = {
+  fragment: ParsedFragment;
+  locals: Set<string>;
+  codeBindings: Map<string, CodeValue>;
+  values: Map<number, CodeValue>;
+};
 
-  constructor(
-    fragment: ParsedFragment,
-    codeBindings: Map<string, CodeValue>,
-    values: Map<number, CodeValue>,
-  ) {
-    this.codeBindings = codeBindings;
-    this.fragment = fragment;
-    this.values = values;
+/** Renames recipient bindings that would capture free references from substitutions. */
+export function prepareSubstitutionRecipient(
+  options: PrepareSubstitutionRecipientOptions,
+): ts.Node[] {
+  const captureRenames = captureAvoidanceRenames(
+    options.fragment,
+    options.locals,
+    options.codeBindings,
+    options.values,
+  );
+
+  return captureRenames.size > 0
+    ? renameIdentifiers(options.fragment.nodes, captureRenames)
+    : options.fragment.nodes;
+}
+
+export type SubstitutionOptions = {
+  occupiedNames: Set<string>;
+  usedNames: Set<string>;
+};
+
+/** Applies capture-avoiding replacements into one residual fragment. */
+export class Substitution {
+  private readonly occupiedNames: Set<string>;
+  private readonly usedNames: Set<string>;
+
+  constructor(options: SubstitutionOptions) {
+    this.occupiedNames = new Set(options.occupiedNames);
+    this.usedNames = new Set(options.usedNames);
   }
 
-  prepareRecipient(locals: Set<string>): ts.Node[] {
-    const captureRenames = captureAvoidanceRenames(
-      this.fragment,
-      locals,
-      this.codeBindings,
-      this.values,
-    );
-
-    return captureRenames.size > 0
-      ? renameIdentifiers(this.fragment.nodes, captureRenames)
-      : this.fragment.nodes;
-  }
-
-  beginInsertions(locals: Set<string>, sourceNodes: ts.Node[]) {
-    this.occupiedLocalNames = new Set(locals);
-    this.usedIdentifierNames = allIdentifierNames(sourceNodes);
-  }
-
-  insert(nodes: ts.Node[]): ts.Node[] {
+  apply(nodes: ts.Node[]): ts.Node[] {
     const localNames = collectLocalBindingNames(nodes);
     const conflicts = Array.from(localNames)
-      .filter((name) => this.occupiedLocalNames.has(name))
+      .filter((name) => this.occupiedNames.has(name))
       .sort();
     const used = new Set([
-      ...this.usedIdentifierNames,
+      ...this.usedNames,
       ...allIdentifierNames(nodes),
     ]);
     let result = nodes;
@@ -65,11 +68,11 @@ export class InsertionHygiene {
     }
 
     for (const name of collectLocalBindingNames(result)) {
-      this.occupiedLocalNames.add(name);
+      this.occupiedNames.add(name);
     }
 
     for (const name of allIdentifierNames(result)) {
-      this.usedIdentifierNames.add(name);
+      this.usedNames.add(name);
     }
 
     return result;
