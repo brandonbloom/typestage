@@ -174,9 +174,14 @@ Implicit unquoting is lexical. If the residual code introduces its own binding
 named `normalized`, that residual binding wins. This keeps short templates
 pleasant without turning every identifier into a magical host lookup.
 
-Use explicit splices when you want the dataflow to be obvious. Use implicit
-unquoting when a local helper fragment is part of the surrounding template and
-the quote reads better as code.
+In statically compiled TypeStage source, prefer implicit unquoting for a plain
+identifier whose code-valued binding is statically known and compatible with the
+quoted position. Reserve explicit `${...}` splices for cases where the host side
+is doing real work: indexing or calling a host expression, splicing into a
+binding or sequence position, forcing persistence of a host value, handling a
+runtime value whose code-valuedness is not statically visible, or demonstrating
+explicit-splice behavior. In ordinary expression and type positions,
+`${fragment}` is usually noisier than `fragment`.
 
 ## 5. Persistent Values
 
@@ -284,7 +289,7 @@ const Params = q.types`number, boolean`;
 const Result = q.type`Date`;
 
 export const decl = q.decl`
-  export type Box = Array<${Element}>;
+  export type Box = Array<Element>;
   export type Tuple = [${Params}];
   export type Handler = Fn<${Params}, Result>;
 `;
@@ -433,6 +438,8 @@ This pattern shows up constantly in compilers. A parser or analyzer discovers
 semantic names. The generator turns them into identifiers. The identifiers
 appear in binding positions such as parameters, destructuring patterns, and
 variable declarations, then appear again in expression positions as references.
+The `field` callback parameter is a runtime value that carries code, so it uses
+an explicit splice. It is not a statically known TypeStage code binding.
 
 The same identifier fragment can be reused in both places because it is not just
 text. It is syntax with a known role.
@@ -635,7 +642,9 @@ generator computes with semantic data, then emits TypeScript by constructing
 syntax fragments. A real compiler would replace the inline `source` object with
 an AST, an intermediate representation, or checked semantic model. The TypeStage
 part remains the same: lower facts into syntax values and compose those values
-into residual modules.
+into residual modules. The explicit `${field}` splice inside the `params.map`
+callback is necessary because `field` is a runtime value produced by the map,
+not a statically known TypeStage code binding.
 
 ## 14. Runtime Compilation And External Origins
 

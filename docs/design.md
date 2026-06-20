@@ -14,7 +14,7 @@ import { q } from "typestage";
 const expr = q.expr`x + 1`;
 
 const stmt = q.stmt`
-  if (${test}) {
+  if (test) {
     ${body}
   }
 `;
@@ -57,14 +57,14 @@ TypeStage uses tagged-template quote forms imported from the TypeStage runtime:
 import { q } from "typestage";
 
 q.expr`x + y`
-q.stmt`return ${expr};`
+q.stmt`return expr;`
 q.block`{ ${stmts} }`
-q.decl`const x = ${init};`
+q.decl`const x = init;`
 q.module`
   import { foo } from "foo";
   ${decls}
 `
-q.type`Array<${T}>`
+q.type`Array<T>`
 q.pattern`{ x, y }`
 ```
 
@@ -157,6 +157,15 @@ imported function or value, TypeStage emits the corresponding import with the
 generated code, even when the quote is imported and emitted from another module.
 Use an explicit splice such as `${settings}` when you want the staging-time
 snapshot of an imported value instead.
+
+Style rule: in statically compiled TypeStage source, when a statically known
+code-valued host binding can be referenced as a plain identifier in the quote,
+prefer implicit unquoting. Explicit `${...}` is for host expressions that are
+not plain identifiers, binding and sequence splices, intentional persistence,
+runtime values whose code-valuedness is not statically visible, and examples or
+tests that are specifically about explicit splicing. Runtime `RuntimeCode`
+construction cannot rely on implicit unquoting because there is no static quote
+site whose lexical environment can be analyzed.
 
 ## Binding Analysis
 
